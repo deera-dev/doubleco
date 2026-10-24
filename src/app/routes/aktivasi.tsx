@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ActivationForm } from '@/features/auth/components/ActivationForm'
-import { AuthCard } from '@/features/auth/components/AuthCard'
+import { AuthLayout } from '@/features/auth/components/AuthLayout'
 
 export const Route = createFileRoute('/aktivasi')({
   component: ActivationPage,
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/aktivasi')({
 
 function ActivationPage() {
   return (
-    <AuthCard
+    <AuthLayout
       title="Aktivasi Akun"
       description="Masukkan kode aktivasi lalu buat password Anda sendiri."
       footer={
@@ -18,6 +18,6 @@ function ActivationPage() {
       }
     >
       <ActivationForm />
-    </AuthCard>
+    </AuthLayout>
   )
 }

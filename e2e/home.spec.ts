@@ -4,7 +4,7 @@ test('visitors without a session are sent to the login page', async ({ page }) =
   await page.goto('/')
 
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole('heading', { name: 'Masuk' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Selamat datang' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible()
 })
 
