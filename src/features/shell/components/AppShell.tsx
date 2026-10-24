@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {me.data.hasAccess ? (
             children
           ) : (
-            <div className="surface rounded-3xl p-8 text-center">
+            <div className="surface animate-rise rounded-3xl p-8 text-center">
               <p className="font-semibold">Akun belum diberi akses</p>
               <p className="mt-1 text-muted-foreground text-sm">
                 Hubungi admin agar akun Anda diberi peran.

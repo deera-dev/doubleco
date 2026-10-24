@@ -1,7 +1,13 @@
 import { cn } from '@/shared/lib/utils'
 
 export function BrandMark({ className }: { className?: string }) {
-  return <img src="/logo-mark.svg" alt="DoubleCo" className={cn('logo-glow w-auto', className)} />
+  return (
+    <img
+      src="/logo-mark.svg"
+      alt="DoubleCo"
+      className={cn('logo-glow w-auto animate-breathe', className)}
+    />
+  )
 }
 
 export function BrandLockup({ subtitle = 'Produksi Maryam' }: { subtitle?: string }) {

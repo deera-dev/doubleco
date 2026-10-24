@@ -10,13 +10,13 @@ export function announceSoon(item: NavigationItem) {
 export function SidebarEntry({ item }: { item: NavigationItem }) {
   const content = (
     <>
-      <item.icon className="size-4.5 shrink-0" />
+      <item.icon className="size-4.5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
       <span className="flex-1 truncate">{item.title}</span>
       {!item.to && <span className="text-subtle-foreground text-xs">Segera</span>}
     </>
   )
   const baseClass =
-    'flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-sm transition-colors'
+    'group flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-sm transition-all duration-200 active:scale-98'
 
   if (item.to) {
     return (

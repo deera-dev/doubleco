@@ -35,7 +35,7 @@ export function MobileTopBar({ me }: { me: Me }) {
             <Avatar name={me.displayName} />
           </button>
           {isMenuOpen && (
-            <div className="surface chrome absolute top-12 right-0 w-56 rounded-2xl bg-popover/95 p-2">
+            <div className="surface chrome absolute top-12 right-0 w-56 origin-top-right animate-pop rounded-2xl bg-popover/95 p-2">
               <div className="px-2.5 py-2 leading-tight">
                 <p className="truncate font-medium text-sm">{me.displayName}</p>
                 <p className="truncate text-muted-foreground text-xs">{roleLabel(me.role)}</p>
@@ -59,7 +59,7 @@ export function MobileTopBar({ me }: { me: Me }) {
 
 function DockEntry({ item }: { item: NavigationItem }) {
   const className =
-    'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground transition-colors'
+    'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground transition-all duration-200 active:scale-90'
   const content = (
     <>
       <item.icon className="size-5" />
@@ -90,7 +90,7 @@ export function BottomDock() {
   return (
     <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
       {isMoreOpen && (
-        <div className="surface chrome mb-2 grid grid-cols-2 gap-1 rounded-3xl bg-popover/95 p-2">
+        <div className="surface chrome mb-2 grid origin-bottom animate-pop grid-cols-2 gap-1 rounded-3xl bg-popover/95 p-2">
           {moreItems.map((item) => (
             <button
               key={item.title}
@@ -99,7 +99,7 @@ export function BottomDock() {
                 setIsMoreOpen(false)
                 announceSoon(item)
               }}
-              className="flex h-12 items-center gap-2.5 rounded-2xl px-3 text-left text-muted-foreground text-sm hover:bg-surface-hover"
+              className="flex h-12 items-center gap-2.5 rounded-2xl px-3 text-left text-muted-foreground text-sm transition-colors hover:bg-surface-hover hover:text-foreground active:scale-97"
             >
               <item.icon className="size-4.5" />
               {item.title}
@@ -111,14 +111,16 @@ export function BottomDock() {
         <DockEntry item={homeItem} />
         <DockEntry item={workOrderItem} />
         <div className="flex flex-1 items-start justify-center">
-          <button
-            type="button"
-            onClick={() => announceSoon(scanItem)}
-            aria-label={scanItem.title}
-            className="sheen-primary -mt-5 flex size-14 items-center justify-center rounded-2xl text-primary-foreground ring-4 ring-background"
-          >
-            <scanItem.icon className="size-6" />
-          </button>
+          <span className="-mt-5 animate-pulse-ring rounded-2xl">
+            <button
+              type="button"
+              onClick={() => announceSoon(scanItem)}
+              aria-label={scanItem.title}
+              className="sheen-primary flex size-14 items-center justify-center rounded-2xl text-primary-foreground outline-4 outline-background transition-transform duration-200 active:scale-90"
+            >
+              <scanItem.icon className="size-6" />
+            </button>
+          </span>
         </div>
         <DockEntry item={payrollItem} />
         <button

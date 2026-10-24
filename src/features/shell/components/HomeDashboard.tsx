@@ -11,15 +11,30 @@ import { moduleItems, type NavigationItem, scanItem } from '@/features/shell/nav
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 
+const staggerClasses = [
+  'stagger-1',
+  'stagger-2',
+  'stagger-3',
+  'stagger-4',
+  'stagger-5',
+  'stagger-6',
+]
+
 function ScanHero() {
   return (
-    <section className="hero-surface relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:col-span-2">
+    <section className="hero-surface stagger-1 relative animate-rise overflow-hidden rounded-3xl p-6 sm:p-8 lg:col-span-2">
       <div className="grid-pattern pointer-events-none absolute inset-0" />
-      <ScanLine
+      <div
         aria-hidden="true"
-        strokeWidth={1}
-        className="pointer-events-none absolute -right-8 -bottom-12 hidden size-72 text-brand-200/10 sm:block"
+        className="pointer-events-none absolute -top-24 -left-24 size-80 animate-drift rounded-full bg-brand-500/15 blur-3xl"
       />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-8 -bottom-12 hidden size-72 sm:block"
+      >
+        <ScanLine strokeWidth={1} className="size-full text-brand-200/10" />
+        <div className="absolute inset-x-12 top-1/2 h-px animate-scan bg-brand-200/60 shadow-lg shadow-brand-400" />
+      </div>
       <div className="relative flex h-full flex-col gap-8">
         <div className="flex items-center justify-between gap-3">
           <span className="rounded-full border border-border-strong bg-background/40 px-3 py-1 font-medium text-brand-100 text-xs">
@@ -55,7 +70,7 @@ function PaydayCard({ today }: { today: Date }) {
   const headline = daysUntil === 0 ? 'Hari ini' : `${daysUntil} hari lagi`
 
   return (
-    <section className="surface flex flex-col gap-6 rounded-3xl p-6 sm:p-8">
+    <section className="surface stagger-2 flex animate-rise flex-col gap-6 rounded-3xl p-6 sm:p-8">
       <div className="space-y-1">
         <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
           Gajian berikutnya
@@ -70,14 +85,17 @@ function PaydayCard({ today }: { today: Date }) {
       <div className="mt-auto space-y-2">
         <div className="grid grid-cols-6 gap-1.5">
           {workdays.map((day, index) => (
-            <div
-              key={day.key}
-              className={cn(
-                'h-1.5 rounded-full bg-border-strong',
-                workdayIndex !== null && index < workdayIndex && 'bg-metal-500',
-                index === workdayIndex && 'sheen-primary',
-              )}
-            />
+            <div key={day.key} className="h-1.5 overflow-hidden rounded-full bg-border-strong">
+              <div
+                className={cn(
+                  'h-full origin-left animate-fill rounded-full',
+                  staggerClasses[index],
+                  workdayIndex !== null && index < workdayIndex && 'bg-metal-500',
+                  index === workdayIndex && 'sheen-primary',
+                  (workdayIndex === null || index > workdayIndex) && 'hidden',
+                )}
+              />
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-6 gap-1.5 text-center font-mono text-subtle-foreground text-xs">
@@ -92,15 +110,15 @@ function PaydayCard({ today }: { today: Date }) {
   )
 }
 
-function ModuleRow({ item }: { item: NavigationItem }) {
+function ModuleRow({ item, index }: { item: NavigationItem; index: number }) {
   return (
-    <li>
+    <li className={cn('animate-rise', staggerClasses[index])}>
       <button
         type="button"
         onClick={() => announceSoon(item)}
-        className="surface group flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-colors hover:bg-surface-hover"
+        className="surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover"
       >
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 text-metal-200">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 text-metal-200 transition-colors duration-300 group-hover:border-brand-400/50 group-hover:text-brand-100">
           <item.icon className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
@@ -119,7 +137,7 @@ function ModuleRow({ item }: { item: NavigationItem }) {
 export function HomeDashboard({ displayName, now }: { displayName: string; now: Date }) {
   return (
     <div className="space-y-10">
-      <header className="space-y-2">
+      <header className="animate-rise space-y-2">
         <p className="text-muted-foreground text-sm capitalize">{formatLongDate(now)}</p>
         <h1 className="font-semibold text-3xl tracking-tight sm:text-4xl">
           {greetingFor(now)}, <span className="text-metal">{displayName}</span>
@@ -131,7 +149,7 @@ export function HomeDashboard({ displayName, now }: { displayName: string; now: 
         <PaydayCard today={now} />
       </div>
 
-      <section className="space-y-4">
+      <section className="stagger-3 animate-rise space-y-4">
         <div className="flex items-baseline justify-between">
           <h2 className="font-semibold text-lg tracking-tight">Modul</h2>
           <p className="text-muted-foreground text-sm">
@@ -139,8 +157,8 @@ export function HomeDashboard({ displayName, now }: { displayName: string; now: 
           </p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2">
-          {moduleItems.map((item) => (
-            <ModuleRow key={item.title} item={item} />
+          {moduleItems.map((item, index) => (
+            <ModuleRow key={item.title} item={item} index={index} />
           ))}
         </ul>
       </section>
