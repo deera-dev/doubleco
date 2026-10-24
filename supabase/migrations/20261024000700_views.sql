@@ -122,3 +122,30 @@ join public.fabric_colors fc on fc.id = woi.fabric_color_id
 left join public.inspections i on i.sewing_card_id = sc.id
 where sc.status <> 'cancelled'
 group by wo.id, sc.id, t.name, t.code, s.name, fc.name;
+
+create view public.employees
+with (security_invoker = true)
+as
+select
+  'tailor'::text as employee_type,
+  t.id,
+  t.code,
+  t.name,
+  t.phone,
+  t.status::text as status,
+  t.status = 'active' as is_active,
+  t.left_on,
+  t.created_at
+from public.tailors t
+union all
+select
+  'cutter'::text,
+  c.id,
+  null,
+  c.name,
+  null,
+  case when c.is_active then 'active' else 'inactive' end,
+  c.is_active,
+  null,
+  c.created_at
+from public.cutters c;

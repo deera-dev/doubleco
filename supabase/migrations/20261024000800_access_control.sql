@@ -16,7 +16,7 @@ end;
 $$;
 
 revoke all on public.tailor_advance_balances, public.outstanding_sewing_cards, public.weekly_deposit_grid,
-  public.work_order_progress, public.thp_rows from anon;
+  public.work_order_progress, public.thp_rows, public.employees from anon;
 
 create policy profiles_select on public.profiles
 for select to authenticated
@@ -51,12 +51,28 @@ begin
       table_name || '_insert_production_head', table_name
     );
   end loop;
+
+  foreach table_name in array array['tailors', 'tailor_payment_accounts', 'cutters', 'products', 'fabrics', 'fabric_colors', 'sizes'] loop
+    execute format(
+      'create policy %I on public.%I for delete to authenticated using (public.has_role(''production_head''))',
+      table_name || '_delete_production_head', table_name
+    );
+  end loop;
 end;
 $$;
 
 create policy tailors_select_self on public.tailors
 for select to authenticated
 using (profile_id = auth.uid());
+
+create policy wage_rates_update_future on public.wage_rates
+for update to authenticated
+using (public.has_role('production_head') and effective_from > public.app_today())
+with check (public.has_role('production_head') and effective_from > public.app_today());
+
+create policy wage_rates_delete_future on public.wage_rates
+for delete to authenticated
+using (public.has_role('production_head') and effective_from > public.app_today());
 
 create policy audit_logs_select on public.audit_logs
 for select to authenticated
@@ -71,6 +87,7 @@ revoke execute on all functions in schema public from public, anon, authenticate
 
 grant execute on function
   public.app_today(),
+  public.raise_app_error(text, jsonb),
   public.current_app_role(),
   public.has_role(public.app_role[]),
   public.is_staff(),
@@ -80,13 +97,22 @@ grant execute on function
   public.find_account_number_owners(text),
   public.suggest_work_order_number(uuid),
   public.create_work_order(uuid, uuid, uuid, public.change_status, uuid[], uuid[], text, date, text, text, text, text, text, boolean, text),
-  public.record_cut_result(uuid, integer),
-  public.issue_sewing_card(uuid, uuid, integer, date, boolean, text),
+  public.record_cut_results(jsonb),
+  public.issue_sewing_cards(jsonb, date, boolean, text),
+  public.update_sewing_card(text, integer, uuid, text),
+  public.unsubmit_sewing_card(text, text),
+  public.delete_last_inspection(text, text),
+  public.add_work_order_items(uuid, uuid[], uuid[]),
+  public.remove_work_order_item(uuid),
+  public.cancel_work_order(uuid, text),
+  public.delete_work_order(uuid, text),
+  public.update_cash_advance_entry(uuid, bigint, date, text, text),
+  public.delete_cash_advance_entry(uuid, text),
+  public.unlock_payroll(date, text),
   public.submit_sewing_card(text, date, boolean, text, boolean, text),
   public.deliver_card_remaining(text, date),
   public.cancel_sewing_card(text, text),
   public.record_card_print(text[]),
-  public.mark_card_collected(text),
   public.record_inspection(text, integer, integer, integer, text, date),
   public.decide_deduction(uuid, public.deduction_decision, text),
   public.record_cash_advance(uuid, bigint, date, text, boolean, text),

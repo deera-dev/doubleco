@@ -18,6 +18,27 @@ create trigger tailors_set_updated_at
 before update on public.tailors
 for each row execute function public.set_updated_at();
 
+create function public.guard_tailor_status()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status = 'left' and old.status <> 'left'
+     and coalesce(current_setting('app.tailor_leaving', true), '') <> 'on' then
+    perform public.raise_app_error('USE_MARK_TAILOR_LEFT');
+  end if;
+  if new.status <> 'left' then
+    new.left_on := null;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tailors_guard_status
+before update of status on public.tailors
+for each row execute function public.guard_tailor_status();
+
 create table public.tailor_payment_accounts (
   id uuid primary key default gen_random_uuid(),
   tailor_id uuid not null references public.tailors (id),

@@ -105,7 +105,7 @@ declare
 begin
   perform public.require_role('production_head');
 
-  perform 1 from public.tailors where id = p_tailor_id and status = 'active' for update;
+  perform 1 from public.tailors where id = p_tailor_id and status <> 'left' for update;
   if not found then
     perform public.raise_app_error('TAILOR_NOT_ACTIVE', jsonb_build_object('tailor_id', p_tailor_id));
   end if;
@@ -119,7 +119,9 @@ begin
   perform public.require_confirmation(warnings, p_confirmed);
   perform public.set_audit_reason(coalesce(p_override_reason, p_notes));
 
+  perform set_config('app.tailor_leaving', 'on', true);
   update public.tailors set status = 'left', left_on = left_date where id = p_tailor_id;
+  perform set_config('app.tailor_leaving', '', true);
 
   balance := public.tailor_advance_balance(p_tailor_id);
   if balance > 0 then
@@ -431,12 +433,7 @@ begin
 
   select coalesce(jsonb_agg(w), '[]'::jsonb) into warnings
   from (
-    select jsonb_build_object('code', 'UNCOLLECTED_CARD', 'card_number', sc.number, 'tailor_id', sc.tailor_id) as w
-    from public.sewing_cards sc
-    join public.payroll_lines pl on pl.id = sc.payroll_line_id
-    where pl.payroll_period_id = period.id and sc.collected_at is null
-    union all
-    select jsonb_build_object('code', 'MISSING_PAYMENT_ACCOUNT', 'tailor_id', pl.tailor_id)
+    select jsonb_build_object('code', 'MISSING_PAYMENT_ACCOUNT', 'tailor_id', pl.tailor_id) as w
     from public.payroll_lines pl
     where pl.payroll_period_id = period.id and pl.transfer_amount > 0
       and not exists (select 1 from public.tailor_payment_accounts a where a.tailor_id = pl.tailor_id and a.is_active)
@@ -500,5 +497,117 @@ begin
   where id = line.id
   returning * into line;
   return line;
+end;
+$$;
+
+create function public.update_cash_advance_entry(
+  p_entry_id uuid,
+  p_amount bigint,
+  p_entry_on date,
+  p_notes text default null,
+  p_reason text default null
+)
+returns public.cash_advance_entries
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  entry public.cash_advance_entries;
+begin
+  perform public.require_role('production_head');
+  select * into entry from public.cash_advance_entries where id = p_entry_id for update;
+  if entry.id is null then
+    perform public.raise_app_error('CASH_ADVANCE_ENTRY_NOT_FOUND');
+  end if;
+  if entry.entry_type = 'write_off' or (entry.entry_type = 'repayment' and entry.payroll_line_id is not null) then
+    perform public.raise_app_error('IMMUTABLE_RECORD', jsonb_build_object('entry_type', entry.entry_type));
+  end if;
+
+  perform public.set_audit_reason(p_reason);
+  update public.cash_advance_entries
+  set amount = p_amount, entry_on = p_entry_on, notes = nullif(trim(p_notes), '')
+  where id = entry.id
+  returning * into entry;
+
+  if entry.payroll_line_id is not null then
+    perform public.recompute_payroll_line(entry.payroll_line_id);
+  end if;
+  return entry;
+end;
+$$;
+
+create function public.delete_cash_advance_entry(p_entry_id uuid, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  entry public.cash_advance_entries;
+begin
+  perform public.require_role('production_head');
+  if length(trim(coalesce(p_reason, ''))) = 0 then
+    perform public.raise_app_error('REASON_REQUIRED');
+  end if;
+  select * into entry from public.cash_advance_entries where id = p_entry_id for update;
+  if entry.id is null then
+    perform public.raise_app_error('CASH_ADVANCE_ENTRY_NOT_FOUND');
+  end if;
+  if entry.entry_type = 'write_off' or (entry.entry_type = 'repayment' and entry.payroll_line_id is not null) then
+    perform public.raise_app_error('IMMUTABLE_RECORD', jsonb_build_object('entry_type', entry.entry_type));
+  end if;
+
+  perform public.set_audit_reason(p_reason);
+  delete from public.cash_advance_entries where id = entry.id;
+  if entry.payroll_line_id is not null then
+    perform public.recompute_payroll_line(entry.payroll_line_id);
+  end if;
+end;
+$$;
+
+create function public.unlock_payroll(p_pay_on date, p_reason text)
+returns public.payroll_periods
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  period public.payroll_periods;
+begin
+  perform public.require_role('production_head', 'owner');
+  if length(trim(coalesce(p_reason, ''))) = 0 then
+    perform public.raise_app_error('REASON_REQUIRED');
+  end if;
+
+  select * into period from public.payroll_periods where pay_on = p_pay_on for update;
+  if period.id is null or period.status <> 'locked' then
+    perform public.raise_app_error('PAYROLL_NOT_LOCKED', jsonb_build_object('pay_on', p_pay_on));
+  end if;
+  if exists (select 1 from public.payroll_lines where payroll_period_id = period.id and status = 'paid') then
+    perform public.raise_app_error('PAYROLL_HAS_PAID_LINES', jsonb_build_object('pay_on', p_pay_on));
+  end if;
+
+  perform public.set_audit_reason(p_reason);
+  perform set_config('app.payroll_unlocking', 'on', true);
+
+  delete from public.cash_advance_entries e
+  using public.payroll_lines pl
+  where pl.id = e.payroll_line_id and pl.payroll_period_id = period.id and e.entry_type = 'repayment';
+
+  update public.sewing_cards sc set status = 'submitted'
+  from public.payroll_lines pl
+  where pl.id = sc.payroll_line_id and pl.payroll_period_id = period.id;
+
+  update public.payroll_lines
+  set account_provider = null, account_number = null, account_holder = null
+  where payroll_period_id = period.id;
+
+  update public.payroll_periods set status = 'open', locked_at = null, locked_by = null
+  where id = period.id
+  returning * into period;
+
+  perform set_config('app.payroll_unlocking', '', true);
+  return period;
 end;
 $$;

@@ -163,112 +163,148 @@ begin
 end;
 $$;
 
-create function public.record_cut_result(p_work_order_item_id uuid, p_cut_quantity integer)
-returns public.work_order_items
+create function public.record_cut_results(p_items jsonb)
+returns setof public.work_order_items
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
+  entry jsonb;
   item public.work_order_items;
   assigned integer;
+  touched_work_orders uuid[] := '{}';
 begin
   perform public.require_role('production_head');
 
-  select * into item from public.work_order_items where id = p_work_order_item_id for update;
-  if item.id is null then
-    perform public.raise_app_error('WORK_ORDER_ITEM_NOT_FOUND');
-  end if;
+  for entry in select * from jsonb_array_elements(p_items) loop
+    select * into item from public.work_order_items where id = (entry ->> 'work_order_item_id')::uuid for update;
+    if item.id is null then
+      perform public.raise_app_error('WORK_ORDER_ITEM_NOT_FOUND', jsonb_build_object('work_order_item_id', entry ->> 'work_order_item_id'));
+    end if;
 
-  select coalesce(sum(quantity), 0) into assigned
-  from public.sewing_cards
-  where work_order_item_id = item.id and status <> 'cancelled';
+    select coalesce(sum(quantity), 0) into assigned
+    from public.sewing_cards
+    where work_order_item_id = item.id and status <> 'cancelled';
 
-  if p_cut_quantity < assigned then
-    perform public.raise_app_error('CUT_BELOW_ASSIGNED', jsonb_build_object('assigned', assigned));
-  end if;
+    if (entry ->> 'cut_quantity')::integer < assigned then
+      perform public.raise_app_error('CUT_BELOW_ASSIGNED', jsonb_build_object('work_order_item_id', item.id, 'assigned', assigned));
+    end if;
 
-  update public.work_order_items set cut_quantity = p_cut_quantity where id = item.id returning * into item;
-  perform public.refresh_work_order_status(item.work_order_id);
-  return item;
+    update public.work_order_items set cut_quantity = (entry ->> 'cut_quantity')::integer
+    where id = item.id
+    returning * into item;
+    touched_work_orders := array_append(touched_work_orders, item.work_order_id);
+    return next item;
+  end loop;
+
+  perform public.refresh_work_order_status(id) from unnest(touched_work_orders) as t(id) group by id;
 end;
 $$;
 
-create function public.issue_sewing_card(
-  p_work_order_item_id uuid,
-  p_tailor_id uuid,
-  p_quantity integer,
+create function public.sewing_card_issue_warnings(p_work_order_item_id uuid, p_tailor_id uuid)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(w), '[]'::jsonb)
+  from (
+    select jsonb_build_object('code', 'TAILOR_HAS_OPEN_CARD', 'tailor_id', tailor_id, 'card_number', number, 'taken_on', taken_on) as w
+    from public.sewing_cards
+    where tailor_id = p_tailor_id and status = 'taken'
+    union all
+    select jsonb_build_object('code', 'DUPLICATE_CARD', 'tailor_id', tailor_id, 'card_number', number, 'quantity', quantity)
+    from public.sewing_cards
+    where tailor_id = p_tailor_id and work_order_item_id = p_work_order_item_id and status in ('taken', 'submitted')
+  ) found
+$$;
+
+create function public.issue_sewing_cards(
+  p_cards jsonb,
   p_taken_on date default null,
   p_confirmed boolean default false,
   p_override_reason text default null
 )
-returns public.sewing_cards
+returns setof public.sewing_cards
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
+  taken date := coalesce(p_taken_on, public.app_today());
+  entry jsonb;
   item public.work_order_items;
   wo public.work_orders;
   category public.wage_category;
   rate bigint;
-  taken date := coalesce(p_taken_on, public.app_today());
   warnings jsonb := '[]'::jsonb;
   created public.sewing_cards;
+  touched_work_orders uuid[] := '{}';
 begin
   perform public.require_role('production_head');
 
-  select * into item from public.work_order_items where id = p_work_order_item_id for update;
-  if item.id is null then
-    perform public.raise_app_error('WORK_ORDER_ITEM_NOT_FOUND');
+  if coalesce(jsonb_array_length(p_cards), 0) = 0 then
+    perform public.raise_app_error('CARDS_REQUIRED');
   end if;
 
-  select * into wo from public.work_orders where id = item.work_order_id;
-  if wo.status = 'cancelled' then
-    perform public.raise_app_error('WORK_ORDER_CANCELLED', jsonb_build_object('number', wo.number));
-  end if;
-  if item.cut_quantity is null then
-    perform public.raise_app_error('NOT_CUT_YET');
-  end if;
+  for entry in select * from jsonb_array_elements(p_cards) loop
+    select * into item from public.work_order_items where id = (entry ->> 'work_order_item_id')::uuid for update;
+    if item.id is null then
+      perform public.raise_app_error('WORK_ORDER_ITEM_NOT_FOUND', jsonb_build_object('work_order_item_id', entry ->> 'work_order_item_id'));
+    end if;
+    select * into wo from public.work_orders where id = item.work_order_id;
+    if wo.status = 'cancelled' then
+      perform public.raise_app_error('WORK_ORDER_CANCELLED', jsonb_build_object('number', wo.number));
+    end if;
+    if item.cut_quantity is null then
+      perform public.raise_app_error('NOT_CUT_YET', jsonb_build_object('work_order_item_id', item.id));
+    end if;
+    if not exists (select 1 from public.tailors where id = (entry ->> 'tailor_id')::uuid and status = 'active') then
+      perform public.raise_app_error('TAILOR_NOT_ACTIVE', jsonb_build_object('tailor_id', entry ->> 'tailor_id'));
+    end if;
+    warnings := warnings || public.sewing_card_issue_warnings(item.id, (entry ->> 'tailor_id')::uuid);
+  end loop;
 
-  if not exists (select 1 from public.tailors where id = p_tailor_id and status = 'active') then
-    perform public.raise_app_error('TAILOR_NOT_ACTIVE', jsonb_build_object('tailor_id', p_tailor_id));
-  end if;
-
-  select wage_category into category from public.products where id = wo.product_id;
-  if category is null then
-    perform public.raise_app_error('PRODUCT_CATEGORY_MISSING', jsonb_build_object('product_id', wo.product_id));
-  end if;
-
-  rate := public.wage_rate_on(category, taken);
-  if rate is null then
-    perform public.raise_app_error('WAGE_RATE_MISSING', jsonb_build_object('wage_category', category, 'on', taken));
-  end if;
-
-  select warnings || coalesce(jsonb_agg(jsonb_build_object('code', 'TAILOR_HAS_OPEN_CARD', 'card_number', number, 'taken_on', taken_on)), '[]'::jsonb)
+  select warnings || coalesce(jsonb_agg(jsonb_build_object('code', 'TAILOR_MULTIPLE_CARDS_IN_BATCH', 'tailor_id', tailor_id)), '[]'::jsonb)
   into warnings
-  from public.sewing_cards
-  where tailor_id = p_tailor_id and status = 'taken';
-
-  select warnings || coalesce(jsonb_agg(jsonb_build_object('code', 'DUPLICATE_CARD', 'card_number', number, 'quantity', quantity)), '[]'::jsonb)
-  into warnings
-  from public.sewing_cards
-  where tailor_id = p_tailor_id and work_order_item_id = item.id and status in ('taken', 'submitted');
+  from (
+    select value ->> 'tailor_id' as tailor_id
+    from jsonb_array_elements(p_cards)
+    group by 1
+    having count(*) > 1
+  ) repeated;
 
   perform public.require_confirmation(warnings, p_confirmed);
   perform public.set_audit_reason(p_override_reason);
 
-  insert into public.sewing_cards (
-    number, work_order_item_id, tailor_id, quantity, taken_on, wage_category, wage_rate, warning_override_reason
-  )
-  values (
-    public.next_document_number('KJ', taken), item.id, p_tailor_id, p_quantity, taken, category, rate,
-    case when jsonb_array_length(warnings) > 0 then p_override_reason end
-  )
-  returning * into created;
+  for entry in select * from jsonb_array_elements(p_cards) loop
+    select woi.* into item from public.work_order_items woi where woi.id = (entry ->> 'work_order_item_id')::uuid;
+    select p.wage_category into category
+    from public.work_orders w join public.products p on p.id = w.product_id
+    where w.id = item.work_order_id;
+    if category is null then
+      perform public.raise_app_error('PRODUCT_CATEGORY_MISSING', jsonb_build_object('work_order_id', item.work_order_id));
+    end if;
+    rate := public.wage_rate_on(category, taken);
+    if rate is null then
+      perform public.raise_app_error('WAGE_RATE_MISSING', jsonb_build_object('wage_category', category, 'on', taken));
+    end if;
 
-  perform public.refresh_work_order_status(wo.id);
-  return created;
+    insert into public.sewing_cards (
+      number, work_order_item_id, tailor_id, quantity, taken_on, wage_category, wage_rate, warning_override_reason
+    )
+    values (
+      public.next_document_number('KJ', taken), item.id, (entry ->> 'tailor_id')::uuid,
+      (entry ->> 'quantity')::integer, taken, category, rate,
+      case when jsonb_array_length(warnings) > 0 then p_override_reason end
+    )
+    returning * into created;
+    touched_work_orders := array_append(touched_work_orders, item.work_order_id);
+    return next created;
+  end loop;
+
+  perform public.refresh_work_order_status(id) from unnest(touched_work_orders) as t(id) group by id;
 end;
 $$;
 
@@ -435,39 +471,6 @@ begin
 end;
 $$;
 
-create function public.mark_card_collected(p_number text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  card public.sewing_cards;
-  already boolean;
-begin
-  perform public.require_role('production_head');
-  card := public.lock_sewing_card(p_number);
-
-  if card.status not in ('submitted', 'paid') then
-    perform public.raise_app_error('CARD_NOT_SUBMITTED', jsonb_build_object('number', card.number, 'status', card.status));
-  end if;
-
-  already := card.collected_at is not null;
-  if not already then
-    update public.sewing_cards set collected_at = now(), collected_by = auth.uid()
-    where id = card.id
-    returning * into card;
-  end if;
-
-  return jsonb_build_object(
-    'already_collected', already,
-    'number', card.number,
-    'collected_at', card.collected_at,
-    'tailor_id', card.tailor_id
-  );
-end;
-$$;
-
 create function public.record_inspection(
   p_number text,
   p_ok_quantity integer,
@@ -486,7 +489,6 @@ declare
   finalized integer;
   next_round smallint;
   created public.inspections;
-  next_status public.inspection_status;
 begin
   perform public.require_role('production_head', 'finishing_head');
   card := public.lock_sewing_card(p_number);
@@ -515,12 +517,7 @@ begin
   )
   returning * into created;
 
-  next_status := case
-    when finalized + p_ok_quantity + p_defective_quantity = card.quantity then 'done'
-    when p_repairable_quantity > 0 then 'in_repair'
-    else 'pending'
-  end;
-  update public.sewing_cards set inspection_status = next_status where id = card.id;
+  perform public.refresh_inspection_status(card.id);
 
   if p_defective_quantity > 0 then
     insert into public.deduction_proposals (inspection_id, tailor_id, quantity, amount)
@@ -531,3 +528,268 @@ begin
   return created;
 end;
 $$;
+
+create function public.refresh_inspection_status(p_sewing_card_id uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  card_quantity integer;
+  finalized integer;
+  last_repairable integer;
+begin
+  select quantity into card_quantity from public.sewing_cards where id = p_sewing_card_id;
+  select coalesce(sum(ok_quantity + defective_quantity), 0) into finalized
+  from public.inspections where sewing_card_id = p_sewing_card_id;
+  select repairable_quantity into last_repairable
+  from public.inspections where sewing_card_id = p_sewing_card_id
+  order by round desc limit 1;
+
+  update public.sewing_cards
+  set inspection_status = case
+    when finalized = card_quantity then 'done'
+    when coalesce(last_repairable, 0) > 0 then 'in_repair'
+    else 'pending'
+  end::public.inspection_status
+  where id = p_sewing_card_id;
+end;
+$$;
+
+create function public.delete_last_inspection(p_number text, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  card public.sewing_cards;
+  latest public.inspections;
+  proposal public.deduction_proposals;
+begin
+  perform public.require_role('production_head', 'finishing_head');
+  if length(trim(coalesce(p_reason, ''))) = 0 then
+    perform public.raise_app_error('REASON_REQUIRED');
+  end if;
+  card := public.lock_sewing_card(p_number);
+
+  select * into latest from public.inspections where sewing_card_id = card.id order by round desc limit 1;
+  if latest.id is null then
+    perform public.raise_app_error('INSPECTION_NOT_FOUND', jsonb_build_object('number', card.number));
+  end if;
+
+  select * into proposal from public.deduction_proposals where inspection_id = latest.id for update;
+  if proposal.payroll_line_id is not null and exists (
+    select 1 from public.payroll_lines pl join public.payroll_periods pp on pp.id = pl.payroll_period_id
+    where pl.id = proposal.payroll_line_id and pp.status = 'locked'
+  ) then
+    perform public.raise_app_error('DEDUCTION_ALREADY_APPLIED', jsonb_build_object('number', card.number));
+  end if;
+
+  perform public.set_audit_reason(p_reason);
+  if proposal.id is not null then
+    delete from public.deduction_proposals where id = proposal.id;
+    if proposal.payroll_line_id is not null then
+      perform public.recompute_payroll_line(proposal.payroll_line_id);
+    end if;
+  end if;
+  delete from public.inspections where id = latest.id;
+  perform public.refresh_inspection_status(card.id);
+  perform public.refresh_work_order_status(public.work_order_id_of_card(card));
+end;
+$$;
+
+create function public.update_sewing_card(
+  p_number text,
+  p_quantity integer default null,
+  p_tailor_id uuid default null,
+  p_reason text default null
+)
+returns public.sewing_cards
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  card public.sewing_cards;
+begin
+  perform public.require_role('production_head');
+  card := public.lock_sewing_card(p_number);
+  if card.status <> 'taken' then
+    perform public.raise_app_error('CARD_NOT_EDITABLE', jsonb_build_object('number', card.number, 'status', card.status));
+  end if;
+  if p_tailor_id is not null and not exists (select 1 from public.tailors where id = p_tailor_id and status = 'active') then
+    perform public.raise_app_error('TAILOR_NOT_ACTIVE', jsonb_build_object('tailor_id', p_tailor_id));
+  end if;
+
+  perform 1 from public.work_order_items where id = card.work_order_item_id for update;
+  perform public.set_audit_reason(p_reason);
+  update public.sewing_cards
+  set quantity = coalesce(p_quantity, quantity),
+      tailor_id = coalesce(p_tailor_id, tailor_id)
+  where id = card.id
+  returning * into card;
+
+  perform public.refresh_work_order_status(public.work_order_id_of_card(card));
+  return card;
+end;
+$$;
+
+create function public.unsubmit_sewing_card(p_number text, p_reason text)
+returns public.sewing_cards
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  card public.sewing_cards;
+  line_id uuid;
+begin
+  perform public.require_role('production_head');
+  if length(trim(coalesce(p_reason, ''))) = 0 then
+    perform public.raise_app_error('REASON_REQUIRED');
+  end if;
+  card := public.lock_sewing_card(p_number);
+
+  if card.status <> 'submitted' then
+    perform public.raise_app_error('CARD_NOT_SUBMITTED', jsonb_build_object('number', card.number, 'status', card.status));
+  end if;
+  if exists (select 1 from public.inspections where sewing_card_id = card.id) then
+    perform public.raise_app_error('CARD_ALREADY_INSPECTED', jsonb_build_object('number', card.number));
+  end if;
+  if card.payroll_line_id is not null and exists (
+    select 1 from public.payroll_lines pl join public.payroll_periods pp on pp.id = pl.payroll_period_id
+    where pl.id = card.payroll_line_id and pp.status = 'locked'
+  ) then
+    perform public.raise_app_error('PAYROLL_LOCKED', jsonb_build_object('number', card.number));
+  end if;
+
+  line_id := card.payroll_line_id;
+  perform public.set_audit_reason(p_reason);
+  update public.sewing_cards
+  set status = 'taken', submitted_on = null, submitted_at = null, submitted_by = null,
+      submitted_incomplete = false, remaining_notes = null, remaining_delivered_on = null,
+      payroll_line_id = null
+  where id = card.id
+  returning * into card;
+
+  if line_id is not null then
+    perform public.recompute_payroll_line(line_id);
+  end if;
+  perform public.refresh_work_order_status(public.work_order_id_of_card(card));
+  return card;
+end;
+$$;
+
+create function public.add_work_order_items(p_work_order_id uuid, p_size_ids uuid[], p_fabric_color_ids uuid[])
+returns setof public.work_order_items
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.require_role('production_head');
+  if (select status from public.work_orders where id = p_work_order_id) in ('done', 'cancelled') then
+    perform public.raise_app_error('WORK_ORDER_CLOSED');
+  end if;
+
+  return query
+  insert into public.work_order_items (work_order_id, size_id, fabric_color_id)
+  select p_work_order_id, size_id, fabric_color_id
+  from (select distinct unnest(p_size_ids) as size_id) s
+  cross join (select distinct unnest(p_fabric_color_ids) as fabric_color_id) c
+  on conflict (work_order_id, size_id, fabric_color_id) do nothing
+  returning *;
+end;
+$$;
+
+create function public.remove_work_order_item(p_work_order_item_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  work_order uuid;
+begin
+  perform public.require_role('production_head');
+  if exists (select 1 from public.sewing_cards where work_order_item_id = p_work_order_item_id) then
+    perform public.raise_app_error('WORK_ORDER_ITEM_IN_USE');
+  end if;
+  delete from public.work_order_items where id = p_work_order_item_id returning work_order_id into work_order;
+  if work_order is not null then
+    perform public.refresh_work_order_status(work_order);
+  end if;
+end;
+$$;
+
+create function public.cancel_work_order(p_work_order_id uuid, p_reason text)
+returns public.work_orders
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  wo public.work_orders;
+begin
+  perform public.require_role('production_head');
+  if length(trim(coalesce(p_reason, ''))) = 0 then
+    perform public.raise_app_error('REASON_REQUIRED');
+  end if;
+  if exists (
+    select 1 from public.sewing_cards sc
+    join public.work_order_items woi on woi.id = sc.work_order_item_id
+    where woi.work_order_id = p_work_order_id and sc.status <> 'cancelled'
+  ) then
+    perform public.raise_app_error('WORK_ORDER_HAS_CARDS');
+  end if;
+  perform public.set_audit_reason(p_reason);
+  update public.work_orders set status = 'cancelled' where id = p_work_order_id returning * into wo;
+  if wo.id is null then
+    perform public.raise_app_error('WORK_ORDER_NOT_FOUND');
+  end if;
+  return wo;
+end;
+$$;
+
+create function public.delete_work_order(p_work_order_id uuid, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.require_role('production_head');
+  if exists (
+    select 1 from public.sewing_cards sc
+    join public.work_order_items woi on woi.id = sc.work_order_item_id
+    where woi.work_order_id = p_work_order_id
+  ) then
+    perform public.raise_app_error('WORK_ORDER_HAS_CARDS');
+  end if;
+  perform public.set_audit_reason(p_reason);
+  delete from public.work_order_items where work_order_id = p_work_order_id;
+  delete from public.work_orders where id = p_work_order_id;
+end;
+$$;
+
+create function public.guard_work_order()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if (new.product_id, new.fabric_id) is distinct from (old.product_id, old.fabric_id) and exists (
+    select 1 from public.sewing_cards sc
+    join public.work_order_items woi on woi.id = sc.work_order_item_id
+    where woi.work_order_id = old.id
+  ) then
+    perform public.raise_app_error('WORK_ORDER_HAS_CARDS');
+  end if;
+  return new;
+end;
+$$;
+
+create trigger work_orders_guard
+before update of product_id, fabric_id on public.work_orders
+for each row execute function public.guard_work_order();

@@ -138,8 +138,6 @@ create table public.sewing_cards (
   remaining_notes text,
   remaining_delivered_on date,
   inspection_status public.inspection_status not null default 'pending',
-  collected_at timestamptz,
-  collected_by uuid references public.profiles (id),
   payroll_line_id uuid references public.payroll_lines (id),
   warning_override_reason text,
   cancelled_reason text,
@@ -269,28 +267,30 @@ begin
 end;
 $$;
 
-create function public.guard_cash_advance_entry_update()
+create function public.guard_cash_advance_entry()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
-  if (new.tailor_id, new.entry_type, new.amount, new.entry_on, new.import_batch_id)
-     is distinct from (old.tailor_id, old.entry_type, old.amount, old.entry_on, old.import_batch_id)
-     or (old.payroll_line_id is not null and new.payroll_line_id is distinct from old.payroll_line_id) then
+  if old.entry_type in ('repayment', 'write_off') and old.payroll_line_id is not null
+     and coalesce(current_setting('app.payroll_unlocking', true), '') <> 'on' then
     perform public.raise_app_error('IMMUTABLE_RECORD', jsonb_build_object('table', tg_table_name));
   end if;
-  return new;
+  if old.payroll_line_id is not null and exists (
+    select 1 from public.payroll_lines pl
+    join public.payroll_periods pp on pp.id = pl.payroll_period_id
+    where pl.id = old.payroll_line_id and pp.status = 'locked'
+  ) and coalesce(current_setting('app.payroll_unlocking', true), '') <> 'on' then
+    perform public.raise_app_error('PAYROLL_LOCKED', jsonb_build_object('entry_id', old.id));
+  end if;
+  return coalesce(new, old);
 end;
 $$;
 
-create trigger cash_advance_entries_no_delete
-before delete on public.cash_advance_entries
-for each row execute function public.forbid_mutation();
-
-create trigger cash_advance_entries_guard_update
-before update on public.cash_advance_entries
-for each row execute function public.guard_cash_advance_entry_update();
+create trigger cash_advance_entries_guard
+before update or delete on public.cash_advance_entries
+for each row execute function public.guard_cash_advance_entry();
 
 create table public.legacy_wage_records (
   id uuid primary key default gen_random_uuid(),

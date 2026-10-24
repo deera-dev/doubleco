@@ -69,7 +69,7 @@ erDiagram
 | Enum | Nilai |
 | --- | --- |
 | `app_role` | `production_head`, `finishing_head`, `warehouse`, `owner`, `cutter`, `tailor` |
-| `tailor_status` | `active`, `left` |
+| `tailor_status` | `active`, `inactive` (sementara tidak bekerja), `left` (keluar) |
 | `payment_account_type` | `bank`, `ewallet` |
 | `wage_category` | `S`, `M`, `L` |
 | `change_status` | `changed` (ADA PERUBAHAN), `follow_sample` (TIDAK ADA PERUBAHAN / IKUT SAMPEL) |
@@ -226,7 +226,6 @@ Unik (`work_order_id`, `size_id`, `fabric_color_id`).
 | remaining_notes | text | sisa pekerjaan |
 | remaining_delivered_on | date | saat sisa diserahkan |
 | inspection_status | inspection_status | default `pending` |
-| collected_at | timestamptz | scan pengumpulan Sabtu |
 | payroll_line_id | uuid | FK → payroll_lines; **satu kartu hanya bisa masuk satu gajian** |
 | warning_override_reason | text | alasan saat peringatan duplikat dikonfirmasi |
 | print_count | integer | jumlah cetak (cetak ulang = nomor sama) |
@@ -294,7 +293,9 @@ Sisa kasbon = Σ(`opening_balance` + `advance`) − Σ(`repayment` + `write_off`
 tersedia di view `tailor_advance_balances`. Sisa kasbon **boleh minus** dan
 transfer bersih boleh minus bila disepakati kedua belah pihak — fungsi
 memberi peringatan `ADVANCE_BALANCE_NEGATIVE` / `TRANSFER_NEGATIVE` yang harus
-dikonfirmasi, bukan menolak. Baris tidak pernah diedit/dihapus; koreksi = entri baru.
+dikonfirmasi, bukan menolak. Kasbon & cicilan manual bisa diubah/dihapus lewat
+fungsi selama gajian terkait belum dikunci; cicilan otomatis dari gajian dan
+kerugian (`write_off`) tidak bisa diubah. Semua perubahan tercatat di `audit_logs`.
 
 ### 4.6 Gajian
 
@@ -372,6 +373,7 @@ sama mengembalikan hasil pertama, bukan membuat data baru.
 | `weekly_deposit_grid` | Per periode × penjahit × kategori × hari (Senin–Sabtu) — tampilan seperti sheet setoran lama |
 | `work_order_progress` | Per WO: dipotong, dibagi, disetor, OK, rusak |
 | `thp_rows` | Data THP per WO (penjahit, kode, jumlah, tgl ambil, hasil pemeriksaan) |
+| `employees` | Daftar karyawan (penjahit + tukang potong) dengan status aktif / tidak aktif / keluar |
 
 ## 6. Fungsi transaksi (dipanggil dari Edge Function)
 
@@ -385,13 +387,19 @@ bisa menampilkan pemberitahuan sesuai PRD § 5.10.
 | --- | --- |
 | `suggest_work_order_number(product_id)` | Usulan nomor `WO_<kode>`, `_2`, `_3`, … |
 | `create_work_order(...)` | Buat WO + item ukuran × warna; peringatan WO serupa masih aktif |
-| `record_cut_result(item_id, qty)` | Catat hasil potong; tolak jika < jumlah yang sudah dibagi |
-| `issue_sewing_card(...)` | Buat kartu `KJ-YYMM-####`; snapshot tarif; tolak melebihi hasil potong; peringatan penjahit masih pegang kartu / kartu serupa |
+| `record_cut_results(items)` | Catat hasil potong banyak ukuran × warna sekaligus; tolak jika < jumlah yang sudah dibagi |
+| `issue_sewing_cards(cards, taken_on)` | Bagi ke banyak penjahit sekaligus → kartu `KJ-YYMM-####`; snapshot tarif; tolak melebihi hasil potong; peringatan penjahit masih pegang kartu / kartu serupa / penjahit dobel dalam satu batch |
+| `update_sewing_card(number, qty, tailor)` | Ubah jumlah / pindah penjahit selama belum disetor |
+| `unsubmit_sewing_card(number, reason)` | Batalkan setoran (salah scan) selama belum diperiksa & gajian belum dikunci |
+| `delete_last_inspection(number, reason)` | Hapus pemeriksaan terakhir (koreksi) |
+| `add_work_order_items` / `remove_work_order_item` | Tambah / hapus ukuran × warna di WO |
+| `cancel_work_order` / `delete_work_order` | Batalkan / hapus WO yang belum punya kartu |
+| `update_cash_advance_entry` / `delete_cash_advance_entry` | Ubah / hapus kasbon & cicilan manual selama gajian belum dikunci |
+| `unlock_payroll(pay_on, reason)` | Buka kunci gajian jika belum ada yang ditandai dibayar |
 | `submit_sewing_card(number, on, incomplete, notes)` | Setor; tolak jika sudah disetor; peringatan jika hari Minggu (libur) |
 | `deliver_card_remaining(number, on)` | Sisa produk kartu "belum selesai" diserahkan |
 | `cancel_sewing_card(number, reason)` | Batalkan kartu yang belum disetor |
 | `record_card_print(numbers[])` | Hitung cetak / cetak ulang |
-| `mark_card_collected(number)` | Scan pengumpulan Sabtu; scan ulang tidak berefek (`already_collected`) |
 | `record_inspection(...)` | Pemeriksaan per putaran; buat usulan potongan bila ada rusak permanen |
 | `decide_deduction(id, decision, notes)` | Catat keputusan owner (`deduct` / `waive`) |
 | `record_cash_advance(...)` | Kasbon baru (ikut transfer Sabtu); peringatan kasbon ganda |
@@ -400,7 +408,7 @@ bisa menampilkan pemberitahuan sesuai PRD § 5.10.
 | `build_payroll(pay_on)` | Susun / hitung ulang draft gajian Sabtu itu |
 | `set_payroll_repayment(line_id, amount)` | Atur cicilan minggu ini (default = cicilan minggu lalu) |
 | `add_payroll_addition(...)` / `remove_payroll_addition(...)` | THR, bonus, tambahan lain |
-| `lock_payroll(pay_on)` | Kunci; snapshot rekening; catat cicilan; kartu → `paid`; peringatan kartu belum di-scan / rekening kosong / transfer minus |
+| `lock_payroll(pay_on)` | Kunci; snapshot rekening; catat cicilan; kartu → `paid`; peringatan rekening kosong / transfer minus. Kartu yang sudah di-scan saat setor otomatis ikut — tidak ada scan ulang |
 | `mark_payroll_line_paid(line_id)` | Tandai sudah ditransfer; tolak jika sudah |
 | `find_similar_tailors(name)` / `find_account_number_owners(number)` | Pemeriksaan duplikat master data |
 
@@ -416,7 +424,12 @@ memanggil ulang dengan `p_confirmed => true` dan `p_override_reason`.
   untuk master data. Tabel uang & kartu (`sewing_cards`, `inspections`,
   `deduction_proposals`, `cash_advance_entries`, `payroll_*`) **hanya bisa
   diubah lewat fungsi di § 6**, bukan `insert/update` langsung.
-- `audit_logs`, `cash_advance_entries`: tidak ada `update`/`delete` untuk siapa pun.
+- Master data (`tailors`, `tailor_payment_accounts`, `cutters`, `products`,
+  `fabrics`, `fabric_colors`, `sizes`): `insert/update/delete` untuk
+  `production_head`; hapus ditolak oleh foreign key jika data sudah dipakai
+  (aplikasi lalu menawarkan nonaktifkan). Status `left` hanya lewat `mark_tailor_left`.
+- `wage_rates`: tambah kapan saja; ubah/hapus hanya tarif yang belum berlaku.
+- `audit_logs`: tidak bisa diubah/dihapus siapa pun.
 - Fase 2: `finishing_head` → `record_inspection`, set kategori produk;
   `warehouse` → ACC; `owner` → baca semua + `decide_deduction`;
   `tailor` → baca data dirinya sendiri saja.

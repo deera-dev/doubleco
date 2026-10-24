@@ -2,7 +2,7 @@ create extension if not exists pg_trgm with schema extensions;
 create extension if not exists fuzzystrmatch with schema extensions;
 
 create type public.app_role as enum ('production_head', 'finishing_head', 'warehouse', 'owner', 'cutter', 'tailor');
-create type public.tailor_status as enum ('active', 'left');
+create type public.tailor_status as enum ('active', 'inactive', 'left');
 create type public.payment_account_type as enum ('bank', 'ewallet');
 create type public.wage_category as enum ('S', 'M', 'L');
 create type public.change_status as enum ('changed', 'follow_sample');
