@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Status | Draft v3 — keputusan putaran 1–3 + aturan anti-duplikasi |
+| Status | v4 — disepakati; desain database di `docs/DATABASE.md` |
 | Pengguna utama | Kepala Produksi (fase 1) |
 | Platform | Web app mobile-first (PWA), tetap nyaman di tablet & PC |
 | Stack | Mengikuti `README.md` (Vite + React + TanStack + Supabase + Edge Function BFF) |
@@ -184,8 +184,11 @@ membuka akses peran lain tidak perlu bongkar ulang.
   plus rincian per kartu dan tampilan **per hari × kategori S/M/L** seperti
   sheet setoran lama (agar mudah dicocokkan selama masa transisi).
 - Cicilan kasbon diisi per penjahit per minggu (bebas sesuai kesepakatan);
-  default = nominal minggu lalu. Validasi: tidak melebihi sisa kasbon dan
-  tidak melebihi upah kotor.
+  default = nominal minggu lalu. Cicilan yang membuat sisa kasbon minus atau
+  transfer minus **boleh** bila disepakati — aplikasi memberi peringatan dan
+  meminta konfirmasi.
+- **Semua pembayaran dilakukan hari Sabtu** (upah, kasbon baru, THR/bonus).
+  Hari Minggu libur.
 - Kasbon baru yang diajukan selama minggu berjalan **ditransfer bersamaan**
   dengan upah hari Sabtu.
 - Keluaran:
@@ -354,4 +357,4 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 
 ## 12. Pertanyaan terbuka
 
-1. THR / bonus (kolom THR di sheet ACUNG) — dibayar lewat gajian Sabtu? Lihat `docs/DATABASE.md` § 8.
+Belum ada.

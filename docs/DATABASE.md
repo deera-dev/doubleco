@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Status | Draft v1 — untuk ditinjau sebelum dibuat migration |
+| Status | v1 — sudah diimplementasikan di `supabase/migrations/` |
 | Acuan | `docs/PRD.md` (Draft v3), konvensi di `README.md` § Database conventions |
 
 Konvensi yang dipakai: nama tabel jamak `snake_case` (bahasa Inggris), PK
@@ -98,7 +98,7 @@ bertipe `timestamptz`.
 | id | uuid | PK, FK → `auth.users.id` |
 | username | text | unik, lowercase, `^[a-z0-9_]{3,20}$` |
 | display_name | text | not null |
-| role | app_role | not null, default `production_head` |
+| role | app_role | **null = belum punya akses**; diisi manual (SQL/dashboard) untuk pengguna yang sah |
 | is_active | boolean | default true |
 | created_at, updated_at | timestamptz | |
 
@@ -120,7 +120,7 @@ Dibuat otomatis oleh trigger `handle_new_user()` (lihat README § Authentication
 | profile_id | uuid | FK → profiles, null (untuk login penjahit nanti) |
 | created_at, updated_at | timestamptz | |
 
-Index trigram (`pg_trgm`) pada `name` → peringatan nama mirip (DIDI/DINDI).
+Fungsi `find_similar_tailors(name)` memakai jarak edit (`fuzzystrmatch`) + trigram (`pg_trgm`) → peringatan nama mirip (DIDI/DINDI, BIDIN/JIDIN).
 
 **`tailor_payment_accounts`** — rekening / e-wallet
 
@@ -291,8 +291,10 @@ putaran sebelumnya. `inspection_status` kartu diperbarui otomatis.
 | created_at | timestamptz | |
 
 Sisa kasbon = Σ(`opening_balance` + `advance`) − Σ(`repayment` + `write_off`),
-tersedia di view `tailor_advance_balances`. Trigger menolak cicilan/kerugian
-yang membuat sisa < 0. Baris tidak pernah diedit/dihapus; koreksi = entri baru.
+tersedia di view `tailor_advance_balances`. Sisa kasbon **boleh minus** dan
+transfer bersih boleh minus bila disepakati kedua belah pihak — fungsi
+memberi peringatan `ADVANCE_BALANCE_NEGATIVE` / `TRANSFER_NEGATIVE` yang harus
+dikonfirmasi, bukan menolak. Baris tidak pernah diedit/dihapus; koreksi = entri baru.
 
 ### 4.6 Gajian
 
@@ -315,18 +317,19 @@ yang membuat sisa < 0. Baris tidak pernah diedit/dihapus; koreksi = entri baru.
 | payroll_period_id | uuid | FK; unik bersama `tailor_id` |
 | tailor_id | uuid | FK |
 | gross_wage | bigint | Σ `wage_amount` kartu |
-| advance_repayment | bigint | cicilan minggu ini (≤ sisa kasbon, ≤ gross) |
+| advance_repayment | bigint | cicilan minggu ini; melebihi sisa kasbon / membuat transfer minus → peringatan |
 | deduction_total | bigint | Σ usulan potongan `deduct` |
 | addition_total | bigint | Σ `payroll_additions` |
 | new_advance_total | bigint | Σ kasbon baru yang ikut ditransfer |
-| transfer_amount | bigint | generated: gross − cicilan − potongan + tambahan + kasbon baru (≥ 0) |
+| transfer_amount | bigint | generated: gross − cicilan − potongan + tambahan + kasbon baru (boleh minus dengan konfirmasi) |
 | account_provider, account_number, account_holder | text | **snapshot** rekening saat dikunci |
 | status | payroll_line_status | `draft → paid` |
 | paid_at, paid_by | | |
 | created_at, updated_at | timestamptz | |
 
 **`payroll_additions`** — `id`, `payroll_line_id`, `kind` (`thr`, `bonus`, `other`),
-`amount` (> 0), `notes`, `created_by`, `created_at`.
+`amount` (> 0), `notes`, `created_by`, `created_at`. Semua pembayaran
+(upah, kasbon baru, THR, bonus) dilakukan di transfer hari Sabtu.
 
 ### 4.7 Impor data lama
 
@@ -380,18 +383,31 @@ bisa menampilkan pemberitahuan sesuai PRD § 5.10.
 
 | Fungsi | Tugas |
 | --- | --- |
-| `create_work_order(...)` | Buat WO + item; usulkan nomor unik |
-| `record_cut_result(item_id, qty)` | Catat hasil potong |
-| `issue_sewing_cards(...)` | Buat kartu; cek sisa hasil potong; peringatan jika penjahit masih pegang kartu / kartu serupa masih berjalan |
-| `submit_sewing_card(number, on, incomplete, notes)` | Setor; tolak jika sudah disetor |
-| `record_inspection(...)` | Catat pemeriksaan; buat usulan potongan jika ada rusak permanen |
-| `decide_deduction(id, decision, notes)` | Catat keputusan owner |
-| `record_cash_advance(...)` | Kasbon baru / cicilan manual / kerugian |
-| `mark_card_collected(number)` | Scan pengumpulan Sabtu; tidak berefek jika sudah |
-| `build_payroll(pay_on)` | Susun/ hitung ulang draft gajian periode |
-| `lock_payroll(period_id)` | Kunci + snapshot rekening; tandai kartu `paid` |
+| `suggest_work_order_number(product_id)` | Usulan nomor `WO_<kode>`, `_2`, `_3`, … |
+| `create_work_order(...)` | Buat WO + item ukuran × warna; peringatan WO serupa masih aktif |
+| `record_cut_result(item_id, qty)` | Catat hasil potong; tolak jika < jumlah yang sudah dibagi |
+| `issue_sewing_card(...)` | Buat kartu `KJ-YYMM-####`; snapshot tarif; tolak melebihi hasil potong; peringatan penjahit masih pegang kartu / kartu serupa |
+| `submit_sewing_card(number, on, incomplete, notes)` | Setor; tolak jika sudah disetor; peringatan jika hari Minggu (libur) |
+| `deliver_card_remaining(number, on)` | Sisa produk kartu "belum selesai" diserahkan |
+| `cancel_sewing_card(number, reason)` | Batalkan kartu yang belum disetor |
+| `record_card_print(numbers[])` | Hitung cetak / cetak ulang |
+| `mark_card_collected(number)` | Scan pengumpulan Sabtu; scan ulang tidak berefek (`already_collected`) |
+| `record_inspection(...)` | Pemeriksaan per putaran; buat usulan potongan bila ada rusak permanen |
+| `decide_deduction(id, decision, notes)` | Catat keputusan owner (`deduct` / `waive`) |
+| `record_cash_advance(...)` | Kasbon baru (ikut transfer Sabtu); peringatan kasbon ganda |
+| `record_manual_repayment(...)` | Cicilan di luar gajian |
+| `mark_tailor_left(...)` | Penjahit keluar; sisa kasbon → `write_off` (kerugian) |
+| `build_payroll(pay_on)` | Susun / hitung ulang draft gajian Sabtu itu |
+| `set_payroll_repayment(line_id, amount)` | Atur cicilan minggu ini (default = cicilan minggu lalu) |
+| `add_payroll_addition(...)` / `remove_payroll_addition(...)` | THR, bonus, tambahan lain |
+| `lock_payroll(pay_on)` | Kunci; snapshot rekening; catat cicilan; kartu → `paid`; peringatan kartu belum di-scan / rekening kosong / transfer minus |
 | `mark_payroll_line_paid(line_id)` | Tandai sudah ditransfer; tolak jika sudah |
-| `tailor_name_similarity(name)` | Daftar penjahit dengan nama mirip |
+| `find_similar_tailors(name)` / `find_account_number_owners(number)` | Pemeriksaan duplikat master data |
+
+Pola error: `ERROR` dengan `message` = kode (mis. `CARD_ALREADY_SUBMITTED`) dan
+`detail` = JSON konteks. Peringatan dikembalikan sebagai
+`CONFIRMATION_REQUIRED` + daftar `warnings`; aplikasi menampilkan lalu
+memanggil ulang dengan `p_confirmed => true` dan `p_override_reason`.
 
 ## 7. RLS & akses
 
@@ -405,10 +421,21 @@ bisa menampilkan pemberitahuan sesuai PRD § 5.10.
   `warehouse` → ACC; `owner` → baca semua + `decide_deduction`;
   `tailor` → baca data dirinya sendiri saja.
 
-## 8. Asumsi yang perlu dikonfirmasi
+## 8. Keputusan yang sudah dikonfirmasi
 
-1. **THR / bonus** — sheet ACUNG di `DATA_ANAK_JAIT.xlsx` punya kolom THR.
-   Desain ini menampungnya sebagai `payroll_additions` (ikut ditransfer
-   Sabtu). Betul THR dibayar lewat gajian mingguan?
-2. **Setor di hari Minggu** (jika pernah terjadi) masuk periode Senin–Sabtu berikutnya.
-3. **Nomor kartu** berformat `KJ-<TahunBulan>-<urut>` (mis. `KJ-2610-0042`).
+1. Semua pembayaran (upah, kasbon baru, THR/bonus) dilakukan di hari Sabtu.
+2. Hari Minggu libur — setor di hari Minggu memunculkan peringatan.
+3. Nomor kartu `KJ-<TahunBulan>-<urut>` (mis. `KJ-2610-0042`).
+4. Sisa kasbon dan transfer bersih boleh minus sesuai kesepakatan (peringatan + konfirmasi).
+
+## 9. Menjalankan migration
+
+```bash
+supabase link --project-ref <project-ref>
+supabase db push
+```
+
+Setelah pengguna pertama mendaftar, beri peran lewat SQL editor:
+`update profiles set role = 'production_head' where username = '<username>';`
+Matikan pendaftaran publik (Auth → Sign In / Providers) agar hanya akun yang
+dibuat Kepala Produksi yang bisa masuk.
