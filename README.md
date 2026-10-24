@@ -43,19 +43,20 @@ npm run dev
 
 ## Scripts
 
-| Script                | What it does                               |
-| --------------------- | ------------------------------------------ |
-| `npm run dev`         | Start the Vite dev server                  |
-| `npm run build`       | Typecheck (`tsc -b`) then production build |
-| `npm run preview`     | Preview the production build locally       |
-| `npm run typecheck`   | Typecheck only, no build                   |
-| `npm run lint`        | Biome lint                                 |
-| `npm run format`      | Biome format (writes)                      |
-| `npm run check`       | Biome lint + format + import sort (writes) |
-| `npm test`            | Run the unit test suite once               |
-| `npm run test:watch`  | Run unit tests in watch mode               |
-| `npm run test:e2e`    | Run Playwright E2E tests headless          |
-| `npm run test:e2e:ui` | Run Playwright E2E tests in UI mode        |
+| Script                    | What it does                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `npm run dev`             | Start the Vite dev server                                                       |
+| `npm run build`           | Typecheck (`tsc -b`) then production build                                      |
+| `npm run routes:generate` | Regenerate `routeTree.gen.ts` on its own (auto-runs before `typecheck`/`build`) |
+| `npm run preview`         | Preview the production build locally                                            |
+| `npm run typecheck`       | Typecheck only, no build                                                        |
+| `npm run lint`            | Biome lint                                                                      |
+| `npm run format`          | Biome format (writes)                                                           |
+| `npm run check`           | Biome lint + format + import sort (writes)                                      |
+| `npm test`                | Run the unit test suite once                                                    |
+| `npm run test:watch`      | Run unit tests in watch mode                                                    |
+| `npm run test:e2e`        | Run Playwright E2E tests headless                                               |
+| `npm run test:e2e:ui`     | Run Playwright E2E tests in UI mode                                             |
 
 ## Folder structure (Feature-Based Architecture)
 
@@ -109,7 +110,12 @@ features deletable/replaceable without archaeology.
 **Routing note:** in `vite.config.ts`, the `tanstackRouter()` plugin must be
 listed before `react()` — it generates `routeTree.gen.ts`, which the rest of
 the build then needs to exist. This can't be renamed into obviousness, which
-is why it's documented here instead of as a code comment.
+is why it's documented here instead of as a code comment. Because that file
+is gitignored, a fresh checkout has no `routeTree.gen.ts` until something
+runs Vite once — `typecheck` and `build` cover this themselves via their
+`pretypecheck`/`prebuild` hooks (`routes:generate`, a bare `vite build`), so
+`npm run typecheck` and `npm run build` both work standalone with no prior
+`npm run dev`.
 
 **Testing note:** `playwright.config.ts` reuses the Chromium pre-installed at
 `/opt/pw-browsers` when that path exists (Claude's cloud sandbox); anywhere

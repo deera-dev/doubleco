@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "routes:generate": "vite build --logLevel warn",
+    "prebuild": "npm run routes:generate",
+    "pretypecheck": "npm run routes:generate",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",

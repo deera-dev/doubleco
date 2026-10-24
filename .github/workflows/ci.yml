@@ -34,7 +34,3 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
-          VITE_CLOUDINARY_CLOUD_NAME: ci-placeholder
