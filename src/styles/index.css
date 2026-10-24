@@ -4,16 +4,18 @@
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Fira Code", Consolas, monospace;
 
-  --color-brand-50: #f5f3ff;
-  --color-brand-100: #ede9fe;
-  --color-brand-200: #ddd6fe;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-700: #6d28d9;
-  --color-brand-800: #5b21b6;
-  --color-brand-900: #4c1d95;
+  --color-brand-50: #eff5ff;
+  --color-brand-100: #dbe7fe;
+  --color-brand-200: #c2def5;
+  --color-brand-300: #87c0fb;
+  --color-brand-400: #4982e3;
+  --color-brand-500: #335cbe;
+  --color-brand-600: #0c2f9c;
+  --color-brand-700: #0b1e5e;
+  --color-brand-800: #051242;
+  --color-brand-900: #010428;
+
+  --logo-surface: #ffffff;
 
   --radius: 0.5rem;
 
@@ -50,8 +52,8 @@
     --card-foreground: #fafafa;
     --popover: #18181b;
     --popover-foreground: #fafafa;
-    --primary: var(--color-brand-500);
-    --primary-foreground: #18181b;
+    --primary: var(--color-brand-400);
+    --primary-foreground: #ffffff;
     --secondary: #27272a;
     --secondary-foreground: #fafafa;
     --muted: #27272a;
@@ -60,7 +62,7 @@
     --accent-foreground: #fafafa;
     --border: #3f3f46;
     --input: #3f3f46;
-    --ring: var(--color-brand-500);
+    --ring: var(--color-brand-400);
   }
 }
 
@@ -91,6 +93,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-logo-surface: var(--logo-surface);
 
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);

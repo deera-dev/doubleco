@@ -1,24 +1,24 @@
 # PRD — Aplikasi Produksi Gamis Maryam
 
-| | |
-| --- | --- |
-| Status | v5 — + sekali input, export, CRUD, daftar karyawan |
-| Pengguna utama | Kepala Produksi (fase 1) |
-| Platform | Web app mobile-first (PWA), tetap nyaman di tablet & PC |
-| Stack | Mengikuti `README.md` (Vite + React + TanStack + Supabase + Edge Function BFF) |
+|                |                                                                                |
+| -------------- | ------------------------------------------------------------------------------ |
+| Status         | v5 — + sekali input, export, CRUD, daftar karyawan                             |
+| Pengguna utama | Kepala Produksi (fase 1)                                                       |
+| Platform       | Web app mobile-first (PWA), tetap nyaman di tablet & PC                        |
+| Stack          | Mengikuti `README.md` (Vite + React + TanStack + Supabase + Edge Function BFF) |
 
 ## 1. Latar belakang
 
 Kepala Produksi brand **Maryam** setiap hari mengerjakan empat dokumen secara
 manual di Excel dan kertas:
 
-| Dokumen saat ini | Isi | Masalah |
-| --- | --- | --- |
-| **Kartu WO** (kertas 12×16 cm) | Tanggal, tukang potong, kode produk, size, bahan, ADA/TIDAK ADA PERUBAHAN, info lanjutan, foto sampel | Diketik ulang tiap WO; kode pola belum ada |
-| **Kertas laporan anak jahit** (6×10 cm) | Tgl, T.Potong, Model, Jumlah, T.Jahit, Kode, Warna, TTD | Ditulis tangan per penjahit |
-| **THP** (`CONT_THP.xlsx`) | Kode barang, tgl proses, tukang potong, bahan & kombinasi, size; per penjahit: kode, jumlah, tgl ambil; kolom finishing (selesai, diterima, OK/RUSAK, keterangan) dan ACC gudang | Data yang sama diketik ulang dari kartu |
-| **Setoran jahit** (`SETORAN_JAIT_<BULAN>.xlsx`) | Per minggu: per penjahit × kategori S/M/L × hari (Senin–Sabtu), total, harga, kasbon | Tarif (S=20.000, M=25.000, L=30.000) di-hardcode di ratusan rumus; tidak ada jejak kode produk |
-| **Data anak jahit** (`DATA_ANAK_JAIT.xlsx`) | 1 sheet per penjahit (±49): rekening/e-wallet, a.n., riwayat mingguan kasbon/upah/bayar | Saldo kasbon tidak dihitung; data tersebar di 49 sheet |
+| Dokumen saat ini                                | Isi                                                                                                                                                                              | Masalah                                                                                        |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Kartu WO** (kertas 12×16 cm)                  | Tanggal, tukang potong, kode produk, size, bahan, ADA/TIDAK ADA PERUBAHAN, info lanjutan, foto sampel                                                                            | Diketik ulang tiap WO; kode pola belum ada                                                     |
+| **Kertas laporan anak jahit** (6×10 cm)         | Tgl, T.Potong, Model, Jumlah, T.Jahit, Kode, Warna, TTD                                                                                                                          | Ditulis tangan per penjahit                                                                    |
+| **THP** (`CONT_THP.xlsx`)                       | Kode barang, tgl proses, tukang potong, bahan & kombinasi, size; per penjahit: kode, jumlah, tgl ambil; kolom finishing (selesai, diterima, OK/RUSAK, keterangan) dan ACC gudang | Data yang sama diketik ulang dari kartu                                                        |
+| **Setoran jahit** (`SETORAN_JAIT_<BULAN>.xlsx`) | Per minggu: per penjahit × kategori S/M/L × hari (Senin–Sabtu), total, harga, kasbon                                                                                             | Tarif (S=20.000, M=25.000, L=30.000) di-hardcode di ratusan rumus; tidak ada jejak kode produk |
+| **Data anak jahit** (`DATA_ANAK_JAIT.xlsx`)     | 1 sheet per penjahit (±49): rekening/e-wallet, a.n., riwayat mingguan kasbon/upah/bayar                                                                                          | Saldo kasbon tidak dihitung; data tersebar di 49 sheet                                         |
 
 Contoh kesalahan input yang sudah terjadi di data nyata:
 
@@ -54,33 +54,33 @@ Setiap data diinput **satu kali** di titik kejadiannya, lalu dipakai ulang di
 semua tempat. Jika data sudah ada atau bisa diolah dari data yang ada,
 aplikasi mengambilnya otomatis — pengguna tidak mengetik ulang.
 
-| Data diinput sekali di… | Otomatis dipakai di… |
-| --- | --- |
-| Scan setor kartu (mis. Selasa) | Gajian Sabtu — kartu langsung terhitung, **tidak di-scan ulang** |
-| Master produk (kode, kategori, foto) | WO, kartu WO, kartu jahit, tarif kartu, THP |
-| Master bahan & warna | Pilihan warna di WO dan kartu jahit |
-| WO + hasil potong | Kartu jahit (tgl, tukang potong, model, ukuran, warna), THP |
+| Data diinput sekali di…                                            | Otomatis dipakai di…                                               |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Scan setor kartu (mis. Selasa)                                     | Gajian Sabtu — kartu langsung terhitung, **tidak di-scan ulang**   |
+| Master produk (kode, kategori, foto)                               | WO, kartu WO, kartu jahit, tarif kartu, THP                        |
+| Master bahan & warna                                               | Pilihan warna di WO dan kartu jahit                                |
+| WO + hasil potong                                                  | Kartu jahit (tgl, tukang potong, model, ukuran, warna), THP        |
 | Pembagian ke penjahit (sekaligus banyak penjahit dalam satu layar) | Kartu jahit (nomor & QR otomatis), THP, daftar "masih di penjahit" |
-| Tarif S/M/L | Upah setiap kartu |
-| Pemeriksaan finishing | THP (OK/rusak), usulan potongan |
-| Kasbon (dicatat saat diajukan) | Transfer Sabtu, buku kasbon, sisa kasbon |
-| Cicilan minggu lalu | Usulan cicilan minggu ini |
-| Rekening penjahit | Daftar transfer setiap minggu |
-| File Excel lama (impor) | Penjahit, rekening, saldo kasbon awal, riwayat |
+| Tarif S/M/L                                                        | Upah setiap kartu                                                  |
+| Pemeriksaan finishing                                              | THP (OK/rusak), usulan potongan                                    |
+| Kasbon (dicatat saat diajukan)                                     | Transfer Sabtu, buku kasbon, sisa kasbon                           |
+| Cicilan minggu lalu                                                | Usulan cicilan minggu ini                                          |
+| Rekening penjahit                                                  | Daftar transfer setiap minggu                                      |
+| File Excel lama (impor)                                            | Penjahit, rekening, saldo kasbon awal, riwayat                     |
 
 Default cerdas di setiap form: tanggal = hari ini, nomor WO = `WO_<kode>`,
 foto sampel = foto produk, warna = warna bahan, pilihan terakhir diingat.
 
 ## 3. Pengguna & peran
 
-| Peran | Fase 1 | Nanti |
-| --- | --- | --- |
-| Kepala Produksi | Semua fitur | — |
+| Peran            | Fase 1                   | Nanti                                              |
+| ---------------- | ------------------------ | -------------------------------------------------- |
+| Kepala Produksi  | Semua fitur              | —                                                  |
 | Kepala Finishing | Diwakili Kepala Produksi | Set kategori S/M/L produk, input hasil pemeriksaan |
-| Gudang | Diwakili Kepala Produksi | ACC barang masuk |
-| Owner | — | Lihat dashboard & rekap gajian |
-| Tukang Potong | Master data saja | Lapor hasil potong |
-| Penjahit | Master data saja | Lihat slip gaji |
+| Gudang           | Diwakili Kepala Produksi | ACC barang masuk                                   |
+| Owner            | —                        | Lihat dashboard & rekap gajian                     |
+| Tukang Potong    | Master data saja         | Lapor hasil potong                                 |
+| Penjahit         | Master data saja         | Lihat slip gaji                                    |
 
 Model data dan otorisasi (Supabase RLS) dibuat berbasis peran sejak awal agar
 membuka akses peran lain tidak perlu bongkar ulang.
@@ -109,15 +109,15 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 ### 5.1 Master data
 
-| Entitas | Field | Aturan |
-| --- | --- | --- |
-| Penjahit | **kode penjahit** (unik), nama, no. HP, status **aktif / tidak aktif / keluar**, catatan | Kode adalah identitas utama di semua layar & cetakan, nama hanya label. Belum ada daftar kode resmi: Kepala Produksi menginput kode tiap penjahit satu kali (saat impor atau tambah penjahit) |
-| Rekening penjahit | jenis (bank / e-wallet), penyedia (SeaBank, DANA, …), nomor, atas nama | Satu rekening aktif per penjahit; riwayat perubahan disimpan; peringatan jika a.n. ≠ nama penjahit |
-| Tukang potong | nama, status | — |
-| Produk | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel | Kategori wajib sebelum produk bisa dipakai di WO. Fase 1 diisi Kepala Produksi; fase 2 Kepala Finishing |
-| Bahan | nama (mis. BLACK SWAN), daftar warna | Warna mengikuti bahan |
-| Ukuran | nama (mis. MIDI) | Daftar dapat ditambah |
-| Tarif upah | kategori, nominal, berlaku mulai | Tarif tidak pernah ditimpa — tarif baru = baris baru dengan tanggal berlaku |
+| Entitas           | Field                                                                                    | Aturan                                                                                                                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Penjahit          | **kode penjahit** (unik), nama, no. HP, status **aktif / tidak aktif / keluar**, catatan | Kode adalah identitas utama di semua layar & cetakan, nama hanya label. Belum ada daftar kode resmi: Kepala Produksi menginput kode tiap penjahit satu kali (saat impor atau tambah penjahit) |
+| Rekening penjahit | jenis (bank / e-wallet), penyedia (SeaBank, DANA, …), nomor, atas nama                   | Satu rekening aktif per penjahit; riwayat perubahan disimpan; peringatan jika a.n. ≠ nama penjahit                                                                                            |
+| Tukang potong     | nama, status                                                                             | —                                                                                                                                                                                             |
+| Produk            | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel      | Kategori wajib sebelum produk bisa dipakai di WO. Fase 1 diisi Kepala Produksi; fase 2 Kepala Finishing                                                                                       |
+| Bahan             | nama (mis. BLACK SWAN), daftar warna                                                     | Warna mengikuti bahan                                                                                                                                                                         |
+| Ukuran            | nama (mis. MIDI)                                                                         | Daftar dapat ditambah                                                                                                                                                                         |
+| Tarif upah        | kategori, nominal, berlaku mulai                                                         | Tarif tidak pernah ditimpa — tarif baru = baris baru dengan tanggal berlaku                                                                                                                   |
 
 ### 5.2 Work Order (WO)
 
@@ -202,7 +202,7 @@ membuka akses peran lain tidak perlu bongkar ulang.
 - Rekap per penjahit:
 
   | Upah kotor | − Cicilan kasbon | − Potongan rusak permanen (yang sudah diputuskan owner `DIPOTONG`) | + Kasbon baru minggu ini | = Ditransfer |
-  | --- | --- | --- | --- | --- |
+  | ---------- | ---------------- | ------------------------------------------------------------------ | ------------------------ | ------------ |
 
   plus rincian per kartu dan tampilan **per hari × kategori S/M/L** seperti
   sheet setoran lama (agar mudah dicocokkan selama masa transisi).
@@ -238,9 +238,9 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 Wizard impor dengan **pratinjau dan validasi sebelum simpan**:
 
-| Sumber | Yang diimpor |
-| --- | --- |
-| `DATA_ANAK_JAIT.xlsx` | Penjahit (nama dari nama sheet), rekening & a.n., riwayat mingguan upah/kasbon/bayar → **saldo kasbon awal** |
+| Sumber                      | Yang diimpor                                                                                                   |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `DATA_ANAK_JAIT.xlsx`       | Penjahit (nama dari nama sheet), rekening & a.n., riwayat mingguan upah/kasbon/bayar → **saldo kasbon awal**   |
 | `SETORAN_JAIT_<BULAN>.xlsx` | Riwayat setoran per minggu × hari × kategori (data lama tanpa kode produk, disimpan sebagai riwayat read-only) |
 
 Validasi yang ditampilkan sebelum disimpan:
@@ -268,21 +268,21 @@ Ada dua tingkat pemberitahuan:
 Saat scan, hasil duplikat memakai warna, getar, dan bunyi yang berbeda dari
 scan sukses sehingga langsung terasa tanpa membaca layar.
 
-| Situasi | Tingkat | Pemberitahuan |
-| --- | --- | --- |
-| Scan setor kartu yang sudah disetor | Blokir | "Kartu KJ-… sudah disetor Senin 26/10 14:02" |
-| Kartu masuk gajian yang sudah dibayar | Blokir | Kartu tidak bisa masuk periode lain |
-| Pemeriksaan / usulan potongan kedua untuk potongan yang sama | Blokir | Jumlah OK + rusak tidak boleh melebihi jumlah kartu |
-| Pembagian melebihi hasil potong | Blokir | Tampilkan sisa yang tersedia |
-| Kode penjahit, kode produk, atau nomor WO sudah dipakai | Blokir | Tampilkan data pemiliknya |
-| Kartu baru dengan WO + penjahit + ukuran + warna yang sama dengan kartu yang masih berjalan | Peringatan | Tampilkan kartu yang sudah ada |
-| Penjahit masih memegang kartu belum disetor | Peringatan | Lihat 5.3 |
-| Nama penjahit sama/mirip (DIDI/DINDI) | Peringatan | Tampilkan penjahit yang mirip + kodenya |
-| Nomor rekening sudah dipakai penjahit lain | Peringatan | Tampilkan pemiliknya |
-| Kasbon dengan penjahit + nominal + tanggal yang sama | Peringatan | Tampilkan kasbon sebelumnya |
-| WO dengan produk + bahan + ukuran yang sama masih aktif | Peringatan | Tampilkan WO yang aktif |
-| Impor file yang sama / baris yang sudah pernah diimpor | Peringatan | Baris duplikat dilewati, ditampilkan di ringkasan pratinjau |
-| Tandai "dibayar" / kunci periode yang sudah diproses | Blokir | Tampilkan waktu proses sebelumnya |
+| Situasi                                                                                     | Tingkat    | Pemberitahuan                                               |
+| ------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| Scan setor kartu yang sudah disetor                                                         | Blokir     | "Kartu KJ-… sudah disetor Senin 26/10 14:02"                |
+| Kartu masuk gajian yang sudah dibayar                                                       | Blokir     | Kartu tidak bisa masuk periode lain                         |
+| Pemeriksaan / usulan potongan kedua untuk potongan yang sama                                | Blokir     | Jumlah OK + rusak tidak boleh melebihi jumlah kartu         |
+| Pembagian melebihi hasil potong                                                             | Blokir     | Tampilkan sisa yang tersedia                                |
+| Kode penjahit, kode produk, atau nomor WO sudah dipakai                                     | Blokir     | Tampilkan data pemiliknya                                   |
+| Kartu baru dengan WO + penjahit + ukuran + warna yang sama dengan kartu yang masih berjalan | Peringatan | Tampilkan kartu yang sudah ada                              |
+| Penjahit masih memegang kartu belum disetor                                                 | Peringatan | Lihat 5.3                                                   |
+| Nama penjahit sama/mirip (DIDI/DINDI)                                                       | Peringatan | Tampilkan penjahit yang mirip + kodenya                     |
+| Nomor rekening sudah dipakai penjahit lain                                                  | Peringatan | Tampilkan pemiliknya                                        |
+| Kasbon dengan penjahit + nominal + tanggal yang sama                                        | Peringatan | Tampilkan kasbon sebelumnya                                 |
+| WO dengan produk + bahan + ukuran yang sama masih aktif                                     | Peringatan | Tampilkan WO yang aktif                                     |
+| Impor file yang sama / baris yang sudah pernah diimpor                                      | Peringatan | Baris duplikat dilewati, ditampilkan di ringkasan pratinjau |
+| Tandai "dibayar" / kunci periode yang sudah diproses                                        | Blokir     | Tampilkan waktu proses sebelumnya                           |
 
 Jaminan teknis (bukan hanya tampilan):
 
@@ -308,17 +308,17 @@ Jaminan teknis (bukan hanya tampilan):
 Semua data bisa dikelola dari aplikasi. Data yang sudah menjadi dasar uang
 dilindungi supaya riwayat tidak rusak; setiap ubah/hapus tercatat di audit log.
 
-| Data | Tambah | Ubah | Hapus / batalkan |
-| --- | --- | --- | --- |
-| Penjahit, tukang potong, produk, bahan, warna, ukuran, rekening | ✓ | ✓ | Hapus jika belum pernah dipakai; jika sudah dipakai → nonaktifkan |
-| Tarif upah | ✓ (tarif baru + tanggal berlaku) | Hanya tarif yang belum berlaku | Hanya tarif yang belum berlaku |
-| WO | ✓ | ✓ (produk/bahan terkunci setelah ada kartu); tambah/hapus ukuran × warna | Hapus jika belum ada kartu; batalkan WO |
-| Kartu jahit | ✓ (sekaligus banyak) | Jumlah / penjahit selama belum disetor | Batalkan selama belum disetor |
-| Setoran | Scan | — | Batalkan setoran (salah scan) selama belum diperiksa & gajian belum dikunci |
-| Pemeriksaan | ✓ | — | Hapus pemeriksaan terakhir (koreksi) selama potongannya belum dibayar |
-| Kasbon & cicilan manual | ✓ | ✓ selama gajian terkait belum dikunci | ✓ selama gajian terkait belum dikunci |
-| Tambahan (THR/bonus) | ✓ | — | ✓ selama gajian belum dikunci |
-| Gajian | Otomatis | Cicilan per penjahit | **Buka kunci** gajian jika belum ada yang ditandai dibayar |
+| Data                                                            | Tambah                           | Ubah                                                                     | Hapus / batalkan                                                            |
+| --------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Penjahit, tukang potong, produk, bahan, warna, ukuran, rekening | ✓                                | ✓                                                                        | Hapus jika belum pernah dipakai; jika sudah dipakai → nonaktifkan           |
+| Tarif upah                                                      | ✓ (tarif baru + tanggal berlaku) | Hanya tarif yang belum berlaku                                           | Hanya tarif yang belum berlaku                                              |
+| WO                                                              | ✓                                | ✓ (produk/bahan terkunci setelah ada kartu); tambah/hapus ukuran × warna | Hapus jika belum ada kartu; batalkan WO                                     |
+| Kartu jahit                                                     | ✓ (sekaligus banyak)             | Jumlah / penjahit selama belum disetor                                   | Batalkan selama belum disetor                                               |
+| Setoran                                                         | Scan                             | —                                                                        | Batalkan setoran (salah scan) selama belum diperiksa & gajian belum dikunci |
+| Pemeriksaan                                                     | ✓                                | —                                                                        | Hapus pemeriksaan terakhir (koreksi) selama potongannya belum dibayar       |
+| Kasbon & cicilan manual                                         | ✓                                | ✓ selama gajian terkait belum dikunci                                    | ✓ selama gajian terkait belum dikunci                                       |
+| Tambahan (THR/bonus)                                            | ✓                                | —                                                                        | ✓ selama gajian belum dikunci                                               |
+| Gajian                                                          | Otomatis                         | Cicilan per penjahit                                                     | **Buka kunci** gajian jika belum ada yang ditandai dibayar                  |
 
 ### 5.13 Export & download
 
@@ -336,13 +336,12 @@ dilindungi supaya riwayat tidak rusak; setiap ubah/hapus tercatat di audit log.
 
 Printer: **Epson L1250** (inkjet, Wi-Fi), kertas sudah dipotong sesuai ukuran.
 
-| Dokumen | Ukuran | Isi utama |
-| --- | --- | --- |
-| Kartu WO | 120 × 160 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel, QR |
-| Kartu Jahit | 60 × 100 mm | "PRODUCTION", Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit, Kode, Warna, QR, nomor kartu, TTD |
-| THP | A4 | Seperti `CONT_THP.xlsx` + QR WO |
-| Daftar transfer / rekap gajian | A4 | Tabel rekap |
-
+| Dokumen                        | Ukuran       | Isi utama                                                                                                                                                              |
+| ------------------------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kartu WO                       | 120 × 160 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel, QR |
+| Kartu Jahit                    | 60 × 100 mm  | "PRODUCTION", Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit, Kode, Warna, QR, nomor kartu, TTD                                                                         |
+| THP                            | A4           | Seperti `CONT_THP.xlsx` + QR WO                                                                                                                                        |
+| Daftar transfer / rekap gajian | A4           | Tabel rekap                                                                                                                                                            |
 - Dicetak dari browser dengan `@page { size: … }` per dokumen; tersedia
   **halaman tes cetak** dan pengaturan offset (geser atas/kiri dalam mm) untuk
   kalibrasi printer.
@@ -389,34 +388,34 @@ audit_log (siapa, kapan, apa yang berubah)
 
 ## 10. Rencana rilis
 
-| Fase | Isi |
-| --- | --- |
+| Fase        | Isi                                                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **1 — MVP** | Login Kepala Produksi, master data, WO + cetak kartu WO, hasil potong & kartu jahit + cetak, THP otomatis + cetak, scan setor & pemeriksaan, kasbon, gajian Sabtu + daftar transfer + export Excel, impor data lama |
-| 2 | Login Kepala Finishing (set kategori, input pemeriksaan) & Gudang (ACC), dashboard lengkap, mode offline, slip gaji dibagikan via WhatsApp |
-| 3 | Akses penjahit (slip & riwayat), upah tukang potong, laporan bulanan |
+| 2           | Login Kepala Finishing (set kategori, input pemeriksaan) & Gudang (ACC), dashboard lengkap, mode offline, slip gaji dibagikan via WhatsApp                                                                          |
+| 3           | Akses penjahit (slip & riwayat), upah tukang potong, laporan bulanan                                                                                                                                                |
 
 Saran transisi: jalankan aplikasi **paralel dengan Excel selama 2–4 minggu
 gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 
 ## 11. Keputusan yang sudah disepakati
 
-| Topik | Keputusan |
-| --- | --- |
-| Kategori S/M/L | Tingkat kesulitan model, melekat di kode produk; fase 1 diisi Kepala Produksi |
-| Upah | Dihitung & dibayar Sabtu dari kartu yang sudah disetor; kartu dibayar penuh (termasuk yang disetor belum 100% selesai); potongan rusak permanen diputuskan owner; rusak yang bisa diperbaiki kembali ke penjahit yang sama |
-| Kartu belum selesai | Boleh disetor atas kesepakatan; dibayar penuh, sisa produk tetap wajib diserahkan |
-| Duplikasi | Setiap aksi ganda (scan, input, impor) memunculkan pemberitahuan; lihat 5.10 |
-| Sekali input | Tidak ada scan/input ulang; kartu yang di-scan saat setor otomatis masuk gajian Sabtu |
-| Karyawan | Daftar aktif / tidak aktif / keluar |
-| CRUD & export | Semua data bisa dikelola dan diunduh (5.12, 5.13) |
-| Kasbon | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit keluar = kerugian |
-| Kode penjahit | Diinput satu kali oleh Kepala Produksi |
-| Kartu jahit | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai |
-| WO | Satu kode produk + satu bahan, banyak ukuran & warna; nomor default `WO_<kode_produk>`, bisa diedit |
-| Pengguna | Fase 1 hanya Kepala Produksi |
-| Printer | Epson L1250, kertas 6×10, 12×16, A4 |
-| Data lama | Diimpor lewat wizard |
-| Transfer | Manual; aplikasi menyiapkan daftar |
+| Topik               | Keputusan                                                                                                                                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kategori S/M/L      | Tingkat kesulitan model, melekat di kode produk; fase 1 diisi Kepala Produksi                                                                                                                                              |
+| Upah                | Dihitung & dibayar Sabtu dari kartu yang sudah disetor; kartu dibayar penuh (termasuk yang disetor belum 100% selesai); potongan rusak permanen diputuskan owner; rusak yang bisa diperbaiki kembali ke penjahit yang sama |
+| Kartu belum selesai | Boleh disetor atas kesepakatan; dibayar penuh, sisa produk tetap wajib diserahkan                                                                                                                                          |
+| Duplikasi           | Setiap aksi ganda (scan, input, impor) memunculkan pemberitahuan; lihat 5.10                                                                                                                                               |
+| Sekali input        | Tidak ada scan/input ulang; kartu yang di-scan saat setor otomatis masuk gajian Sabtu                                                                                                                                      |
+| Karyawan            | Daftar aktif / tidak aktif / keluar                                                                                                                                                                                        |
+| CRUD & export       | Semua data bisa dikelola dan diunduh (5.12, 5.13)                                                                                                                                                                          |
+| Kasbon              | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit keluar = kerugian                                                                                                      |
+| Kode penjahit       | Diinput satu kali oleh Kepala Produksi                                                                                                                                                                                     |
+| Kartu jahit         | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai                                                                                                                                                      |
+| WO                  | Satu kode produk + satu bahan, banyak ukuran & warna; nomor default `WO_<kode_produk>`, bisa diedit                                                                                                                        |
+| Pengguna            | Fase 1 hanya Kepala Produksi                                                                                                                                                                                               |
+| Printer             | Epson L1250, kertas 6×10, 12×16, A4                                                                                                                                                                                        |
+| Data lama           | Diimpor lewat wizard                                                                                                                                                                                                       |
+| Transfer            | Manual; aplikasi menyiapkan daftar                                                                                                                                                                                         |
 
 ## 12. Pertanyaan terbuka
 
