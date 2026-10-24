@@ -30,19 +30,19 @@
 
   --radius: 0.75rem;
 
-  --background: #050717;
-  --foreground: #e9edf6;
-  --card: rgb(18 28 68 / 0.45);
-  --card-foreground: #e9edf6;
-  --popover: #0c1433;
-  --popover-foreground: #e9edf6;
+  --background: #0a0b10;
+  --foreground: #eef1f6;
+  --card: rgb(255 255 255 / 0.04);
+  --card-foreground: #eef1f6;
+  --popover: #14161d;
+  --popover-foreground: #eef1f6;
   --primary: var(--color-brand-500);
   --primary-foreground: #ffffff;
   --secondary: var(--color-metal-200);
   --secondary-foreground: var(--color-brand-900);
   --muted: rgb(255 255 255 / 0.04);
-  --muted-foreground: var(--color-metal-500);
-  --accent: rgb(255 255 255 / 0.06);
+  --muted-foreground: #9aa3b5;
+  --accent: rgb(255 255 255 / 0.07);
   --accent-foreground: #ffffff;
   --destructive: #f26b6f;
   --destructive-foreground: #ffffff;
@@ -50,25 +50,25 @@
   --success-foreground: #04110b;
   --warning: #f5c04e;
   --warning-foreground: #1a1203;
-  --border: rgb(161 175 199 / 0.16);
-  --input: rgb(161 175 199 / 0.22);
-  --input-surface: rgb(5 9 28 / 0.55);
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.12);
+  --input-surface: rgb(255 255 255 / 0.03);
   --ring: var(--color-brand-400);
-  --link: var(--color-brand-300);
+  --link: var(--color-brand-200);
 
-  --glass-surface: rgb(18 28 68 / 0.42);
-  --glass-surface-strong: rgb(10 17 46 / 0.72);
-  --glass-border: rgb(198 209 225 / 0.12);
-  --glass-highlight: rgb(255 255 255 / 0.09);
-  --glass-shadow: rgb(1 4 20 / 0.55);
-  --glow-navy: rgb(51 92 190 / 0.32);
-  --glow-metal: rgb(161 175 199 / 0.1);
+  --glass-surface: rgb(255 255 255 / 0.045);
+  --glass-surface-strong: rgb(12 13 19 / 0.7);
+  --glass-border: rgb(255 255 255 / 0.09);
+  --glass-highlight: rgb(255 255 255 / 0.1);
+  --glass-shadow: rgb(0 0 0 / 0.5);
+  --glow-navy: rgb(51 92 190 / 0.16);
+  --glow-metal: rgb(198 209 225 / 0.07);
   --primary-sheen-from: var(--color-brand-400);
   --primary-sheen-to: var(--color-brand-600);
-  --primary-glow: rgb(73 130 227 / 0.35);
+  --primary-glow: rgb(73 130 227 / 0.3);
   --metal-sheen-from: var(--color-metal-50);
-  --metal-sheen-mid: var(--color-metal-300);
-  --metal-sheen-to: var(--color-metal-500);
+  --metal-sheen-mid: var(--color-metal-200);
+  --metal-sheen-to: var(--color-metal-400);
 }
 
 @theme inline {
@@ -191,8 +191,9 @@
     min-height: 100dvh;
     background-color: var(--color-background);
     background-image:
-      radial-gradient(60rem 40rem at 10% -10%, var(--glow-navy), transparent 60%),
-      radial-gradient(50rem 36rem at 110% 110%, var(--glow-metal), transparent 60%);
+      radial-gradient(48rem 32rem at 0% -8%, var(--glow-navy), transparent 65%),
+      radial-gradient(40rem 28rem at 100% 0%, var(--glow-metal), transparent 60%),
+      radial-gradient(44rem 30rem at 50% 110%, var(--glow-navy), transparent 70%);
     background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);

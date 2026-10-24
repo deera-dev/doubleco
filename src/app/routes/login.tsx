@@ -15,6 +15,7 @@ function LoginPage() {
     <AuthCard
       title="Masuk"
       description="Aplikasi Produksi Maryam"
+      credit="Created and designed by Denny Angesti Pratama"
       footer={
         <span className="text-muted-foreground">
           Punya kode aktivasi?{' '}

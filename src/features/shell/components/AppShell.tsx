@@ -20,7 +20,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="glass-strong sticky top-0 z-10 border-b">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4">
           <div className="flex min-w-0 items-center gap-3">
-            <img src="/logo-mark.svg" alt="DoubleCo" className="h-8 w-auto shrink-0" />
+            <span className="sheen-metal flex shrink-0 items-center rounded-lg px-2 py-1">
+              <img src="/logo-mark.svg" alt="DoubleCo" className="h-6 w-auto" />
+            </span>
             <div className="min-w-0 border-l pl-3 leading-tight">
               <p className="truncate font-semibold text-foreground text-sm">
                 {me.data?.displayName ?? '…'}

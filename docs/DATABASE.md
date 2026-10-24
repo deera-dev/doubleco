@@ -448,6 +448,15 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
+### Akun master (developer)
+
+Peran `master` lolos semua pengecekan hak akses, tetapi **tidak terlihat**
+oleh pengguna lain: `profiles` hanya menampilkan akun master kepada master
+sendiri, dan nama aktornya tampil sebagai "Sistem" lewat
+`visible_display_name()` / view `audit_logs_visible`. Tindakan master tetap
+tercatat di audit log. Layar manajemen pengguna di aplikasi wajib memakai
+data yang sudah tersaring ini.
+
 ### Membuat akun tanpa password (aktivasi)
 
 Akun dibuat lewat SQL editor dengan password acak yang tidak diketahui siapa
