@@ -9,12 +9,6 @@ interface ErrorBoundaryState {
   error: Error | null
 }
 
-/**
- * Catches render-time errors thrown by its children so one broken
- * component can't blank the whole screen. Route-level boundaries live in
- * `app/routes/__root.tsx`; wrap a risky feature in its own boundary when
- * it should fail independently of the rest of the page.
- */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null }
 

@@ -101,6 +101,15 @@ feature's folder. The moment a second feature needs it, promote it to `shared/`.
 This is Separation of Concerns applied at the folder level, and it's what keeps
 features deletable/replaceable without archaeology.
 
+**Routing note:** in `vite.config.ts`, the `tanstackRouter()` plugin must be
+listed before `react()` — it generates `routeTree.gen.ts`, which the rest of
+the build then needs to exist. This can't be renamed into obviousness, which
+is why it's documented here instead of as a code comment.
+
+**Testing note:** `playwright.config.ts` reuses the Chromium pre-installed at
+`/opt/pw-browsers` when that path exists (Claude's cloud sandbox); anywhere
+else (local dev, CI) it falls back to Playwright's own browser install.
+
 ## Engineering principles, and how this repo enforces them
 
 ### Readability & SOLID/KISS/DRY
@@ -112,11 +121,22 @@ features deletable/replaceable without archaeology.
   actually needs it.
 - Shared logic goes in `shared/lib`, not copy-pasted across features (DRY) —
   but only once it's proven to be shared, not in anticipation of it.
-- **No `//` line comments.** Let names and types carry the meaning. When a
-  comment is truly needed (a non-obvious _why_, not a restatement of the
-  _what_), write it as a `/* ... */` or `/** ... */` block instead.
-  Auto-generated files (`routeTree.gen.ts`) are exempt — don't hand-edit
-  their comments either, they're overwritten on the next build.
+- **No comments in application/config source** — not `//`, not `/* ... */`,
+  not `/** ... */`. Reading the code (names, types, small functions) should
+  be enough on its own. If a line needs a comment to make sense, that's a
+  signal to rename something or extract a function with a clearer name
+  instead of explaining the unclear version.
+  - Two narrow exceptions, both because there is no naming substitute:
+    `/// <reference types="..." />` directives (required TS syntax, not
+    prose) and a plugin/step **ordering** constraint that genuinely can't
+    be expressed by naming (e.g. why the router Vite plugin runs before
+    `@vitejs/plugin-react` — see the Routing note below). When in doubt,
+    write it in this README instead of in the file.
+  - `.env.example`, `biome.json`/CI YAML, and `README.md` itself aren't
+    "code to read top to bottom" in this sense — those keep normal
+    documentation comments.
+  - Auto-generated files (`routeTree.gen.ts`) are exempt and never
+    hand-edited regardless — they're overwritten on the next build.
 
 ### Don't reinvent the wheel
 

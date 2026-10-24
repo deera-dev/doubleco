@@ -7,7 +7,6 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
-    /* Must run before @vitejs/plugin-react: generates src/routeTree.gen.ts */
     tanstackRouter({
       target: 'react',
       autoCodeSplitting: true,

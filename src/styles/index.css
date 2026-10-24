@@ -1,18 +1,5 @@
 @import "tailwindcss";
 
-/*
- * Single Source of Truth for Visual Design.
- *
- * Every color, spacing, radius and font used in the app MUST come from a
- * token defined here. Never hardcode a hex color or an arbitrary pixel
- * value in a component — add/extend a token instead. This keeps the UI
- * consistent and makes rebranding/theming a one-file change.
- *
- * `--background`/`--foreground`/`--primary`/etc. are the shadcn/ui
- * semantic tokens — every `shared/components/ui/*` component is styled
- * against these names (`bg-primary`, `border-input`, `ring-ring`, ...),
- * so re-point them instead of hardcoding a color on a ui/ component.
- */
 :root {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Fira Code", Consolas, monospace;

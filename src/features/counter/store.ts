@@ -1,12 +1,5 @@
 import { create } from 'zustand'
 
-/**
- * Purity of Store: this store holds ONLY synchronous UI state for this
- * feature. No fetching, no Supabase calls, no async side effects —
- * server state belongs in `api/` hooks backed by TanStack Query. Keeping
- * stores this thin is what makes them trivial to unit test and reason
- * about (SRP).
- */
 interface CounterState {
   count: number
   increment: () => void

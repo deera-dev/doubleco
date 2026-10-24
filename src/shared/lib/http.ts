@@ -2,15 +2,6 @@ import type { z } from 'zod'
 import { err, ok, type Result } from '@/shared/lib/result'
 import { type AppError, toAppError } from '@/shared/types/errors'
 
-/**
- * API Contract Validation.
- *
- * Never trust an external response's shape just because TypeScript says
- * so at compile time — `fetch`/Supabase/an Edge Function can return
- * anything at runtime. Parse every response through its Zod schema here,
- * once, at the boundary, so the rest of the app can rely on the inferred
- * type without re-checking it.
- */
 export async function fetchJson<Schema extends z.ZodType>(
   input: string,
   schema: Schema,
