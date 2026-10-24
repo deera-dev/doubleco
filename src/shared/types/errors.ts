@@ -3,6 +3,7 @@ export type AppError =
   | { kind: 'validation'; message: string; issues: string[] }
   | { kind: 'not_found'; message: string }
   | { kind: 'unauthorized'; message: string }
+  | { kind: 'business'; code: string; message: string; details?: unknown }
   | { kind: 'unknown'; message: string; cause?: unknown }
 
 export function toAppError(error: unknown): AppError {

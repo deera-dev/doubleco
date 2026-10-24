@@ -3,7 +3,7 @@ import { z } from 'zod'
 const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url({ message: 'VITE_SUPABASE_URL must be a valid URL' }),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1, 'VITE_SUPABASE_PUBLISHABLE_KEY is required'),
-  VITE_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'VITE_CLOUDINARY_CLOUD_NAME is required'),
+  VITE_CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   VITE_APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
 })
 

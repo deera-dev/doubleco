@@ -1,0 +1,4 @@
+project_id = "doubleco"
+
+[functions.activate-account]
+verify_jwt = false

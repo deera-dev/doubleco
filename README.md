@@ -466,6 +466,27 @@ name — it never touches the API secret.
 
 ## Deployment
 
+### Supabase (database + Edge Functions)
+
+Migrations live in `supabase/migrations/` and the BFF in `supabase/functions/`
+(`_shared/` holds CORS/JSON helpers and client factories, not a deployable
+function). `supabase/config.toml` marks `activate-account` as callable without
+a user session (`verify_jwt = false`), since activation happens before the
+user has a password.
+
+```bash
+supabase link --project-ref <project-ref>
+supabase db push
+supabase functions deploy activate-account get-me
+```
+
+Edge Functions read `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY` from the runtime automatically;
+`SUPABASE_SECRET_KEY` (`supabase secrets set ...`) takes precedence over the
+service role key when present.
+
+### Vercel
+
 Vercel auto-detects the Vite build. `vercel.json` adds the SPA rewrite
 TanStack Router's client-side routing needs so a hard refresh on
 `/some/deep/route` doesn't 404.
