@@ -448,7 +448,18 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Setelah pengguna pertama mendaftar, beri peran lewat SQL editor:
+### Membuat akun tanpa password (aktivasi)
+
+Akun dibuat lewat SQL editor dengan password acak yang tidak diketahui siapa
+pun, lalu `select public.create_activation_code('<username>');` menghasilkan
+kode aktivasi 8 karakter (berlaku 7 hari, sekali pakai, maks. 5 percobaan
+salah). Pengguna membuka halaman **Aktivasi** di aplikasi, memasukkan
+username + kode, lalu membuat password sendiri. Pemeriksaan kode dilakukan
+Edge Function (service role) lewat `consume_activation_code`, lalu password
+diset dengan Admin API. Kode baru dapat dibuat ulang kapan saja (kode lama
+otomatis tidak berlaku) — juga untuk "lupa password".
+
+Peran pengguna diberikan lewat SQL editor:
 `update profiles set role = 'production_head' where username = '<username>';`
 Matikan pendaftaran publik (Auth → Sign In / Providers) agar hanya akun yang
 dibuat Kepala Produksi yang bisa masuk.
