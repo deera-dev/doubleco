@@ -96,6 +96,11 @@ features deletable/replaceable without archaeology.
   actually needs it.
 - Shared logic goes in `shared/lib`, not copy-pasted across features (DRY) —
   but only once it's proven to be shared, not in anticipation of it.
+- **No `//` line comments.** Let names and types carry the meaning. When a
+  comment is truly needed (a non-obvious _why_, not a restatement of the
+  _what_), write it as a `/* ... */` or `/** ... */` block instead.
+  Auto-generated files (`routeTree.gen.ts`) are exempt — don't hand-edit
+  their comments either, they're overwritten on the next build.
 
 ### Type safety (Keamanan Tipe Data)
 
@@ -209,24 +214,48 @@ build:          build system / external dependencies
 
 ### Git branching strategy
 
-Trunk-based, GitHub-flow style:
+Trunk-based: `main` is always deployable, protected, and every push to it
+triggers a Vercel production deploy. Every other branch is short-lived and
+must start with one of these prefixes:
 
-- `main` — always deployable. Protected. Every push triggers a Vercel
-  production deploy.
-- `feature/<short-name>` — new functionality, branched from `main`.
-- `fix/<short-name>` — bug fixes.
-- `chore/<short-name>` — tooling/deps/config changes with no feature impact.
-- Open a PR into `main`, get it reviewed, squash-merge. Vercel's PR preview
-  deploys give every PR a live URL for review before merge.
-- No long-lived `develop` branch — it rots and causes merge pain in a
-  small-to-mid team. If the team later needs a staging gate, add a
-  `release/*` branch convention then, not preemptively.
+| Prefix      | Use it for                                                   |
+| ----------- | ------------------------------------------------------------ |
+| `feature/`  | New functionality (e.g. `feature/login-page`)                |
+| `bugfix/`   | Fixing a bug found during testing (not yet in production)    |
+| `hotfix/`   | Urgent/critical fix applied directly against production      |
+| `refactor/` | Restructuring/cleaning up code with no behavior change       |
+| `docs/`     | Documentation only (README, ADRs, comments)                  |
+| `chore/`    | Routine maintenance — dependency bumps, build/config changes |
+
+Branch from `main`, open a PR back into `main`, get it reviewed, squash-merge.
+Vercel's PR preview deploys give every PR a live URL for review before merge.
+A `hotfix/*` still goes through a PR — "critical" means it skips the queue,
+not that it skips review.
+
+No long-lived `develop` branch — it rots and causes merge pain in a
+small-to-mid team. If the team later needs a staging gate, add a
+`release/*` branch convention then, not preemptively.
 
 ## Environment variables
 
 See `.env.example`. Validated at startup via Zod in `shared/config/env.ts` —
 a missing/invalid variable throws immediately on boot instead of failing
 confusingly deep inside a feature later.
+
+Two tiers, don't mix them up:
+
+- **`VITE_*`** — bundled into the client JS. Only public values go here
+  (Supabase URL + publishable key, Cloudinary cloud name).
+- **No prefix** — never reaches `import.meta.env`/the browser at all
+  (`SUPABASE_SECRET_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_URL`). These
+  only make sense once there's a server to run them in — a Supabase Edge
+  Function or a Vercel serverless/`api/` function — which doesn't exist
+  yet in this pure-SPA scaffold. Don't invent a client-side use for a
+  secret key; add the server function when the PRD actually needs one
+  (e.g. a signed Cloudinary upload, an admin-only Supabase operation).
+
+`shared/lib/cloudinary.ts` only builds public delivery URLs from the cloud
+name — it never touches the API secret.
 
 ## Deployment
 

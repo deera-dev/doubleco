@@ -6,7 +6,7 @@ import { env } from '@/shared/config/env'
  * instead of calling `createClient` again — one client keeps one auth
  * session, one realtime connection and one connection pool.
  */
-export const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
+export const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
