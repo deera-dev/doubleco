@@ -1,22 +1,14 @@
 import { z } from 'zod'
 
-/**
- * Single source of truth for environment configuration.
- *
- * Vite only exposes `import.meta.env.*` as untyped strings at runtime.
- * Parsing it once, here, through Zod gives the rest of the app a typed,
- * validated `env` object and makes a missing/misconfigured variable fail
- * fast at startup instead of surfacing as a confusing error deep in a
- * feature later.
- */
-const envSchema = z.object({
+const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url({ message: 'VITE_SUPABASE_URL must be a valid URL' }),
-  VITE_SUPABASE_ANON_KEY: z.string().min(1, 'VITE_SUPABASE_ANON_KEY is required'),
+  VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1, 'VITE_SUPABASE_PUBLISHABLE_KEY is required'),
+  VITE_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'VITE_CLOUDINARY_CLOUD_NAME is required'),
   VITE_APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
 })
 
-function parseEnv() {
-  const result = envSchema.safeParse(import.meta.env)
+function parseClientEnv() {
+  const result = clientEnvSchema.safeParse(import.meta.env)
 
   if (!result.success) {
     const issues = result.error.issues
@@ -31,4 +23,4 @@ function parseEnv() {
   return result.data
 }
 
-export const env = parseEnv()
+export const env = parseClientEnv()

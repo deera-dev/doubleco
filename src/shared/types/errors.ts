@@ -1,9 +1,3 @@
-/**
- * A typed, discriminated application error. Every layer that can fail
- * (network calls, Supabase queries, API contract validation) normalizes
- * into this shape instead of throwing arbitrary `Error`/`unknown` values,
- * so callers can `switch` on `kind` and handle each case deliberately.
- */
 export type AppError =
   | { kind: 'network'; message: string }
   | { kind: 'validation'; message: string; issues: string[] }

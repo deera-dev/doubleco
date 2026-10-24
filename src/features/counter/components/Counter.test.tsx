@@ -15,7 +15,7 @@ describe('Counter', () => {
 
     expect(screen.getByText('0')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '+' }))
+    await user.click(screen.getByRole('button', { name: 'Increment' }))
 
     expect(screen.getByText('1')).toBeInTheDocument()
   })
@@ -24,7 +24,7 @@ describe('Counter', () => {
     const user = userEvent.setup()
     render(<Counter />)
 
-    await user.click(screen.getByRole('button', { name: '+' }))
+    await user.click(screen.getByRole('button', { name: 'Increment' }))
     await user.click(screen.getByRole('button', { name: 'Reset' }))
 
     expect(screen.getByText('0')).toBeInTheDocument()

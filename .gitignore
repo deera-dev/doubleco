@@ -22,9 +22,15 @@ src/app/routeTree.gen.ts
 
 # Test / coverage
 coverage
+playwright-report
+test-results
+blob-report
 
 # Biome
 .biome-cache
+
+# Local Claude Code skills (installed per-dev, not shipped with the app)
+.claude
 
 # Editor directories and files
 .vscode/*

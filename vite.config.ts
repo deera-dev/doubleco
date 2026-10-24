@@ -5,10 +5,8 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    // Must run before @vitejs/plugin-react: generates src/routeTree.gen.ts
     tanstackRouter({
       target: 'react',
       autoCodeSplitting: true,
@@ -28,5 +26,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    exclude: ['**/node_modules/**', 'e2e/**'],
   },
 })
