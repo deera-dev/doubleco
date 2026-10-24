@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/**
+ * Single Source of Truth for Visual Design.
+ *
+ * Every color, spacing, radius and font used in the app MUST come from a
+ * token defined here. Never hardcode a hex color or an arbitrary pixel
+ * value in a component — add/extend a token instead. This keeps the UI
+ * consistent and makes rebranding/theming a one-file change.
+ */
+@theme {
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Fira Code", Consolas, monospace;
+
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f4f5;
+  --color-border: #e4e4e7;
+  --color-text: #18181b;
+  --color-text-muted: #71717a;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-surface: #18181b;
+    --color-surface-muted: #27272a;
+    --color-border: #3f3f46;
+    --color-text: #fafafa;
+    --color-text-muted: #a1a1aa;
+  }
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
