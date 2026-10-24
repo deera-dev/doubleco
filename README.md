@@ -9,43 +9,52 @@ decisions without having to ask.
 
 ## Tech stack
 
-| Concern             | Choice                                             |
-| ------------------- | -------------------------------------------------- |
-| Build tool          | Vite                                               |
-| UI                  | React 19 + TypeScript                              |
-| Routing             | TanStack Router (file-based)                       |
-| Server state        | TanStack Query (React Query)                       |
-| Client/UI state     | Zustand                                            |
-| Schema & validation | Zod                                                |
-| Styling             | Tailwind CSS v4                                    |
-| Backend             | Supabase (Postgres, Auth, Storage, Edge Functions) |
-| Lint & format       | Biome                                              |
-| Tests               | Vitest + React Testing Library                     |
-| Git hooks           | Husky + lint-staged + commitlint                   |
-| Package manager     | pnpm                                               |
-| Hosting             | Vercel                                             |
+| Concern              | Choice                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Build tool           | Vite                                                                                    |
+| UI                   | React 19 + TypeScript                                                                   |
+| Routing              | TanStack Router (file-based, client-rendered — see [SSR/SEO](#architecture-decisions))  |
+| Server state         | TanStack Query (React Query)                                                            |
+| Client/UI state      | Zustand                                                                                 |
+| Schema & validation  | Zod                                                                                     |
+| Styling              | Tailwind CSS v4                                                                         |
+| Component library    | shadcn/ui (Radix primitives, copied into `shared/components/ui`, not an npm dependency) |
+| Forms                | React Hook Form + `@hookform/resolvers/zod`                                             |
+| Toasts               | sonner                                                                                  |
+| Dates                | date-fns                                                                                |
+| Icons                | lucide-react                                                                            |
+| Backend              | Supabase (Postgres, Auth, Storage, Edge Functions)                                      |
+| Lint & format        | Biome                                                                                   |
+| Unit/component tests | Vitest + React Testing Library                                                          |
+| E2E tests            | Playwright                                                                              |
+| Git hooks            | Husky + lint-staged + commitlint                                                        |
+| CI                   | GitHub Actions                                                                          |
+| Package manager      | npm                                                                                     |
+| Hosting              | Vercel                                                                                  |
 
 ## Getting started
 
 ```bash
-pnpm install
+npm install
 cp .env.example .env.local   # fill in real Supabase values
-pnpm dev
+npm run dev
 ```
 
 ## Scripts
 
-| Script            | What it does                               |
-| ----------------- | ------------------------------------------ |
-| `pnpm dev`        | Start the Vite dev server                  |
-| `pnpm build`      | Typecheck (`tsc -b`) then production build |
-| `pnpm preview`    | Preview the production build locally       |
-| `pnpm typecheck`  | Typecheck only, no build                   |
-| `pnpm lint`       | Biome lint                                 |
-| `pnpm format`     | Biome format (writes)                      |
-| `pnpm check`      | Biome lint + format + import sort (writes) |
-| `pnpm test`       | Run the test suite once                    |
-| `pnpm test:watch` | Run tests in watch mode                    |
+| Script                | What it does                               |
+| --------------------- | ------------------------------------------ |
+| `npm run dev`         | Start the Vite dev server                  |
+| `npm run build`       | Typecheck (`tsc -b`) then production build |
+| `npm run preview`     | Preview the production build locally       |
+| `npm run typecheck`   | Typecheck only, no build                   |
+| `npm run lint`        | Biome lint                                 |
+| `npm run format`      | Biome format (writes)                      |
+| `npm run check`       | Biome lint + format + import sort (writes) |
+| `npm test`            | Run the unit test suite once               |
+| `npm run test:watch`  | Run unit tests in watch mode               |
+| `npm run test:e2e`    | Run Playwright E2E tests headless          |
+| `npm run test:e2e:ui` | Run Playwright E2E tests in UI mode        |
 
 ## Folder structure (Feature-Based Architecture)
 
@@ -66,18 +75,25 @@ src/
       types.ts
 
   shared/                  # reused across 2+ features. Nothing feature-specific here.
-    components/              # shared/dumb UI (e.g. ErrorBoundary, buttons)
+    components/
+      ui/                     # shadcn/ui primitives (button, input, card, form, ...)
+      ErrorBoundary.tsx
     hooks/
-    lib/                      # supabase client, query client, result.ts, http.ts
+    lib/                      # supabase client, query client, result.ts, http.ts, cn()
     stores/                    # global UI-only Zustand stores (theme, sidebar, …)
     config/                     # env.ts (Zod-validated environment)
     types/                       # errors.ts, supabase.ts (generated DB types go here)
 
   styles/
-    index.css               # Tailwind entry + @theme design tokens (see below)
+    index.css               # Tailwind entry + design tokens, incl. shadcn's semantic tokens
 
   test/
     setup.ts                # Vitest + jest-dom setup
+
+e2e/                       # Playwright E2E specs — separate from src/**/*.test.ts (unit)
+components.json            # shadcn/ui config (paths, style, icon library)
+playwright.config.ts
+.github/workflows/ci.yml   # lint + typecheck + unit test + build on every PR to main
 ```
 
 **Rule of thumb:** if code is only used by one feature, it lives inside that
@@ -166,6 +182,26 @@ state machine, etc. from scratch. Before reaching for one:
   implementation (`features/counter/components/Counter.test.tsx`).
 - `shared/lib/http.ts`'s contract validation is tested by stubbing
   `fetch` (`shared/lib/http.test.ts`) — no real network needed.
+- Critical user flows (login, checkout, anything that touches money or
+  auth) get a Playwright E2E spec in `e2e/` in addition to unit tests —
+  unit tests prove a function/component works in isolation, E2E proves the
+  flow works end-to-end against a real running app.
+
+### Component library (shadcn/ui)
+
+Components under `shared/components/ui/` are copied source, not an npm
+dependency — that's how shadcn/ui works: you own the code and can edit it
+freely. Rules:
+
+- Never hand-edit the visual primitives to chase a one-off design — change
+  the token in `src/styles/index.css` instead (keeps Single Source of Truth
+  for visual design intact).
+- A feature-specific composition (e.g. a `ProductCard`) goes in that
+  feature's `components/`, built out of `shared/components/ui/*` — it does
+  not itself go in `shared/components/ui/`.
+- `components.json` keeps the shadcn CLI's path config in case `npx shadcn
+  add <component>` is used later (needs `ui.shadcn.com` allowed in this
+  environment's network settings — see the project's setup notes).
 
 ### State separation (API data vs. UI state)
 
@@ -207,13 +243,23 @@ both in sync if you ever change the alias.
 ### Linter & formatter
 
 Biome (`biome.json`) replaces ESLint + Prettier with one faster tool:
-lint, format, and import sorting in a single `pnpm check`.
+lint, format, and import sorting in a single `npm run check`.
 
 ### Git pre-commit hook
 
 Husky + lint-staged (`.husky/pre-commit`) run `biome check --write` on
 staged files before every commit — a badly formatted or lint-failing file
 never reaches the repo.
+
+### CI pipeline
+
+`.github/workflows/ci.yml` runs on every PR into `main` (and on push to
+`main`): `biome ci` (lint + format check, no writes), typecheck, unit
+tests, then a production build — all before Vercel's own preview/production
+deploy, which stays a separate, parallel check. A red CI run blocks merge
+regardless of what Vercel's preview says. E2E tests aren't in CI yet (kept
+local/manual via `npm run test:e2e` for now) — add a Playwright job when
+the team wants that gate too.
 
 ### Semantic commit messages
 
@@ -258,6 +304,73 @@ not that it skips review.
 No long-lived `develop` branch — it rots and causes merge pain in a
 small-to-mid team. If the team later needs a staging gate, add a
 `release/*` branch convention then, not preemptively.
+
+## Architecture decisions
+
+Decided, not up for re-litigating per-feature — change them here first if a
+PRD genuinely requires it, don't quietly drift away from them in one feature.
+
+- **No SSR.** This is an internal dashboard, not a public/SEO-facing site,
+  so the plain Vite SPA (client-rendered) in this scaffold stays as-is. If
+  a future product need ever requires public, crawlable pages, that's a
+  separate decision (e.g. TanStack Start) — don't bolt SSR onto this app;
+  stand up a new one for that surface.
+- **One environment.** Just local dev + Vercel production (Vercel's PR
+  preview deploys already give every PR a disposable pre-prod URL, which
+  covers what a long-lived "staging" would otherwise be for). One Supabase
+  project, no branching. Re-visit only if the team actually hits a wall
+  this doesn't cover — don't pre-build a 3-environment pipeline nobody asked
+  for.
+
+## Database conventions
+
+Applies to every table from the first migration — fix the name now, not
+after rows (and foreign keys pointing at it) exist.
+
+- **Table names**: plural, `snake_case` — e.g. `products`, `order_items`.
+- **Column names**: `snake_case`, fully lowercase — e.g. `created_at`,
+  `product_id`, never `createdAt`/`ProductID`.
+- **Primary key**: always `id`, type `uuid`, `default gen_random_uuid()`
+  (Postgres built-in — no extension needed on Supabase).
+- **Foreign key**: `<singular_table_name>_id` — a column referencing
+  `products` is named `product_id`, one referencing `order_items` is
+  `order_item_id`.
+- `created_at timestamptz not null default now()` (and `updated_at` when a
+  row is ever edited, not just inserted) is the de-facto standard pairing
+  with the above — confirm per-table in the PRD/schema design, not assumed
+  here as a hard rule like the four above.
+
+## Authentication strategy
+
+Login is **username + password**. Supabase Auth itself only authenticates
+by email or phone — there's no native "username" identity — so this app
+derives a stable, fake-but-deterministic email from the username instead of
+collecting a real one:
+
+1. `profiles.username` (unique, stored lowercase, validate the input as
+   e.g. `[a-z0-9_]{3,20}` at the Zod layer — confirm exact rules in the
+   PRD) is the single source of truth for the username.
+2. On sign-up, normalize the username (trim, lowercase) and call
+   `supabase.auth.signUp({ email: `${username}@users.doubleco.internal`,
+   password })` — `users.doubleco.internal` never resolves and never
+   receives mail, it only exists to satisfy Supabase Auth's email field.
+3. A Postgres trigger on `auth.users` (the standard Supabase
+   `handle_new_user()` pattern) inserts the matching `profiles` row from
+   `raw_user_meta_data`, keeping `auth.users` and `profiles` in sync
+   without a second client round-trip.
+4. On sign-in, the client derives the same synthetic email from the
+   entered username and calls `supabase.auth.signInWithPassword(...)`
+   directly — **no lookup table/RPC needed**, since the email is a pure
+   function of the username. This also means a wrong username and a wrong
+   password fail identically (Supabase's own generic "Invalid login
+   credentials"), so a mistyped username never leaks whether it exists.
+5. **RLS is mandatory** on every table, `profiles` included, the moment it
+   exists — not a later hardening pass. Authorization/roles (admin vs.
+   regular user, etc.) aren't decided yet; that waits for the PRD to define
+   what roles the product actually needs.
+
+This isn't built yet (no `features/auth` exists) — it's the agreed shape to
+build against once the PRD gets there.
 
 ## Environment variables
 

@@ -1,4 +1,6 @@
+import { Minus, Plus, RotateCcw } from 'lucide-react'
 import { useCounterStore } from '@/features/counter/store'
+import { Button } from '@/shared/components/ui/button'
 
 export function Counter() {
   const count = useCounterStore((state) => state.count)
@@ -7,29 +9,29 @@ export function Counter() {
   const reset = useCounterStore((state) => state.reset)
 
   return (
-    <div className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface-muted) p-4">
-      <button
+    <div className="flex items-center gap-3 rounded-lg border bg-muted p-4">
+      <Button
         type="button"
+        variant="outline"
+        size="icon"
         onClick={decrement}
-        className="rounded-(--radius-sm) border border-(--color-border) px-3 py-1 text-(--color-text) hover:bg-(--color-surface)"
+        aria-label="Decrement"
       >
-        -
-      </button>
-      <span className="min-w-8 text-center font-mono text-lg text-(--color-text)">{count}</span>
-      <button
+        <Minus />
+      </Button>
+      <span className="min-w-8 text-center font-mono text-foreground text-lg">{count}</span>
+      <Button
         type="button"
+        variant="outline"
+        size="icon"
         onClick={increment}
-        className="rounded-(--radius-sm) border border-(--color-border) px-3 py-1 text-(--color-text) hover:bg-(--color-surface)"
+        aria-label="Increment"
       >
-        +
-      </button>
-      <button
-        type="button"
-        onClick={reset}
-        className="ml-2 rounded-(--radius-sm) px-3 py-1 text-(--color-text-muted) hover:text-(--color-text)"
-      >
-        Reset
-      </button>
+        <Plus />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" onClick={reset} aria-label="Reset">
+        <RotateCcw />
+      </Button>
     </div>
   )
 }
