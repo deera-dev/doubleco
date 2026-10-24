@@ -18,10 +18,7 @@ function LoginPage() {
       footer={
         <span className="text-muted-foreground">
           Punya kode aktivasi?{' '}
-          <Link
-            to="/aktivasi"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
+          <Link to="/aktivasi" className="font-medium text-link underline-offset-4 hover:underline">
             Aktifkan akun
           </Link>
         </span>

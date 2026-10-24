@@ -12,7 +12,7 @@ function ActivationPage() {
       title="Aktivasi Akun"
       description="Masukkan kode aktivasi lalu buat password Anda sendiri."
       footer={
-        <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link to="/login" className="font-medium text-link underline-offset-4 hover:underline">
           Kembali ke halaman masuk
         </Link>
       }

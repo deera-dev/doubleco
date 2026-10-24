@@ -31,6 +31,7 @@ export const activationResponseSchema = z.object({
 })
 
 export const appRoleSchema = z.enum([
+  'master',
   'production_head',
   'finishing_head',
   'warehouse',

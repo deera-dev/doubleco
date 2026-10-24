@@ -66,21 +66,21 @@ erDiagram
 
 ## 3. Enum
 
-| Enum                      | Nilai                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------ |
-| `app_role`                | `production_head`, `finishing_head`, `warehouse`, `owner`, `cutter`, `tailor`  |
-| `tailor_status`           | `active`, `inactive` (sementara tidak bekerja), `left` (keluar)                |
-| `payment_account_type`    | `bank`, `ewallet`                                                              |
-| `wage_category`           | `S`, `M`, `L`                                                                  |
-| `change_status`           | `changed` (ADA PERUBAHAN), `follow_sample` (TIDAK ADA PERUBAHAN / IKUT SAMPEL) |
-| `work_order_status`       | `draft`, `cutting`, `sewing`, `done`, `cancelled`                              |
-| `sewing_card_status`      | `taken`, `submitted`, `paid`, `cancelled`                                      |
-| `inspection_status`       | `pending`, `in_repair`, `done`                                                 |
-| `deduction_decision`      | `pending`, `deduct`, `waive`                                                   |
-| `cash_advance_entry_type` | `opening_balance`, `advance`, `repayment`, `write_off`                         |
-| `payroll_period_status`   | `open`, `locked`                                                               |
-| `payroll_line_status`     | `draft`, `paid`                                                                |
-| `import_source`           | `tailor_data`, `weekly_deposit`                                                |
+| Enum                      | Nilai                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `app_role`                | `master` (semua hak — dev & testing), `production_head`, `finishing_head`, `warehouse`, `owner`, `cutter`, `tailor` |
+| `tailor_status`           | `active`, `inactive` (sementara tidak bekerja), `left` (keluar)                                                     |
+| `payment_account_type`    | `bank`, `ewallet`                                                                                                   |
+| `wage_category`           | `S`, `M`, `L`                                                                                                       |
+| `change_status`           | `changed` (ADA PERUBAHAN), `follow_sample` (TIDAK ADA PERUBAHAN / IKUT SAMPEL)                                      |
+| `work_order_status`       | `draft`, `cutting`, `sewing`, `done`, `cancelled`                                                                   |
+| `sewing_card_status`      | `taken`, `submitted`, `paid`, `cancelled`                                                                           |
+| `inspection_status`       | `pending`, `in_repair`, `done`                                                                                      |
+| `deduction_decision`      | `pending`, `deduct`, `waive`                                                                                        |
+| `cash_advance_entry_type` | `opening_balance`, `advance`, `repayment`, `write_off`                                                              |
+| `payroll_period_status`   | `open`, `locked`                                                                                                    |
+| `payroll_line_status`     | `draft`, `paid`                                                                                                     |
+| `import_source`           | `tailor_data`, `weekly_deposit`                                                                                     |
 
 Semua nominal uang bertipe **`bigint` (Rupiah utuh)**, selalu `>= 0`; arah
 (tambah/kurang) ditentukan oleh jenis kolom/entri, bukan tanda minus.

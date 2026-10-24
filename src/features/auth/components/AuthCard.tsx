@@ -9,18 +9,18 @@ interface AuthCardProps {
 
 export function AuthCard({ title, description, children, footer }: AuthCardProps) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-muted px-4 py-8">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="rounded-xl bg-logo-surface px-4 py-3 shadow-xs">
-            <img src="/logo.svg" alt="Logo doubleco" className="h-12 w-auto" />
+    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm space-y-7">
+        <div className="flex flex-col items-center gap-5 text-center">
+          <div className="sheen-metal rounded-2xl px-6 py-4">
+            <img src="/logo.svg" alt="DoubleCo" className="h-20 w-auto" />
           </div>
-          <div className="space-y-1">
-            <h1 className="font-semibold text-2xl text-foreground">{title}</h1>
+          <div className="space-y-1.5">
+            <h1 className="text-metal font-semibold text-3xl tracking-tight">{title}</h1>
             <p className="text-muted-foreground text-sm">{description}</p>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-xs">{children}</div>
+        <div className="glass rounded-2xl p-5 sm:p-6">{children}</div>
         {footer && <div className="text-center text-sm">{footer}</div>}
       </div>
     </main>
