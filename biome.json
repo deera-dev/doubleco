@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/routeTree.gen.ts", "!**/dist", "!**/coverage", "!public"]
+    "includes": [
+      "**",
+      "!**/routeTree.gen.ts",
+      "!**/dist",
+      "!**/coverage",
+      "!public",
+      "!supabase/functions"
+    ]
   },
   "formatter": {
     "enabled": true,

@@ -23,7 +23,8 @@ decisions without having to ask.
 | Toasts               | sonner                                                                                  |
 | Dates                | date-fns                                                                                |
 | Icons                | lucide-react                                                                            |
-| Backend              | Supabase (Postgres, Auth, Storage, Edge Functions)                                      |
+| Backend              | Supabase (Postgres, Auth, Storage)                                                      |
+| BFF                  | Supabase Edge Functions — see [Thin client / BFF](#thin-client--bff--server-driven-ui)  |
 | Lint & format        | Biome                                                                                   |
 | Unit/component tests | Vitest + React Testing Library                                                          |
 | E2E tests            | Playwright                                                                              |
@@ -69,8 +70,8 @@ src/
 
   features/                # one folder per business feature. Self-contained.
     <feature>/
-      api/                   # TanStack Query hooks + Zod schemas (server state + contract)
-      components/            # feature-only UI
+      api/                   # TanStack Query hooks calling a BFF Edge Function + its Zod contract
+      components/            # feature-only UI — dumb, renders what the BFF sent, no business logic
       store.ts                 # Zustand store — UI state ONLY for this feature
       types.ts
 
@@ -91,6 +92,10 @@ src/
     setup.ts                # Vitest + jest-dom setup
 
 e2e/                       # Playwright E2E specs — separate from src/**/*.test.ts (unit)
+supabase/
+  functions/
+    <function-name>/        # one Deno Edge Function per BFF endpoint — see below
+      index.ts
 components.json            # shadcn/ui config (paths, style, icon library)
 playwright.config.ts
 .github/workflows/ci.yml   # lint + typecheck + unit test + build on every PR to main
@@ -223,13 +228,48 @@ freely. Rules:
   add <component>` is used later (needs `ui.shadcn.com` allowed in this
   environment's network settings — see the project's setup notes).
 
+### Thin client / BFF / server-driven UI
+
+Decided shape for how the frontend talks to the backend — this is not a
+per-feature choice:
+
+- **`src/` never calls `supabase.from(...)`.** Every read/write a feature
+  needs goes through a **Supabase Edge Function** (`supabase/functions/`) —
+  that's this project's BFF (Backend-for-Frontend). The browser's Supabase
+  client (`shared/lib/supabase.ts`) exists for **Auth only**
+  (`signInWithPassword`, `signOut`, `getSession`, `onAuthStateChange`) and
+  for invoking Edge Functions — never for querying a table directly.
+- **The BFF shapes the response for the screen that asked for it.** An
+  Edge Function returns exactly the fields/shape that view needs — joined,
+  filtered, computed — not a raw table row the frontend then has to
+  massage. See `supabase/functions/get-profile/index.ts` +
+  `features/profile/api/queries.ts` + `shared/lib/bff.ts`
+  (`invokeEdgeFunction`, the `supabase.functions.invoke` equivalent of
+  `shared/lib/http.ts`'s `fetchJson`) for the reference pattern.
+- **Components stay dumb.** A component renders what its query returned —
+  no business logic, no computing a derived value the BFF could have sent
+  instead, no reshaping. If a component needs to compute something from
+  raw data, that computation belongs in the Edge Function, not the
+  component. This is what makes the frontend "thin": it displays state, it
+  doesn't decide it.
+- **Privileged operations** (anything that needs to bypass RLS, e.g. an
+  admin action) use `SUPABASE_SECRET_KEY` from `Deno.env` inside the Edge
+  Function — never forwarded to or used from the browser. A normal
+  user-scoped read forwards the caller's JWT instead (see the reference
+  function) so Postgres RLS still applies — the BFF pattern replaces
+  _where business logic lives_, it doesn't replace RLS as a safety net.
+- Realtime subscriptions are the one case `supabase-js` in the browser may
+  talk to Postgres directly (Realtime needs a live client connection) —
+  confirm per-feature when the PRD actually needs it; default to the BFF.
+
 ### State separation (API data vs. UI state)
 
 This is the most important rule in the stack:
 
-- **Server state** (anything that ultimately comes from Supabase/an API) —
-  **always** TanStack Query, inside a feature's `api/` folder. Never copy a
-  query result into a Zustand store "to make it easier to access."
+- **Server state** (anything that ultimately comes from the BFF) —
+  **always** TanStack Query, inside a feature's `api/` folder, calling
+  `invokeEdgeFunction`. Never copy a query result into a Zustand store "to
+  make it easier to access."
 - **Client/UI state** (a toggle, a selected tab, form-in-progress values,
   "is this modal open") — Zustand, and _only_ Zustand.
 - **Purity of Store**: a Zustand store must contain only synchronous state
@@ -239,12 +279,14 @@ This is the most important rule in the stack:
 
 ### API Contract Validation
 
-Every Supabase/HTTP response is validated against a Zod schema before the
-app trusts its shape — see `features/profile/api/schema.ts` +
-`features/profile/api/queries.ts` (reference pattern) and
-`shared/lib/http.ts` (generic `fetchJson` helper). TypeScript types alone
-only check what _you_ wrote; they say nothing about what the server
-actually returned at runtime.
+Every BFF response is validated against a Zod schema before the app trusts
+its shape — see `features/profile/api/schema.ts` +
+`features/profile/api/queries.ts` (reference pattern), `shared/lib/bff.ts`
+(`invokeEdgeFunction`) and `shared/lib/http.ts` (`fetchJson`, for any
+non-Supabase HTTP call). TypeScript types alone only check what _you_
+wrote; they say nothing about what the server actually returned at
+runtime — that includes the Edge Function's own response, not just
+third-party APIs.
 
 ### Single Source of Truth for visual design
 
@@ -390,7 +432,9 @@ collecting a real one:
    what roles the product actually needs.
 
 This isn't built yet (no `features/auth` exists) — it's the agreed shape to
-build against once the PRD gets there.
+build against once the PRD gets there. Auth is the one deliberate exception
+to [Thin client / BFF](#thin-client--bff--server-driven-ui): `supabase.auth.*`
+is called directly from the client, never proxied through an Edge Function.
 
 ## Environment variables
 
@@ -404,11 +448,12 @@ Two tiers, don't mix them up:
   (Supabase URL + publishable key, Cloudinary cloud name).
 - **No prefix** — never reaches `import.meta.env`/the browser at all
   (`SUPABASE_SECRET_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_URL`). These
-  only make sense once there's a server to run them in — a Supabase Edge
-  Function or a Vercel serverless/`api/` function — which doesn't exist
-  yet in this pure-SPA scaffold. Don't invent a client-side use for a
-  secret key; add the server function when the PRD actually needs one
-  (e.g. a signed Cloudinary upload, an admin-only Supabase operation).
+  are for the BFF: a Supabase Edge Function reads them via `Deno.env.get(...)`
+  (set with `supabase secrets set` or the project's Supabase dashboard, not
+  `.env.local` — Edge Functions don't read this repo's env files at all).
+  Don't invent a client-side use for a secret key; add the Edge Function
+  that needs it (e.g. a signed Cloudinary upload, an admin-only Supabase
+  operation) under `supabase/functions/`.
 
 `shared/lib/cloudinary.ts` only builds public delivery URLs from the cloud
 name — it never touches the API secret.
