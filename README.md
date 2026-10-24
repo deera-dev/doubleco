@@ -102,6 +102,29 @@ features deletable/replaceable without archaeology.
   Auto-generated files (`routeTree.gen.ts`) are exempt — don't hand-edit
   their comments either, they're overwritten on the next build.
 
+### Don't reinvent the wheel
+
+If a well-maintained library solves a feature need better, faster, or more
+safely than hand-rolled code, use the library — don't hand-build a dropdown,
+a date picker, a toast system, a drag-and-drop list, a rich text editor, a
+state machine, etc. from scratch. Before reaching for one:
+
+- Prefer a library that is actively maintained, has real adoption
+  (stars/downloads), and composes with this stack (Tailwind-friendly, ships
+  its own TypeScript types, tree-shakeable).
+- Check it against the principles above before adding it — does it keep
+  server/UI state separated, does it stay out of `shared/stores` purity,
+  does it avoid a runtime type escape hatch that defeats the Zod/TS layer.
+- A library that needs a secret key or server call still goes through the
+  server-only env tier and a backend function — never bundled client-side.
+- Prefer one well-known library over several overlapping ones for the same
+  job (e.g. pick one date library, one form library) — this is also DRY at
+  the dependency level.
+- Unfamiliar/low-adoption packages (an unverified CLI, a random GitHub
+  skill) get vetted — read the source or at least the repo's activity and
+  maintainer history — before they're installed or executed, since `npx`/
+  `npm install -g` runs arbitrary code on the machine running it.
+
 ### Type safety (Keamanan Tipe Data)
 
 - `strict` TypeScript (`noUnusedLocals`, `noUnusedParameters`,
