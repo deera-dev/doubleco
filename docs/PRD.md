@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Status | Draft v2 — pertanyaan putaran 1 & 2 terjawab |
+| Status | Draft v3 — keputusan putaran 1–3 + aturan anti-duplikasi |
 | Pengguna utama | Kepala Produksi (fase 1) |
 | Platform | Web app mobile-first (PWA), tetap nyaman di tablet & PC |
 | Stack | Mengikuti `README.md` (Vite + React + TanStack + Supabase + Edge Function BFF) |
@@ -148,15 +148,18 @@ membuka akses peran lain tidak perlu bongkar ulang.
 - Aksi pada kartu:
   - **Catat setor** (tanggal otomatis hari ini, bisa diubah). Kartu boleh
     disetor **walaupun belum 100% selesai** bila disepakati Kepala Produksi
-    dengan penjahit; tandai "belum selesai" + catatan sisa pekerjaan, dan
-    kartu tetap terpantau sampai sisanya diserahkan.
+    dengan penjahit; tandai "belum selesai" + catatan sisa pekerjaan. Kartu
+    tetap **dibayar penuh** sesuai jumlah di kartu, dan sisa produk tetap
+    wajib diserahkan — aplikasi memantaunya sampai lunas diserahkan.
   - **Catat pemeriksaan** (boleh sebelum atau sesudah gajian): jumlah OK, rusak
     bisa diperbaiki, rusak permanen, keterangan.
   - Rusak bisa diperbaiki → dikembalikan ke penjahit yang sama untuk
     diperbaiki, lalu diperiksa ulang. Perbaikan tidak menambah upah.
-  - Rusak permanen → mengurangi jumlah dibayar (10 potong, 1 rusak permanen →
-    dibayar 9). Bila ditemukan setelah kartu dibayar, potongannya otomatis
-    masuk sebagai **penyesuaian** di gajian berikutnya.
+  - Rusak permanen → kartu **tetap dibayar penuh** lebih dulu. Rusak permanen
+    dicatat sebagai **usulan potongan** (jumlah × tarif kartu) yang menunggu
+    **keputusan owner**: `DIPOTONG` (masuk gajian berikutnya) atau
+    `TIDAK DIPOTONG`. Fase 1: Kepala Produksi mencatat keputusan owner beserta
+    catatannya; fase 2 owner memutuskan langsung di aplikasi.
 - Status kartu: `DIAMBIL → DISETOR → DIBAYAR` (+ `BATAL`). Status pemeriksaan
   terpisah: `BELUM DIPERIKSA → PERBAIKAN → SELESAI DIPERIKSA`.
 - Daftar "masih di penjahit": kartu yang belum disetor, kartu disetor belum
@@ -172,10 +175,10 @@ membuka akses peran lain tidak perlu bongkar ulang.
   berikutnya.
 - Di hari Sabtu kartu dikumpulkan. Kepala Produksi scan tiap kartu untuk
   memastikan kartu fisik = data (kartu yang tidak di-scan ditandai).
-- Upah per kartu = `(jumlah kartu − rusak permanen yang sudah diketahui) × tarif snapshot`.
+- Upah per kartu = `jumlah kartu × tarif snapshot` (selalu penuh).
 - Rekap per penjahit:
 
-  | Upah kotor | − Cicilan kasbon | − Penyesuaian (rusak permanen susulan) | + Kasbon baru minggu ini | = Ditransfer |
+  | Upah kotor | − Cicilan kasbon | − Potongan rusak permanen (yang sudah diputuskan owner `DIPOTONG`) | + Kasbon baru minggu ini | = Ditransfer |
   | --- | --- | --- | --- | --- |
 
   plus rincian per kartu dan tampilan **per hari × kategori S/M/L** seperti
@@ -226,6 +229,46 @@ Validasi yang ditampilkan sebelum disimpan:
 - WO aktif & progresnya, kartu yang masih di penjahit, estimasi upah minggu
   berjalan, total kasbon berjalan, rasio rusak per produk/penjahit.
 
+### 5.10 Pencegahan duplikasi
+
+Prinsip: **data tidak pernah tercatat dua kali tanpa sepengetahuan pengguna.**
+Ada dua tingkat pemberitahuan:
+
+- **Blokir** — aksi ditolak karena pasti salah; layar menjelaskan data yang
+  sudah ada (kapan, oleh siapa) dan tombol untuk membukanya.
+- **Peringatan** — aksi mungkin sah; pengguna harus menekan konfirmasi dan
+  bisa menambah catatan alasan (tercatat di `audit_log`).
+
+Saat scan, hasil duplikat memakai warna, getar, dan bunyi yang berbeda dari
+scan sukses sehingga langsung terasa tanpa membaca layar.
+
+| Situasi | Tingkat | Pemberitahuan |
+| --- | --- | --- |
+| Scan setor kartu yang sudah disetor | Blokir | "Kartu KJ-… sudah disetor Senin 26/10 14:02" |
+| Scan pengumpulan Sabtu untuk kartu yang sudah di-scan | Blokir (tanpa efek) | "Sudah di-scan pukul 09:15" |
+| Kartu masuk gajian yang sudah dibayar | Blokir | Kartu tidak bisa masuk periode lain |
+| Pemeriksaan / usulan potongan kedua untuk potongan yang sama | Blokir | Jumlah OK + rusak tidak boleh melebihi jumlah kartu |
+| Pembagian melebihi hasil potong | Blokir | Tampilkan sisa yang tersedia |
+| Kode penjahit, kode produk, atau nomor WO sudah dipakai | Blokir | Tampilkan data pemiliknya |
+| Kartu baru dengan WO + penjahit + ukuran + warna yang sama dengan kartu yang masih berjalan | Peringatan | Tampilkan kartu yang sudah ada |
+| Penjahit masih memegang kartu belum disetor | Peringatan | Lihat 5.3 |
+| Nama penjahit sama/mirip (DIDI/DINDI) | Peringatan | Tampilkan penjahit yang mirip + kodenya |
+| Nomor rekening sudah dipakai penjahit lain | Peringatan | Tampilkan pemiliknya |
+| Kasbon dengan penjahit + nominal + tanggal yang sama | Peringatan | Tampilkan kasbon sebelumnya |
+| WO dengan produk + bahan + ukuran yang sama masih aktif | Peringatan | Tampilkan WO yang aktif |
+| Impor file yang sama / baris yang sudah pernah diimpor | Peringatan | Baris duplikat dilewati, ditampilkan di ringkasan pratinjau |
+| Tandai "dibayar" / kunci periode yang sudah diproses | Blokir | Tampilkan waktu proses sebelumnya |
+
+Jaminan teknis (bukan hanya tampilan):
+
+- Constraint unik di database untuk kode penjahit, kode produk, nomor WO,
+  nomor kartu, satu setoran per kartu, dan satu kartu per periode gajian.
+- Setiap aksi tulis membawa **idempotency key**, sehingga tap ganda atau kirim
+  ulang saat sinyal putus tidak membuat data ganda; tombol simpan nonaktif
+  selama proses.
+- Siap untuk banyak pengguna (fase 2): pemeriksaan versi data mencegah dua
+  perangkat menimpa perubahan satu sama lain.
+
 ## 6. Kebutuhan cetak
 
 Printer: **Epson L1250** (inkjet, Wi-Fi), kertas sudah dipotong sesuai ukuran.
@@ -263,7 +306,8 @@ work_order ─< kartu_jahit >─ penjahit
 kartu_jahit (ukuran, warna, jumlah, kategori_snapshot, tarif_snapshot, status, status_pemeriksaan)
 kartu_jahit ─< setoran (tanggal, belum_selesai, catatan_sisa)
 kartu_jahit ─< pemeriksaan (ok, rusak_perbaiki, rusak_permanen, keterangan)
-periode_gaji ─< gaji_penjahit (upah_kotor, cicilan, penyesuaian, kasbon_baru, ditransfer, status_bayar)
+pemeriksaan ─< usulan_potongan (nominal, keputusan_owner, catatan, periode_potong)
+periode_gaji ─< gaji_penjahit (upah_kotor, cicilan, potongan, kasbon_baru, ditransfer, status_bayar)
 kasbon (…, status: aktif / lunas / kerugian)
 gaji_penjahit ─< kartu_jahit (kartu yang dibayar di periode tsb)
 riwayat_impor_legacy (data lama read-only)
@@ -296,8 +340,9 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 | Topik | Keputusan |
 | --- | --- |
 | Kategori S/M/L | Tingkat kesulitan model, melekat di kode produk; fase 1 diisi Kepala Produksi |
-| Upah | Dihitung & dibayar Sabtu dari kartu yang sudah disetor; rusak permanen mengurangi jumlah; rusak yang bisa diperbaiki kembali ke penjahit yang sama |
-| Kartu belum selesai | Boleh disetor & dibayar atas kesepakatan Kepala Produksi dengan penjahit |
+| Upah | Dihitung & dibayar Sabtu dari kartu yang sudah disetor; kartu dibayar penuh (termasuk yang disetor belum 100% selesai); potongan rusak permanen diputuskan owner; rusak yang bisa diperbaiki kembali ke penjahit yang sama |
+| Kartu belum selesai | Boleh disetor atas kesepakatan; dibayar penuh, sisa produk tetap wajib diserahkan |
+| Duplikasi | Setiap aksi ganda (scan, input, impor) memunculkan pemberitahuan; lihat 5.10 |
 | Kasbon | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit keluar = kerugian |
 | Kode penjahit | Diinput satu kali oleh Kepala Produksi |
 | Kartu jahit | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai |
@@ -309,8 +354,4 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 
 ## 12. Pertanyaan terbuka
 
-1. Kartu yang disetor **belum 100% selesai**: dibayar penuh sesuai jumlah di
-   kartu (sisa pekerjaan tetap wajib diserahkan), atau hanya sejumlah potongan
-   yang sudah diserahkan? (Draf ini mengasumsikan **dibayar penuh**.)
-2. Rusak permanen yang ditemukan **setelah** kartu dibayar dipotong di gajian
-   berikutnya — betul?
+Belum ada. Pertanyaan baru dicatat di sini saat desain database & tampilan.
