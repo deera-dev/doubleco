@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Status | Draft v1 — untuk dibahas |
+| Status | Draft v2 — pertanyaan putaran 1 & 2 terjawab |
 | Pengguna utama | Kepala Produksi (fase 1) |
 | Platform | Web app mobile-first (PWA), tetap nyaman di tablet & PC |
 | Stack | Mengikuti `README.md` (Vite + React + TanStack + Supabase + Edge Function BFF) |
@@ -77,7 +77,7 @@ membuka akses peran lain tidak perlu bongkar ulang.
       │                    ├─ OK
       │                    ├─ Rusak bisa diperbaiki ──► kembali ke penjahit yang sama
       │                    └─ Rusak permanen ──► mengurangi jumlah dibayar
-[6] Sabtu: kartu dikumpulkan ──► rekap gajian ──► potong cicilan kasbon
+[6] Sabtu: kartu yang sudah disetor dikumpulkan ──► rekap gajian ──► − cicilan kasbon + kasbon baru
       │
 [7] Daftar transfer + export Excel ──► transfer manual ──► tandai dibayar
 ```
@@ -88,10 +88,10 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 | Entitas | Field | Aturan |
 | --- | --- | --- |
-| Penjahit | **kode penjahit** (unik), nama, no. HP, status aktif/nonaktif, catatan | Kode adalah identitas utama di semua layar & cetakan, nama hanya label |
+| Penjahit | **kode penjahit** (unik), nama, no. HP, status aktif/keluar, catatan | Kode adalah identitas utama di semua layar & cetakan, nama hanya label. Belum ada daftar kode resmi: Kepala Produksi menginput kode tiap penjahit satu kali (saat impor atau tambah penjahit) |
 | Rekening penjahit | jenis (bank / e-wallet), penyedia (SeaBank, DANA, …), nomor, atas nama | Satu rekening aktif per penjahit; riwayat perubahan disimpan; peringatan jika a.n. ≠ nama penjahit |
 | Tukang potong | nama, status | — |
-| Produk | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel | Kategori wajib sebelum produk bisa dipakai di WO |
+| Produk | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel | Kategori wajib sebelum produk bisa dipakai di WO. Fase 1 diisi Kepala Produksi; fase 2 Kepala Finishing |
 | Bahan | nama (mis. BLACK SWAN), daftar warna | Warna mengikuti bahan |
 | Ukuran | nama (mis. MIDI) | Daftar dapat ditambah |
 | Tarif upah | kategori, nominal, berlaku mulai | Tarif tidak pernah ditimpa — tarif baru = baris baru dengan tanggal berlaku |
@@ -100,10 +100,13 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 - Satu WO = **satu kode produk + satu bahan (dengan kombinasi)**; boleh **banyak
   ukuran** dan **banyak warna**.
-- Field: nomor WO (otomatis), tanggal, tukang potong, produk, **kode pola**, bahan
+- Field: nomor WO, tanggal, tukang potong, produk, **kode pola**, bahan
   & kombinasi, ukuran[], warna[], status perubahan (`ADA PERUBAHAN` /
   `TIDAK ADA PERUBAHAN (IKUT SAMPEL)`), catatan perubahan, info lanjutan, foto
   sampel (default dari produk, bisa diganti / ditambah foto baru).
+- **Nomor WO**: default `WO_<kode_produk>` (mis. `WO_W-133 BLS`), bisa diedit
+  Kepala Produksi. Nomor harus unik; jika produk yang sama sudah pernah punya
+  WO, sistem mengusulkan akhiran (`WO_W-133 BLS_2`) yang tetap bisa diedit.
 - Catatan perubahan diisi Kepala Produksi, contoh: "bentuk dada model B (sampel
   model A), list tetap".
 - Status WO: `DRAFT → DIPOTONG → DIJAHIT → SELESAI` (+ `BATAL`), dihitung dari
@@ -117,6 +120,10 @@ membuka akses peran lain tidak perlu bongkar ulang.
   ukuran × warna. Sistem menolak pembagian melebihi hasil potong dan
   menampilkan sisa yang belum dibagi.
 - Setiap bagian menjadi satu **Kartu Jahit** dengan nomor unik dan QR.
+  **Satu kartu = satu ukuran × satu warna**, tidak boleh campuran.
+- Penjahit mengambil kartu baru setelah kartu sebelumnya selesai. Jika penjahit
+  masih memegang kartu yang belum disetor, sistem menampilkan peringatan dan
+  meminta konfirmasi Kepala Produksi sebelum kartu baru dibuat.
   Kategori dan tarif **disalin (snapshot)** ke kartu saat dibuat, agar
   perubahan tarif/kategori kemudian tidak mengubah upah kartu lama.
 - **Cetak Kartu Jahit 6×10 cm**: Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit,
@@ -139,35 +146,49 @@ membuka akses peran lain tidak perlu bongkar ulang.
 - Tombol **Scan** selalu bisa dijangkau di layar HP. Scan QR kartu → buka kartu.
   Nomor kartu juga bisa diketik manual bila kamera gagal.
 - Aksi pada kartu:
-  - **Catat setor** (tanggal otomatis hari ini, bisa diubah).
-  - **Catat pemeriksaan**: jumlah OK, rusak bisa diperbaiki, rusak permanen,
-    keterangan. Jumlah ketiganya harus = jumlah yang disetor.
-  - Rusak bisa diperbaiki → kartu kembali ke status `PERBAIKAN` di penjahit
-    yang sama; saat disetor ulang, diperiksa ulang. Perbaikan tidak menambah upah.
-  - Rusak permanen → mengurangi jumlah dibayar (10 potong, 1 rusak permanen → dibayar 9).
-- Status kartu: `DIAMBIL → DISETOR → (PERBAIKAN → DISETOR) → SIAP_BAYAR → DIBAYAR` (+ `BATAL`).
-- Daftar "masih di penjahit": kartu yang belum `SIAP_BAYAR`, dikelompokkan per
-  penjahit, dengan umur kartu (hari sejak diambil).
+  - **Catat setor** (tanggal otomatis hari ini, bisa diubah). Kartu boleh
+    disetor **walaupun belum 100% selesai** bila disepakati Kepala Produksi
+    dengan penjahit; tandai "belum selesai" + catatan sisa pekerjaan, dan
+    kartu tetap terpantau sampai sisanya diserahkan.
+  - **Catat pemeriksaan** (boleh sebelum atau sesudah gajian): jumlah OK, rusak
+    bisa diperbaiki, rusak permanen, keterangan.
+  - Rusak bisa diperbaiki → dikembalikan ke penjahit yang sama untuk
+    diperbaiki, lalu diperiksa ulang. Perbaikan tidak menambah upah.
+  - Rusak permanen → mengurangi jumlah dibayar (10 potong, 1 rusak permanen →
+    dibayar 9). Bila ditemukan setelah kartu dibayar, potongannya otomatis
+    masuk sebagai **penyesuaian** di gajian berikutnya.
+- Status kartu: `DIAMBIL → DISETOR → DIBAYAR` (+ `BATAL`). Status pemeriksaan
+  terpisah: `BELUM DIPERIKSA → PERBAIKAN → SELESAI DIPERIKSA`.
+- Daftar "masih di penjahit": kartu yang belum disetor, kartu disetor belum
+  selesai, dan potongan yang sedang diperbaiki — dikelompokkan per penjahit,
+  dengan umur kartu (hari sejak diambil).
 
 ### 5.6 Gajian mingguan (Sabtu)
 
 - Periode gajian = **Senin–Sabtu**, dibayar **Sabtu**.
+- **Yang dibayar = kartu yang sudah disetor** sampai Sabtu dan belum pernah
+  dibayar, termasuk kartu yang belum diperiksa atau disetor belum 100% selesai
+  atas kesepakatan. Kartu yang belum disetor otomatis menunggu gajian minggu
+  berikutnya.
 - Di hari Sabtu kartu dikumpulkan. Kepala Produksi scan tiap kartu untuk
   memastikan kartu fisik = data (kartu yang tidak di-scan ditandai).
-- Upah per kartu = `(jumlah − rusak permanen) × tarif snapshot`.
+- Upah per kartu = `(jumlah kartu − rusak permanen yang sudah diketahui) × tarif snapshot`.
 - Rekap per penjahit:
 
-  | Upah kotor | − Cicilan kasbon | = Dibayar |
-  | --- | --- | --- |
+  | Upah kotor | − Cicilan kasbon | − Penyesuaian (rusak permanen susulan) | + Kasbon baru minggu ini | = Ditransfer |
+  | --- | --- | --- | --- | --- |
 
   plus rincian per kartu dan tampilan **per hari × kategori S/M/L** seperti
   sheet setoran lama (agar mudah dicocokkan selama masa transisi).
 - Cicilan kasbon diisi per penjahit per minggu (bebas sesuai kesepakatan);
   default = nominal minggu lalu. Validasi: tidak melebihi sisa kasbon dan
   tidak melebihi upah kotor.
+- Kasbon baru yang diajukan selama minggu berjalan **ditransfer bersamaan**
+  dengan upah hari Sabtu.
 - Keluaran:
-  - **Daftar transfer**: kode, nama, penyedia, nomor rekening, a.n., nominal —
-    bisa disalin per baris (nomor rekening & nominal sekali tap).
+  - **Daftar transfer**: kode, nama, penyedia, nomor rekening, a.n., nominal
+    (upah bersih + kasbon baru, dengan rinciannya) — bisa disalin per baris
+    (nomor rekening & nominal sekali tap).
   - **Export Excel** dengan format mirip `SETORAN_JAIT` dan `DATA_ANAK_JAIT`.
 - Setelah transfer manual, tiap baris ditandai **dibayar**. Periode yang sudah
   **dikunci** tidak bisa diubah; koreksi dicatat sebagai penyesuaian di periode
@@ -175,10 +196,14 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 ### 5.7 Kasbon
 
-- Catat **kasbon baru** kapan saja: penjahit, tanggal, nominal, catatan.
+- Catat **kasbon baru** kapan saja selama minggu berjalan: penjahit, tanggal,
+  nominal, catatan. Kasbon dicairkan lewat transfer Sabtu (lihat 5.6).
 - Catat **cicilan** (otomatis dari gajian, atau manual di luar gajian).
 - Buku kasbon per penjahit: riwayat + **sisa kasbon** selalu terlihat.
 - Daftar penjahit dengan kasbon berjalan beserta total sisanya.
+- Penjahit **keluar** dengan kasbon belum lunas → sisa kasbon dicatat sebagai
+  **kerugian** (hapus buku) dengan tanggal & catatan; total kerugian kasbon
+  tampil di laporan. Penjahit keluar tidak bisa diberi kartu atau kasbon baru.
 
 ### 5.8 Impor data lama
 
@@ -194,7 +219,7 @@ Validasi yang ditampilkan sebelum disimpan:
 - Tanggal di luar urutan/tahun janggal (mis. 2025 di tengah 2026) atau bukan hari Sabtu.
 - Nama penjahit mirip/duplikat; a.n. rekening ≠ nama.
 - Penjahit tanpa rekening, baris kosong, angka tidak wajar.
-- Kode penjahit belum ada → dipetakan manual di wizard.
+- Kode penjahit belum ada di file → **wajib diisi** Kepala Produksi untuk tiap penjahit di wizard (sekali saja).
 
 ### 5.9 Dashboard (ringkas)
 
@@ -235,10 +260,11 @@ produk ─< tarif (via kategori) ; tarif_upah(kategori, nominal, berlaku_mulai)
 work_order >─ produk, bahan, tukang_potong
 work_order ─< wo_hasil_potong (ukuran, warna, jumlah)
 work_order ─< kartu_jahit >─ penjahit
-kartu_jahit (ukuran, warna, jumlah, kategori_snapshot, tarif_snapshot, status)
-kartu_jahit ─< setoran (tanggal, jumlah)
+kartu_jahit (ukuran, warna, jumlah, kategori_snapshot, tarif_snapshot, status, status_pemeriksaan)
+kartu_jahit ─< setoran (tanggal, belum_selesai, catatan_sisa)
 kartu_jahit ─< pemeriksaan (ok, rusak_perbaiki, rusak_permanen, keterangan)
-periode_gaji ─< gaji_penjahit (upah_kotor, cicilan, dibayar, status_bayar)
+periode_gaji ─< gaji_penjahit (upah_kotor, cicilan, penyesuaian, kasbon_baru, ditransfer, status_bayar)
+kasbon (…, status: aktif / lunas / kerugian)
 gaji_penjahit ─< kartu_jahit (kartu yang dibayar di periode tsb)
 riwayat_impor_legacy (data lama read-only)
 audit_log (siapa, kapan, apa yang berubah)
@@ -265,16 +291,26 @@ audit_log (siapa, kapan, apa yang berubah)
 Saran transisi: jalankan aplikasi **paralel dengan Excel selama 2–4 minggu
 gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 
-## 11. Pertanyaan terbuka
+## 11. Keputusan yang sudah disepakati
 
-1. **Kartu yang belum selesai/belum diperiksa saat Sabtu** — otomatis masuk gajian minggu
-   berikutnya? Atau boleh dibayar sebagian (yang sudah OK saja)?
-2. **Kasbon baru** — diberikan tunai terpisah (hanya menambah saldo), atau ditambahkan
-   ke transfer hari Sabtu?
-3. **Kode penjahit** — apakah ada daftar resmi? `DATA_ANAK_JAIT.xlsx` tidak memuat
-   kode, sementara THP memakai kode (ABENG = 29, IJAL = 4, …).
-4. **Satu kartu jahit** = satu ukuran × satu warna? Atau satu kartu boleh berisi
-   campuran ukuran/warna?
-5. **Kategori S/M/L** diset Kepala Finishing — di fase 1 diwakili Kepala Produksi, betul?
-6. **Penjahit keluar dengan sisa kasbon** — perlakuannya bagaimana (ditandai saja / dihapuskan)?
-7. **Format nomor WO** yang diinginkan (mis. `WO-2610-001`)?
+| Topik | Keputusan |
+| --- | --- |
+| Kategori S/M/L | Tingkat kesulitan model, melekat di kode produk; fase 1 diisi Kepala Produksi |
+| Upah | Dihitung & dibayar Sabtu dari kartu yang sudah disetor; rusak permanen mengurangi jumlah; rusak yang bisa diperbaiki kembali ke penjahit yang sama |
+| Kartu belum selesai | Boleh disetor & dibayar atas kesepakatan Kepala Produksi dengan penjahit |
+| Kasbon | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit keluar = kerugian |
+| Kode penjahit | Diinput satu kali oleh Kepala Produksi |
+| Kartu jahit | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai |
+| WO | Satu kode produk + satu bahan, banyak ukuran & warna; nomor default `WO_<kode_produk>`, bisa diedit |
+| Pengguna | Fase 1 hanya Kepala Produksi |
+| Printer | Epson L1250, kertas 6×10, 12×16, A4 |
+| Data lama | Diimpor lewat wizard |
+| Transfer | Manual; aplikasi menyiapkan daftar |
+
+## 12. Pertanyaan terbuka
+
+1. Kartu yang disetor **belum 100% selesai**: dibayar penuh sesuai jumlah di
+   kartu (sisa pekerjaan tetap wajib diserahkan), atau hanya sejumlah potongan
+   yang sudah diserahkan? (Draf ini mengasumsikan **dibayar penuh**.)
+2. Rusak permanen yang ditemukan **setelah** kartu dibayar dipotong di gajian
+   berikutnya — betul?
