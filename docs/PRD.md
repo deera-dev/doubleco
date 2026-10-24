@@ -354,4 +354,4 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 
 ## 12. Pertanyaan terbuka
 
-Belum ada. Pertanyaan baru dicatat di sini saat desain database & tampilan.
+1. THR / bonus (kolom THR di sheet ACUNG) — dibayar lewat gajian Sabtu? Lihat `docs/DATABASE.md` § 8.
