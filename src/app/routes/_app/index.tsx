@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMe } from '@/features/auth/api/queries'
-import { HomeMenu } from '@/features/shell/components/HomeMenu'
+import { HomeDashboard } from '@/features/shell/components/HomeDashboard'
 
 export const Route = createFileRoute('/_app/')({
   component: HomePage,
@@ -8,5 +8,5 @@ export const Route = createFileRoute('/_app/')({
 
 function HomePage() {
   const me = useMe()
-  return <HomeMenu displayName={me.data?.displayName ?? ''} />
+  return <HomeDashboard displayName={me.data?.displayName ?? ''} now={new Date()} />
 }

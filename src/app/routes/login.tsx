@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { getCurrentSession } from '@/features/auth/api/session'
-import { AuthCard } from '@/features/auth/components/AuthCard'
+import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 
 export const Route = createFileRoute('/login')({
@@ -12,9 +12,9 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   return (
-    <AuthCard
-      title="Masuk"
-      description="Aplikasi Produksi Maryam"
+    <AuthLayout
+      title="Selamat datang"
+      description="Gunakan username dan password akun Anda."
       credit="Created and designed by Denny Angesti Pratama"
       footer={
         <span className="text-muted-foreground">
@@ -26,6 +26,6 @@ function LoginPage() {
       }
     >
       <LoginForm />
-    </AuthCard>
+    </AuthLayout>
   )
 }
