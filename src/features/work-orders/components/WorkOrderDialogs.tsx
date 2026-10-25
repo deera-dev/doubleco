@@ -5,7 +5,7 @@ import { useAddWorkOrderItems, useCancelWorkOrder } from '@/features/work-orders
 import { useWorkOrderFormOptions } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { useWorkOrdersUiStore } from '@/features/work-orders/store'
-import { ChipToggleGroup } from '@/shared/components/ChipToggleGroup'
+import { LabelChipPicker } from '@/shared/components/LabelChipPicker'
 import { Button } from '@/shared/components/ui/button'
 import {
   Dialog,
@@ -23,18 +23,14 @@ function AddItemsDialog({ workOrder }: { workOrder: WorkOrder }) {
   const closeDialog = useWorkOrdersUiStore((state) => state.closeDialog)
   const options = useWorkOrderFormOptions()
   const addItems = useAddWorkOrderItems()
-  const [sizeIds, setSizeIds] = useState(() => [
-    ...new Set(workOrder.items.map((item) => item.sizeId)),
-  ])
-  const [colorIds, setColorIds] = useState(() => [
-    ...new Set(workOrder.items.map((item) => item.colorId)),
-  ])
-  const colors =
+  const [sizes, setSizes] = useState(workOrder.sizes)
+  const [colors, setColors] = useState(workOrder.colors)
+  const fabricColors =
     options.data?.fabrics.find((fabric) => fabric.id === workOrder.fabricId)?.colors ?? []
 
   const save = () =>
     addItems.mutate(
-      { id: workOrder.id, sizeIds, colorIds },
+      { id: workOrder.id, sizes, colors },
       {
         onSuccess: () => {
           toast.success('Ukuran dan warna diperbarui')
@@ -49,29 +45,29 @@ function AddItemsDialog({ workOrder }: { workOrder: WorkOrder }) {
         <DialogHeader>
           <DialogTitle>Tambah ukuran / warna</DialogTitle>
           <DialogDescription>
-            Kombinasi baru ditambahkan ke daftar hasil potong. Yang sudah ada tidak berubah.
+            Setiap ukuran dipasangkan dengan setiap warna di daftar hasil potong. Yang sudah ada
+            tidak berubah; ukuran atau warna baru otomatis masuk Master Data.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           <div className="space-y-2">
             <Label>Ukuran</Label>
-            <ChipToggleGroup
+            <LabelChipPicker
               label="Ukuran"
-              options={(options.data?.sizes ?? []).map((size) => ({
-                id: size.id,
-                label: size.name,
-              }))}
-              selected={sizeIds}
-              onChange={setSizeIds}
+              options={(options.data?.sizes ?? []).map((size) => size.name)}
+              selected={sizes}
+              onChange={setSizes}
+              addPlaceholder="Ukuran lain, mis. JUMBO"
             />
           </div>
           <div className="space-y-2">
             <Label>Warna {workOrder.fabricName}</Label>
-            <ChipToggleGroup
+            <LabelChipPicker
               label="Warna"
-              options={colors.map((color) => ({ id: color.id, label: color.name }))}
-              selected={colorIds}
-              onChange={setColorIds}
+              options={fabricColors.map((color) => color.name)}
+              selected={colors}
+              onChange={setColors}
+              addPlaceholder={`Warna ${workOrder.fabricName} lain`}
             />
           </div>
           {addItems.error && (
@@ -88,7 +84,7 @@ function AddItemsDialog({ workOrder }: { workOrder: WorkOrder }) {
             type="button"
             size="lg"
             onClick={save}
-            disabled={addItems.isPending || sizeIds.length === 0 || colorIds.length === 0}
+            disabled={addItems.isPending || sizes.length === 0}
           >
             {addItems.isPending ? 'Menyimpan…' : 'Simpan'}
           </Button>

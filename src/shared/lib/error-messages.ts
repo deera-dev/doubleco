@@ -26,6 +26,7 @@ const businessMessages: Record<string, string> = {
   WORK_ORDER_NUMBER_TAKEN: 'Nomor WO sudah dipakai.',
   PRODUCT_CATEGORY_MISSING: 'Kategori S/M/L produk ini belum diisi di Master Data.',
   WORK_ORDER_ITEMS_REQUIRED: 'Pilih minimal satu ukuran dan satu warna.',
+  WORK_ORDER_SIZES_REQUIRED: 'Pilih minimal satu ukuran.',
   CUT_BELOW_ASSIGNED:
     'Hasil potong tidak boleh lebih kecil dari jumlah yang sudah dibagi ke penjahit.',
   WORK_ORDER_HAS_CARDS: 'WO ini sudah punya kartu jahit, jadi tidak bisa dihapus atau dibatalkan.',

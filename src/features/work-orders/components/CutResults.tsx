@@ -65,52 +65,65 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
         )}
       </div>
 
-      <ul className="divide-y rounded-2xl border">
-        {workOrder.items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm">
-                {item.sizeName} · {item.colorName}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {item.assignedQuantity > 0
-                  ? `Dibagi ${item.assignedQuantity} · disetor ${item.submittedQuantity}`
-                  : 'Belum dibagi ke penjahit'}
-              </p>
-            </div>
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={Math.max(1, item.assignedQuantity)}
-              aria-label={`Hasil potong ${item.sizeName} ${item.colorName}`}
-              placeholder="0"
-              disabled={isClosed}
-              value={drafts[item.id] ?? item.cutQuantity?.toString() ?? ''}
-              onChange={(event) =>
-                setDrafts((current) => ({ ...current, [item.id]: event.target.value }))
-              }
-              className="h-11 w-24 text-right font-mono tabular-nums"
-            />
-            {!isClosed && (
-              <button
-                type="button"
-                aria-label={`Hapus ${item.sizeName} ${item.colorName}`}
-                disabled={item.cardCount > 0 || removeItem.isPending}
-                title={item.cardCount > 0 ? 'Sudah ada kartu jahit' : undefined}
-                onClick={() =>
-                  removeItem.mutate(
-                    { itemId: item.id },
-                    { onError: (error) => toast.error(describeError(error)) },
-                  )
+      {workOrder.items.length === 0 && (
+        <div className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm">
+          <p className="font-medium">Warna belum dipilih</p>
+          <p className="text-muted-foreground">
+            {isClosed
+              ? 'WO ini tidak punya rincian ukuran dan warna.'
+              : 'Tekan “Ukuran / warna” untuk menambah warna, lalu isi hasil potongnya.'}
+          </p>
+        </div>
+      )}
+
+      {workOrder.items.length > 0 && (
+        <ul className="divide-y rounded-2xl border">
+          {workOrder.items.map((item) => (
+            <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm">
+                  {item.sizeName} · {item.colorName}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {item.assignedQuantity > 0
+                    ? `Dibagi ${item.assignedQuantity} · disetor ${item.submittedQuantity}`
+                    : 'Belum dibagi ke penjahit'}
+                </p>
+              </div>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={Math.max(1, item.assignedQuantity)}
+                aria-label={`Hasil potong ${item.sizeName} ${item.colorName}`}
+                placeholder="0"
+                disabled={isClosed}
+                value={drafts[item.id] ?? item.cutQuantity?.toString() ?? ''}
+                onChange={(event) =>
+                  setDrafts((current) => ({ ...current, [item.id]: event.target.value }))
                 }
-                className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-hover hover:text-destructive disabled:opacity-30"
-              >
-                <X className="size-4" />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+                className="h-11 w-24 text-right font-mono tabular-nums"
+              />
+              {!isClosed && (
+                <button
+                  type="button"
+                  aria-label={`Hapus ${item.sizeName} ${item.colorName}`}
+                  disabled={item.cardCount > 0 || removeItem.isPending}
+                  title={item.cardCount > 0 ? 'Sudah ada kartu jahit' : undefined}
+                  onClick={() =>
+                    removeItem.mutate(
+                      { itemId: item.id },
+                      { onError: (error) => toast.error(describeError(error)) },
+                    )
+                  }
+                  className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-hover hover:text-destructive disabled:opacity-30"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {!isClosed && (
         <div className="flex justify-end">

@@ -41,7 +41,7 @@ export const useUpdateWorkOrder = () =>
   )
 
 export const useAddWorkOrderItems = () =>
-  useWorkOrderAction((input: { id: string; sizeIds: string[]; colorIds: string[] }) =>
+  useWorkOrderAction((input: { id: string; sizes: string[]; colors: string[] }) =>
     callAction('work-orders', 'add_items', savedIdSchema, input),
   )
 

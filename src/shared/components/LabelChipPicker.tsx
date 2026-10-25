@@ -11,6 +11,7 @@ interface LabelChipPickerProps {
   selected: string[]
   onChange: (selected: string[]) => void
   addPlaceholder: string
+  invalid?: boolean
 }
 
 export function LabelChipPicker({
@@ -19,6 +20,7 @@ export function LabelChipPicker({
   selected,
   onChange,
   addPlaceholder,
+  invalid,
 }: LabelChipPickerProps) {
   const [draft, setDraft] = useState('')
   const added = selected.filter((value) => !findByLabel(options, value, (option) => option))
@@ -55,6 +57,7 @@ export function LabelChipPicker({
           }}
           placeholder={addPlaceholder}
           aria-label={addPlaceholder}
+          aria-invalid={invalid || undefined}
           autoCapitalize="characters"
           autoComplete="off"
           className="h-12 uppercase placeholder:normal-case"

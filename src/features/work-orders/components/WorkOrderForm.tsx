@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { type UseFormReturn, useForm } from 'react-hook-form'
+import { useEffect, useRef, useState } from 'react'
+import { type FieldErrors, type UseFormReturn, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import {
   useCreateWorkOrder,
@@ -43,6 +43,7 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
+import { focusFirstInvalid } from '@/shared/lib/focus-error'
 import { todayIsoDate } from '@/shared/lib/format'
 import { findByLabel, labelKey, normalizeLabel } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
@@ -52,6 +53,41 @@ import { toAppError } from '@/shared/types/errors'
 type WorkOrderForm = UseFormReturn<WorkOrderFormInput, unknown, WorkOrderFormValues>
 
 const NEW_HINT = 'Belum ada di Master Data — otomatis ditambahkan saat WO disimpan'
+
+/** Form order, so the summary reads top to bottom like the page. */
+const FIELD_LABELS: Partial<Record<keyof WorkOrderFormInput, string>> = {
+  cutter: 'Tukang potong',
+  productNumber: 'Kode produk',
+  category: 'Kategori upah',
+  number: 'Nomor WO',
+  orderedOn: 'Tanggal WO',
+  pattern: 'Kode pola',
+  fabric: 'Bahan',
+  fabricCode: 'Kode bahan',
+  combination: 'Kombinasi',
+  sizes: 'Ukuran',
+  changeNotes: 'Perubahannya',
+  additionalInfo: 'Catatan',
+}
+
+/** Server rejections that belong to one field: shown under that field instead of at the bottom. */
+const FIELD_ERRORS: Record<string, { field: keyof WorkOrderFormInput; message: string }> = {
+  WORK_ORDER_NUMBER_TAKEN: { field: 'number', message: 'Nomor WO sudah dipakai' },
+  DUPLICATE: { field: 'number', message: 'Nomor WO sudah dipakai' },
+  FABRIC_CODE_TAKEN: { field: 'fabricCode', message: 'Kode bahan sudah dipakai bahan lain' },
+  PRODUCT_CATEGORY_MISSING: { field: 'category', message: 'Pilih kategori S, M, atau L' },
+  FABRIC_COMBINATION_SAME: {
+    field: 'combination',
+    message: 'Kombinasi tidak boleh sama dengan bahan utama',
+  },
+  WORK_ORDER_SIZES_REQUIRED: { field: 'sizes', message: 'Pilih minimal satu ukuran' },
+}
+
+function missingFields(errors: FieldErrors<WorkOrderFormInput>) {
+  return Object.entries(FIELD_LABELS).flatMap(([name, label]) =>
+    errors[name as keyof WorkOrderFormInput] ? [label] : [],
+  )
+}
 
 function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
   return {
@@ -264,10 +300,11 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
         <FormField
           control={form.control}
           name="category"
-          render={() => (
+          render={({ fieldState }) => (
             <FormItem className="animate-rise">
               <FormLabel>Kategori upah {match ? 'produk ini' : 'produk baru'}</FormLabel>
               <ChipToggleGroup
+                invalid={fieldState.invalid}
                 label="Kategori upah"
                 options={['S', 'M', 'L'].map((value) => ({ id: value, label: value }))}
                 selected={category === '' ? [] : [category]}
@@ -494,18 +531,28 @@ function FormFields({
         </div>
         {!workOrder && (
           <>
+            <FormField
+              control={form.control}
+              name="sizes"
+              render={({ fieldState }) => (
+                <FormItem>
+                  <FormLabel>Ukuran</FormLabel>
+                  <LabelChipPicker
+                    label="Ukuran"
+                    options={options.sizes.map((size) => size.name)}
+                    selected={sizes}
+                    onChange={(value) =>
+                      form.setValue('sizes', value, { shouldValidate: fieldState.invalid })
+                    }
+                    addPlaceholder="Ukuran lain, mis. JUMBO"
+                    invalid={fieldState.invalid}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormItem>
-              <FormLabel>Ukuran</FormLabel>
-              <LabelChipPicker
-                label="Ukuran"
-                options={options.sizes.map((size) => size.name)}
-                selected={sizes}
-                onChange={(value) => form.setValue('sizes', value)}
-                addPlaceholder="Ukuran lain, mis. JUMBO"
-              />
-            </FormItem>
-            <FormItem>
-              <FormLabel>Warna</FormLabel>
+              <FormLabel>Warna (opsional)</FormLabel>
               {labelKey(fabric) === '' ? (
                 <p className="text-muted-foreground text-sm">Isi bahan dulu.</p>
               ) : (
@@ -517,6 +564,9 @@ function FormFields({
                   addPlaceholder={`Warna ${normalizeLabel(fabric)} lain`}
                 />
               )}
+              <FormDescription>
+                Boleh dikosongkan. Warna bisa ditambah nanti di halaman WO saat isi hasil potong.
+              </FormDescription>
             </FormItem>
           </>
         )}
@@ -575,23 +625,50 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
   const createWorkOrder = useCreateWorkOrder()
   const updateWorkOrder = useUpdateWorkOrder()
   const [pending, setPending] = useState<WorkOrderFormValues | null>(null)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const formRef = useRef<HTMLFormElement>(null)
   const form = useForm<WorkOrderFormInput, unknown, WorkOrderFormValues>({
     resolver: zodResolver(workOrderFormSchema),
     defaultValues: defaultsFor(workOrder),
+    shouldFocusError: false,
   })
   useSuggestedNumber(form, workOrder === null)
+
+  // Waits for every error to render (react-hook-form publishes schema errors after onInvalid),
+  // so the scroll lands on the first missing field in page order.
+  useEffect(() => {
+    if (focusRequest === 0) return
+    const timer = window.setTimeout(() => focusFirstInvalid(formRef.current), 50)
+    return () => window.clearTimeout(timer)
+  }, [focusRequest])
+  const focusError = () => setFocusRequest((count) => count + 1)
 
   const isSaving = createWorkOrder.isPending || updateWorkOrder.isPending
   const saveError = createWorkOrder.error ?? updateWorkOrder.error
   const warnings = confirmationWarnings(createWorkOrder.error)
+  const fieldError = saveError?.kind === 'business' ? FIELD_ERRORS[saveError.code] : undefined
+  const missing = form.formState.isSubmitted ? missingFields(form.formState.errors) : []
 
   const handleError = (error: { kind: string; code?: string }) => {
-    if (
-      error.kind === 'business' &&
-      (error.code === 'WORK_ORDER_NUMBER_TAKEN' || error.code === 'DUPLICATE')
-    ) {
-      form.setError('number', { message: 'Nomor WO sudah dipakai' })
+    const target = error.kind === 'business' && error.code ? FIELD_ERRORS[error.code] : undefined
+    if (!target) return
+    form.setError(target.field, { message: target.message })
+    focusError()
+  }
+
+  /** Checks the schema can't express: they depend on Master Data or on create vs edit. */
+  const checkExtra = (values: WorkOrderFormInput) => {
+    let isValid = true
+    const product = keptProductCode() ?? productCodeOf(values)
+    if (options.data && needsCategory(options.data, product) && values.category === '') {
+      form.setError('category', { message: 'Pilih kategori S, M, atau L' })
+      isValid = false
     }
+    if (!workOrder && values.sizes.length === 0) {
+      form.setError('sizes', { message: 'Pilih minimal satu ukuran' })
+      isValid = false
+    }
+    return isValid
   }
 
   const create = (values: WorkOrderFormValues, confirmed: boolean) =>
@@ -620,18 +697,21 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
     return touched ? null : workOrder.productCode
   }
 
-  const onSubmit = form.handleSubmit((values) => {
-    const product = keptProductCode() ?? productCodeOf(values)
-    if (product === '') {
-      form.setError('productNumber', {
-        message: 'Lengkapi tukang potong, kode produk, dan kode bahan',
-      })
-      return
-    }
-    if (options.data && needsCategory(options.data, product) && values.category === '') {
-      form.setError('category', { message: 'Pilih kategori S, M, atau L' })
-      return
-    }
+  const onSubmit = form.handleSubmit(
+    (values) => {
+      if (!checkExtra(values)) {
+        focusError()
+        return
+      }
+      save(values)
+    },
+    () => {
+      checkExtra(form.getValues())
+      focusError()
+    },
+  )
+
+  const save = (values: WorkOrderFormValues) => {
     if (workOrder) {
       updateWorkOrder.mutate(
         { id: workOrder.id, ...toPayload(values, keptProductCode()) },
@@ -645,12 +725,8 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
       )
       return
     }
-    if (values.sizes.length === 0 || values.colors.length === 0) {
-      toast.error('Pilih minimal satu ukuran dan satu warna')
-      return
-    }
     create(values, false)
-  })
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -680,14 +756,27 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
         </p>
       ) : (
         <Form {...form}>
-          <form onSubmit={onSubmit} noValidate className="stagger-1 animate-rise space-y-4">
+          <form
+            ref={formRef}
+            onSubmit={onSubmit}
+            noValidate
+            className="stagger-1 animate-rise space-y-4"
+          >
             <FormFields form={form} options={options.data} workOrder={workOrder} />
-            {saveError && !warnings && (
+            {saveError && !warnings && !fieldError && (
               <p role="alert" className="text-destructive text-sm">
                 {describeError(saveError)}
               </p>
             )}
-            <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
+            <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
+              {missing.length > 0 && (
+                <p
+                  role="alert"
+                  className="mr-auto basis-full text-destructive text-sm sm:basis-auto"
+                >
+                  Lengkapi dulu: {missing.join(', ')}
+                </p>
+              )}
               <Button asChild type="button" variant="ghost" size="lg">
                 <Link
                   to={workOrder ? '/work-order/$id' : '/work-order'}
