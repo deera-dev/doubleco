@@ -78,7 +78,7 @@ const list = defineAction({
     const retentionDays = Number(unwrap(retention))
 
     const balanceByTailor = new Map(
-      unwrap(balances).map((row: { tailor_id: string; balance: number }) => [row.tailor_id, row.balance]),
+      unwrap<{ tailor_id: string; balance: number }[]>(balances).map((row) => [row.tailor_id, row.balance]),
     )
 
     const employees = [

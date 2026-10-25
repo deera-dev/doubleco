@@ -15,6 +15,16 @@ const businessMessages: Record<string, string> = {
   TAILOR_CODE_TAKEN: 'Kode penjahit sudah dipakai penjahit lain.',
   TAILOR_NOT_ACTIVE: 'Penjahit tidak aktif.',
   RATE_ALREADY_ACTIVE: 'Tarif yang sudah berlaku tidak bisa dihapus. Tambahkan tarif baru.',
+  WORK_ORDER_NUMBER_TAKEN: 'Nomor WO sudah dipakai.',
+  PRODUCT_CATEGORY_MISSING: 'Kategori S/M/L produk ini belum diisi di Master Data.',
+  WORK_ORDER_ITEMS_REQUIRED: 'Pilih minimal satu ukuran dan satu warna.',
+  CUT_BELOW_ASSIGNED:
+    'Hasil potong tidak boleh lebih kecil dari jumlah yang sudah dibagi ke penjahit.',
+  WORK_ORDER_HAS_CARDS: 'WO ini sudah punya kartu jahit, jadi tidak bisa dihapus atau dibatalkan.',
+  WORK_ORDER_ITEM_IN_USE: 'Ukuran/warna ini sudah punya kartu jahit.',
+  WORK_ORDER_CLOSED: 'WO sudah selesai atau dibatalkan.',
+  COLOR_NOT_IN_FABRIC: 'Warna tidak sesuai dengan bahan WO.',
+  REASON_REQUIRED: 'Alasan wajib diisi.',
   CONFIRMATION_REQUIRED: 'Ada data serupa yang perlu dikonfirmasi.',
   UNKNOWN_ACTION: 'Versi aplikasi tidak cocok dengan server. Muat ulang halaman.',
 }

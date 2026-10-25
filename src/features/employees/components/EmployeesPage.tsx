@@ -181,7 +181,7 @@ export function EmployeesPage() {
           }
         />
       ) : (
-        <ul className="stagger-2 grid animate-rise gap-2">
+        <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
           {employees.data.employees.map((employee) => (
             <li key={employee.id}>
               <EmployeeRow employee={employee} onSelect={() => select(employee)} />

@@ -41,7 +41,7 @@ export function fromPostgres(error: PostgresError): Rejection {
   }
 }
 
-export function unwrap<T>(result: { data: T | null; error: PostgresError | null }): T {
+export function unwrap<T>(result: { data: unknown; error: PostgresError | null }): T {
   if (result.error) throw fromPostgres(result.error)
   return result.data as T
 }

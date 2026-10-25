@@ -76,6 +76,13 @@
   --metal-to: var(--color-metal-500);
   --grid-line: rgb(255 255 255 / 0.05);
   --noise-opacity: 0.035;
+
+  --print-paper: #ffffff;
+  --print-ink: #111111;
+  --print-muted: #5b5b5b;
+  --print-line: #c9c9c9;
+  --print-red: #e00000;
+  --print-blue: #1626e8;
 }
 
 @theme inline {
@@ -111,6 +118,12 @@
   --color-link: var(--link);
   --color-chrome: var(--chrome);
   --color-surface-hover: var(--surface-hover);
+  --color-print-paper: var(--print-paper);
+  --color-print-ink: var(--print-ink);
+  --color-print-muted: var(--print-muted);
+  --color-print-line: var(--print-line);
+  --color-print-red: var(--print-red);
+  --color-print-blue: var(--print-blue);
 
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);
@@ -395,6 +408,37 @@
   }
 }
 
+@utility wo-card-sheet {
+  width: 120mm;
+  height: 160mm;
+}
+
+@utility wo-card-photo {
+  width: 50mm;
+  height: 66mm;
+}
+
+@utility wo-card-qr {
+  width: 26mm;
+  height: 26mm;
+}
+
+@utility print-text-xs {
+  font-size: 2.6mm;
+}
+
+@utility print-text-sm {
+  font-size: 3.2mm;
+}
+
+@utility print-text-md {
+  font-size: 4mm;
+}
+
+@utility print-text-lg {
+  font-size: 5.2mm;
+}
+
 @utility text-metal {
   background-image: linear-gradient(
     180deg,
@@ -454,6 +498,17 @@
   a {
     -webkit-user-select: none;
     user-select: none;
+  }
+}
+
+@media print {
+  body {
+    background: var(--print-paper);
+    background-image: none;
+  }
+
+  body::before {
+    display: none;
   }
 }
 

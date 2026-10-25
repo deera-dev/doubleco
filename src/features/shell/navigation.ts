@@ -15,7 +15,7 @@ export interface NavigationItem {
   shortTitle: string
   description: string
   icon: LucideIcon
-  to?: '/' | '/karyawan' | '/master-data'
+  to?: '/' | '/karyawan' | '/master-data' | '/work-order'
 }
 
 export interface NavigationSection {
@@ -43,6 +43,7 @@ export const workOrderItem: NavigationItem = {
   shortTitle: 'WO',
   description: 'Buat, ubah, dan cetak kartu WO',
   icon: ClipboardList,
+  to: '/work-order',
 }
 
 export const cuttingItem: NavigationItem = {
