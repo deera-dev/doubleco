@@ -28,23 +28,27 @@ function Row({
   return (
     <div
       className={cn(
-        'flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.7mm]',
+        'flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.3mm]',
         className,
       )}
     >
       <span className="w-[15mm] shrink-0 font-semibold text-print-muted uppercase print-text-2xs">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red print-text-sm leading-tight">
+      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red uppercase print-text-md leading-tight">
         {children}
       </span>
     </div>
   )
 }
 
-/** Written by hand: who takes the card is only known at the cutting table. */
+/** Written by hand: who takes the card is only known at the cutting table. The line sits low to write on. */
 function HandwrittenRow({ label }: { label: string }) {
-  return <Row label={label} className="h-[7.5mm] border-print-ink/60 border-solid" />
+  return (
+    <div className="h-[9mm] border-print-ink border-b-[0.3mm] pt-[0.8mm]">
+      <span className="font-semibold text-print-muted uppercase print-text-2xs">{label}</span>
+    </div>
+  )
 }
 
 interface CardSheetProps {
@@ -71,14 +75,12 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
         <Row label="T.Potong">{card.cutterName}</Row>
         <Row label="Model">{card.productCode}</Row>
         <Row label="Ukuran">{card.sizeName}</Row>
-        <Row label="Warna">
-          <span className="uppercase print-text-md">{card.colorName}</span>
-        </Row>
-        <Row label="Jumlah">
-          <span className="print-text-md">{card.quantity}</span>
-        </Row>
-        <HandwrittenRow label="T.Jahit" />
-        <HandwrittenRow label="Kode" />
+        <Row label="Warna">{card.colorName}</Row>
+        <Row label="Jumlah">{card.quantity}</Row>
+        <div className="mt-[0.5mm]">
+          <HandwrittenRow label="T.Jahit" />
+          <HandwrittenRow label="Kode" />
+        </div>
       </div>
 
       <div className="mt-auto flex items-end gap-[2.5mm] pt-[2mm]">
