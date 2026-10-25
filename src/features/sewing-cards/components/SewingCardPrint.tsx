@@ -6,6 +6,7 @@ import { useRecordPrint } from '@/features/sewing-cards/api/mutations'
 import { useCardPrint } from '@/features/sewing-cards/api/queries'
 import type { PrintData, SewingCard } from '@/features/sewing-cards/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
+import { MaryamLogo } from '@/shared/components/MaryamLogo'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { qrDataUri } from '@/shared/lib/qr'
@@ -39,7 +40,7 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
       <header className="flex items-center justify-between border-print-ink border-b-[0.5mm] pb-[1.2mm]">
-        <span className="font-extrabold tracking-widest print-text-md">PRODUCTION</span>
+        <MaryamLogo className="h-[9mm]" />
         <span className="flex size-[6mm] items-center justify-center rounded-[1mm] border-[0.4mm] border-print-ink font-extrabold print-text-sm">
           {card.category}
         </span>
