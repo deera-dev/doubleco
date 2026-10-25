@@ -232,49 +232,111 @@ const formOptions = defineAction({
 })
 
 const suggestNumber = defineAction({
-  input: z.object({ productId: uuid }),
-  run: async ({ productId }, request) => {
+  input: z.object({ product: z.string().trim().min(1).max(40) }),
+  run: async ({ product }, request) => {
     const supabase = createUserClient(request)
-    return { number: unwrap<string>(await supabase.rpc('suggest_work_order_number', { p_product_id: productId })) }
+    return {
+      number: unwrap<string>(await supabase.rpc('suggest_work_order_number_for_label', { p_label: product })),
+    }
   },
 })
+
+const label = (max: number) => z.string().trim().min(1).max(max)
+const optionalLabel = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .default(null)
+    .transform((value) => value || null)
 
 const formInput = {
   number: z.string().trim().min(1).max(60),
   orderedOn: z.string().date(),
-  productId: uuid,
-  fabricId: uuid,
-  cutterId: uuid,
-  patternId: uuid.nullable().default(null),
-  fabricCombinationId: uuid.nullable().default(null),
+  product: label(40),
+  category: z.enum(['S', 'M', 'L']).nullable().default(null),
+  fabric: label(60),
+  cutter: label(60),
+  pattern: optionalLabel(40),
+  combination: optionalLabel(60),
   changeStatus: z.enum(['changed', 'follow_sample']),
   changeNotes: z.string().trim().max(1000).nullable().default(null),
   additionalInfo: z.string().trim().max(1000).nullable().default(null),
 }
 
+type SupabaseClient = ReturnType<typeof createUserClient>
+
+function keyOf(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+async function ensureLabel(supabase: SupabaseClient, kind: string, value: string, parentId: string | null = null) {
+  return unwrap<string>(
+    await supabase.rpc('ensure_master_label', { p_kind: kind, p_label: value, p_parent_id: parentId }),
+  )
+}
+
+async function resolveMaster(
+  supabase: SupabaseClient,
+  input: { product: string; category: 'S' | 'M' | 'L' | null; fabric: string; cutter: string; pattern: string | null; combination: string | null },
+) {
+  if (input.combination && keyOf(input.combination) === keyOf(input.fabric)) {
+    throw new Rejection('FABRIC_COMBINATION_SAME')
+  }
+  const productId = await ensureLabel(supabase, 'product', input.product)
+  if (input.category) {
+    unwrap(
+      await supabase
+        .from('products')
+        .update({ wage_category: input.category })
+        .eq('id', productId)
+        .is('wage_category', null)
+        .select('id'),
+    )
+  }
+  const fabricId = await ensureLabel(supabase, 'fabric', input.fabric)
+  return {
+    productId,
+    fabricId,
+    cutterId: await ensureLabel(supabase, 'cutter', input.cutter),
+    patternId: input.pattern ? await ensureLabel(supabase, 'pattern', input.pattern) : null,
+    combinationId: input.combination ? await ensureLabel(supabase, 'fabric', input.combination) : null,
+  }
+}
+
+async function ensureAll(supabase: SupabaseClient, kind: string, values: string[], parentId: string | null = null) {
+  const ids: string[] = []
+  for (const value of values) ids.push(await ensureLabel(supabase, kind, value, parentId))
+  return [...new Set(ids)]
+}
+
 const create = defineAction({
   input: z.object({
     ...formInput,
-    sizeIds: z.array(uuid).min(1),
-    colorIds: z.array(uuid).min(1),
+    sizes: z.array(label(30)).min(1).max(30),
+    colors: z.array(label(40)).min(1).max(60),
     confirmed: z.boolean().default(false),
     reason: z.string().trim().max(200).nullable().default(null),
   }),
   run: async (input, request) => {
     const supabase = createUserClient(request)
+    const master = await resolveMaster(supabase, input)
+    const sizeIds = await ensureAll(supabase, 'size', input.sizes)
+    const colorIds = await ensureAll(supabase, 'color', input.colors, master.fabricId)
     const created = unwrap<{ id: string }>(
       await supabase
         .rpc('create_work_order', {
-          p_product_id: input.productId,
-          p_fabric_id: input.fabricId,
-          p_cutter_id: input.cutterId,
+          p_product_id: master.productId,
+          p_fabric_id: master.fabricId,
+          p_cutter_id: master.cutterId,
           p_change_status: input.changeStatus,
-          p_size_ids: input.sizeIds,
-          p_fabric_color_ids: input.colorIds,
+          p_size_ids: sizeIds,
+          p_fabric_color_ids: colorIds,
           p_number: input.number,
           p_ordered_on: input.orderedOn,
-          p_pattern_id: input.patternId,
-          p_fabric_combination_id: input.fabricCombinationId,
+          p_pattern_id: master.patternId,
+          p_fabric_combination_id: master.combinationId,
           p_change_notes: input.changeNotes,
           p_additional_info: input.additionalInfo,
           p_confirmed: input.confirmed,
@@ -289,19 +351,19 @@ const create = defineAction({
 const update = defineAction({
   input: z.object({ id: uuid, ...formInput }),
   run: async (input, request) => {
-    if (input.fabricCombinationId === input.fabricId) throw new Rejection('FABRIC_COMBINATION_SAME')
     const supabase = createUserClient(request)
+    const master = await resolveMaster(supabase, input)
     unwrap(
       await supabase
         .from('work_orders')
         .update({
           number: input.number,
           ordered_on: input.orderedOn,
-          product_id: input.productId,
-          fabric_id: input.fabricId,
-          cutter_id: input.cutterId,
-          pattern_id: input.patternId,
-          fabric_combination_id: input.fabricCombinationId,
+          product_id: master.productId,
+          fabric_id: master.fabricId,
+          cutter_id: master.cutterId,
+          pattern_id: master.patternId,
+          fabric_combination_id: master.combinationId,
           change_status: input.changeStatus,
           change_notes: input.changeStatus === 'changed' ? input.changeNotes || null : null,
           additional_info: input.additionalInfo || null,

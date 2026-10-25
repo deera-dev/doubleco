@@ -17,7 +17,7 @@ function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 animate-fade-in bg-background/70 backdrop-blur-sm" />
       <DialogPrimitive.Content
         className={cn(
-          'surface chrome fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] animate-sheet-up flex-col rounded-t-3xl bg-popover/95 outline-none',
+          'surface chrome sheet-above-keyboard fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] animate-sheet-up flex-col rounded-t-3xl bg-popover/95 outline-none',
           'sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:animate-none sm:rounded-3xl',
           className,
         )}

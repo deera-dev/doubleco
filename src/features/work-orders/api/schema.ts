@@ -93,24 +93,35 @@ export const printDataSchema = z.object({
   offsets: z.object({ top: z.number(), left: z.number() }),
 })
 
+const requiredLabel = (message: string) => z.string().trim().min(1, message).max(60)
+
 export const workOrderFormSchema = z
   .object({
     number: z.string().trim().min(1, 'Nomor WO wajib diisi').max(60),
     orderedOn: z.string().date('Pilih tanggal'),
-    productId: z.string().min(1, 'Pilih produk'),
-    fabricId: z.string().min(1, 'Pilih bahan'),
-    cutterId: z.string().min(1, 'Pilih tukang potong'),
-    patternId: z.string(),
-    fabricCombinationId: z.string(),
+    product: requiredLabel('Isi kode produk'),
+    category: z.enum(['', 'S', 'M', 'L']),
+    cutter: requiredLabel('Isi tukang potong'),
+    pattern: z.string().trim().max(40),
+    fabric: requiredLabel('Isi bahan'),
+    combination: z.string().trim().max(60),
     changeStatus: changeStatusSchema,
     changeNotes: z.string().trim().max(1000),
     additionalInfo: z.string().trim().max(1000),
-    sizeIds: z.array(z.string()),
-    colorIds: z.array(z.string()),
+    sizes: z.array(z.string()),
+    colors: z.array(z.string()),
   })
   .superRefine((values, context) => {
     if (values.changeStatus === 'changed' && values.changeNotes === '') {
       context.addIssue({ code: 'custom', path: ['changeNotes'], message: 'Tulis perubahannya' })
+    }
+    const key = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (values.combination !== '' && key(values.combination) === key(values.fabric)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['combination'],
+        message: 'Kombinasi tidak boleh sama dengan bahan utama',
+      })
     }
   })
 

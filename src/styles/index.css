@@ -417,6 +417,19 @@
   width: 54mm;
 }
 
+@utility hide-with-keyboard {
+  :root[data-keyboard="open"] & {
+    display: none;
+  }
+}
+
+@utility sheet-above-keyboard {
+  @media (width < 40rem) {
+    bottom: var(--keyboard-inset, 0px);
+    max-height: calc(var(--visual-height, 100dvh) * 0.92);
+  }
+}
+
 @utility kj-card-sheet {
   width: 60mm;
   height: 100mm;
@@ -473,6 +486,8 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    scroll-padding-top: 6rem;
+    scroll-padding-bottom: 9rem;
   }
 
   body {

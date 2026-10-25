@@ -4,18 +4,20 @@ import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { useIssueCards } from '@/features/sewing-cards/api/mutations'
 import { useSplitOptions } from '@/features/sewing-cards/api/queries'
-import type { SplitOptions } from '@/features/sewing-cards/api/schema'
+import type { SplitOptions, SplitTailor } from '@/features/sewing-cards/api/schema'
 import { cardPrintSearch } from '@/features/sewing-cards/lib/status'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Button } from '@/shared/components/ui/button'
+import { Combobox } from '@/shared/components/ui/combobox'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
+import { labelKey } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
 import { confirmationWarnings } from '@/shared/lib/warnings'
 import { toAppError } from '@/shared/types/errors'
@@ -27,16 +29,30 @@ interface DraftCard {
   quantity: number
 }
 
+function tailorLabel(tailor: SplitTailor): string {
+  return `${tailor.code} · ${tailor.name}`
+}
+
+function resolveTailor(tailors: SplitTailor[], text: string): SplitTailor | undefined {
+  const key = labelKey(text)
+  if (key === '') return undefined
+  return (
+    tailors.find((tailor) => labelKey(tailorLabel(tailor)) === key) ??
+    tailors.find((tailor) => labelKey(tailor.code) === key)
+  )
+}
+
 function SplitForm({ options }: { options: SplitOptions }) {
   const navigate = useNavigate()
   const issueCards = useIssueCards()
   const [drafts, setDrafts] = useState<DraftCard[]>([])
   const [takenOn, setTakenOn] = useState(options.today)
-  const [tailorId, setTailorId] = useState('')
+  const [tailorText, setTailorText] = useState('')
   const [itemId, setItemId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [isConfirming, setIsConfirming] = useState(false)
   const { workOrder, items, tailors } = options
+  const tailorId = resolveTailor(tailors, tailorText)?.id ?? ''
 
   const draftedFor = (id: string) =>
     drafts.filter((draft) => draft.workOrderItemId === id).reduce((sum, d) => sum + d.quantity, 0)
@@ -67,7 +83,7 @@ function SplitForm({ options }: { options: SplitOptions }) {
       ...current,
       { key: crypto.randomUUID(), workOrderItemId: itemId, tailorId, quantity: parsedQuantity },
     ])
-    setTailorId('')
+    setTailorText('')
     setItemId('')
     setQuantity('')
   }
@@ -143,19 +159,19 @@ function SplitForm({ options }: { options: SplitOptions }) {
         <div className="grid gap-4 md:grid-cols-4 md:items-end">
           <div className="space-y-2">
             <Label htmlFor="split-tailor">Penjahit</Label>
-            <NativeSelect
+            <Combobox
               id="split-tailor"
-              value={tailorId}
-              onChange={(event) => setTailorId(event.target.value)}
-            >
-              <option value="">Pilih penjahit</option>
-              {tailors.map((tailor) => (
-                <option key={tailor.id} value={tailor.id}>
-                  {tailor.code} · {tailor.name}
-                  {tailor.openCards > 0 ? ` · pegang ${tailor.openCards} kartu` : ''}
-                </option>
-              ))}
-            </NativeSelect>
+              value={tailorText}
+              onValueChange={setTailorText}
+              placeholder="Ketik kode / nama"
+              options={tailors.map((tailor) => ({
+                label: tailorLabel(tailor),
+                hint: tailor.openCards > 0 ? `pegang ${tailor.openCards} kartu` : undefined,
+              }))}
+            />
+            {tailorText.trim() !== '' && tailorId === '' && (
+              <p className="text-destructive text-xs">Penjahit tidak ditemukan.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="split-item">Ukuran · warna</Label>
@@ -274,7 +290,7 @@ function SplitForm({ options }: { options: SplitOptions }) {
         )}
       </section>
 
-      <div className="chrome sticky bottom-28 z-20 flex items-center justify-between gap-3 rounded-2xl border p-3 lg:bottom-4">
+      <div className="chrome hide-with-keyboard sticky bottom-28 z-20 flex items-center justify-between gap-3 rounded-2xl border p-3 lg:bottom-4">
         <p className="pl-1 text-muted-foreground text-sm">
           <span className="font-mono font-semibold text-foreground tabular-nums">
             {drafts.length}

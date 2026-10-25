@@ -10,11 +10,12 @@ import type { AppError } from '@/shared/types/errors'
 export interface WorkOrderPayload {
   number: string
   orderedOn: string
-  productId: string
-  fabricId: string
-  cutterId: string
-  patternId: string | null
-  fabricCombinationId: string | null
+  product: string
+  category: 'S' | 'M' | 'L' | null
+  fabric: string
+  cutter: string
+  pattern: string | null
+  combination: string | null
   changeStatus: 'changed' | 'follow_sample'
   changeNotes: string | null
   additionalInfo: string | null
@@ -29,7 +30,7 @@ function useWorkOrderAction<Input extends object, Output>(run: (input: Input) =>
 
 export const useCreateWorkOrder = () =>
   useWorkOrderAction(
-    (input: WorkOrderPayload & { sizeIds: string[]; colorIds: string[]; confirmed: boolean }) =>
+    (input: WorkOrderPayload & { sizes: string[]; colors: string[]; confirmed: boolean }) =>
       callAction('work-orders', 'create', savedIdSchema, input),
   )
 
