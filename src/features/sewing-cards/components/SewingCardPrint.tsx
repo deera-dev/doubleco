@@ -35,7 +35,7 @@ function Row({
       <span className="w-[15mm] shrink-0 font-semibold text-print-muted uppercase print-text-2xs">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-bold print-text-sm leading-tight">
+      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red print-text-sm leading-tight">
         {children}
       </span>
     </div>
@@ -72,9 +72,7 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
         <Row label="Model">{card.productCode}</Row>
         <Row label="Ukuran">{card.sizeName}</Row>
         <Row label="Warna">
-          <span className="font-extrabold text-print-red uppercase print-text-md">
-            {card.colorName}
-          </span>
+          <span className="uppercase print-text-md">{card.colorName}</span>
         </Row>
         <Row label="Jumlah">
           <span className="print-text-md">{card.quantity}</span>

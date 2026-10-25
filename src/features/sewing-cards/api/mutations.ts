@@ -8,7 +8,7 @@ import type { AppError } from '@/shared/types/errors'
 
 export interface IssueCardsInput {
   takenOn: string
-  cards: { workOrderItemId: string; tailorId: string; quantity: number }[]
+  cards: { workOrderItemId: string; quantity: number }[]
   confirmed: boolean
   reason: string | null
 }

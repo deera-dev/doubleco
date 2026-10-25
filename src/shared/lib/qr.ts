@@ -5,8 +5,10 @@ interface QrOptions {
   logoSvg?: string
 }
 
-const LOGO_SHARE = 0.2
-const PLATE_SHARE = 0.26
+const LOGO_SHARE = 0.3
+const PLATE_SHARE = 0.36
+/** 33×33 modules: the centre plate stays clear of the alignment pattern (modules 24–28). */
+const LOGO_QR_VERSION = 4
 
 function withLogo(qrSvg: string, logoSvg: string) {
   const size = Number(/viewBox="0 0 (\d+)/.exec(qrSvg)?.[1])
@@ -29,6 +31,7 @@ export async function qrDataUri(payload: string, options: QrOptions = {}): Promi
     type: 'svg',
     margin: 0,
     errorCorrectionLevel: options.logoSvg ? 'H' : 'M',
+    ...(options.logoSvg ? { version: LOGO_QR_VERSION } : {}),
   })
   const finalSvg = options.logoSvg ? withLogo(svg, options.logoSvg) : svg
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(finalSvg)}`

@@ -52,9 +52,9 @@ function shapeCard(row: CardRow) {
     category: row.wage_category,
     wageAmount: Number(row.wage_amount),
     printCount: row.print_count,
-    tailorId: row.tailors?.id ?? '',
-    tailorCode: row.tailors?.code ?? '-',
-    tailorName: row.tailors?.name ?? '-',
+    tailorId: row.tailors?.id ?? null,
+    tailorCode: row.tailors?.code ?? null,
+    tailorName: row.tailors?.name ?? null,
     workOrderItemId: row.work_order_items?.id ?? '',
     sizeName: row.work_order_items?.sizes?.name ?? '-',
     colorName: row.work_order_items?.fabric_colors?.name ?? '-',
@@ -215,7 +215,13 @@ const issue = defineAction({
   input: z.object({
     takenOn: z.string().date(),
     cards: z
-      .array(z.object({ workOrderItemId: uuid, tailorId: uuid, quantity: z.number().int().positive().max(100_000) }))
+      .array(
+        z.object({
+          workOrderItemId: uuid,
+          tailorId: uuid.nullable().default(null),
+          quantity: z.number().int().positive().max(100_000),
+        }),
+      )
       .min(1)
       .max(100),
     confirmed: z.boolean().default(false),
@@ -275,8 +281,8 @@ const list = defineAction({
           (card) =>
             needle === '' ||
             card.number.toLowerCase().includes(needle) ||
-            card.tailorCode.toLowerCase() === needle ||
-            card.tailorName.toLowerCase().includes(needle) ||
+            card.tailorCode?.toLowerCase() === needle ||
+            card.tailorName?.toLowerCase().includes(needle) ||
             card.workOrderNumber.toLowerCase().includes(needle) ||
             card.productCode.toLowerCase().includes(needle),
         ),

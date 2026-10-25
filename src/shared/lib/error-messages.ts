@@ -22,6 +22,7 @@ const businessMessages: Record<string, string> = {
   NOT_FOUND: 'Data tidak ditemukan. Muat ulang halaman.',
   TAILOR_CODE_TAKEN: 'Kode penjahit sudah dipakai penjahit lain.',
   TAILOR_NOT_ACTIVE: 'Penjahit tidak aktif.',
+  TAILOR_REQUIRED: 'Pilih penjahit yang menyetor kartu ini.',
   RATE_ALREADY_ACTIVE: 'Tarif yang sudah berlaku tidak bisa dihapus. Tambahkan tarif baru.',
   WORK_ORDER_NUMBER_TAKEN: 'Nomor WO sudah dipakai.',
   PRODUCT_CATEGORY_MISSING: 'Kategori S/M/L produk ini belum diisi di Master Data.',

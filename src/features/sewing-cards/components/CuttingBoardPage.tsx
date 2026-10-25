@@ -270,7 +270,7 @@ export function CuttingBoardPage() {
       <PageHeader
         eyebrow="Produksi"
         title="Potong & Bagi"
-        description="Bagi hasil potong ke penjahit, cetak kartu jahit 6×10 ber-QR, dan pantau kartu yang masih di penjahit."
+        description="Bagi hasil potong jadi kartu jahit 6×10 ber-QR, cetak, dan pantau kartu yang masih di penjahit."
       />
       <SegmentedControl
         label="Bagian"
@@ -278,7 +278,7 @@ export function CuttingBoardPage() {
         onChange={setTab}
         className="stagger-1 w-fit max-w-full animate-rise"
         options={[
-          { value: 'split', label: 'Bagi ke penjahit', count: board.data?.readyToSplit.length },
+          { value: 'split', label: 'Bagi kartu jahit', count: board.data?.readyToSplit.length },
           { value: 'cards', label: 'Kartu jahit', count: cards.data?.summary.taken },
         ]}
       />
