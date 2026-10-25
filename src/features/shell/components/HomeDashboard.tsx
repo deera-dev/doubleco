@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, ScanLine } from 'lucide-react'
 import { announceSoon } from '@/features/shell/components/NavigationEntry'
 import {
@@ -110,26 +111,43 @@ function PaydayCard({ today }: { today: Date }) {
   )
 }
 
+const moduleRowClass =
+  'surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover'
+
 function ModuleRow({ item, index }: { item: NavigationItem; index: number }) {
-  return (
-    <li className={cn('animate-rise', staggerClasses[index])}>
-      <button
-        type="button"
-        onClick={() => announceSoon(item)}
-        className="surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover"
-      >
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 text-metal-200 transition-colors duration-300 group-hover:border-brand-400/50 group-hover:text-brand-100">
-          <item.icon className="size-5" />
+  const content = (
+    <>
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 text-metal-200 transition-colors duration-300 group-hover:border-brand-400/50 group-hover:text-brand-100">
+        <item.icon className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium text-sm">{item.title}</span>
+        <span className="block truncate text-muted-foreground text-sm">{item.description}</span>
+      </span>
+      {item.to ? (
+        <span className="hidden rounded-full border border-success/30 bg-success/10 px-2.5 py-0.5 text-success text-xs sm:inline">
+          Siap
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium text-sm">{item.title}</span>
-          <span className="block truncate text-muted-foreground text-sm">{item.description}</span>
-        </span>
+      ) : (
         <span className="hidden rounded-full border px-2.5 py-0.5 text-subtle-foreground text-xs sm:inline">
           Segera
         </span>
-        <ArrowUpRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-      </button>
+      )}
+      <ArrowUpRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+    </>
+  )
+
+  return (
+    <li className={cn('animate-rise', staggerClasses[index])}>
+      {item.to ? (
+        <Link to={item.to} className={moduleRowClass}>
+          {content}
+        </Link>
+      ) : (
+        <button type="button" onClick={() => announceSoon(item)} className={moduleRowClass}>
+          {content}
+        </button>
+      )}
     </li>
   )
 }
@@ -153,7 +171,7 @@ export function HomeDashboard({ displayName, now }: { displayName: string; now: 
         <div className="flex items-baseline justify-between">
           <h2 className="font-semibold text-lg tracking-tight">Modul</h2>
           <p className="text-muted-foreground text-sm">
-            {moduleItems.length} modul sedang disiapkan
+            {moduleItems.filter((item) => item.to).length} dari {moduleItems.length} modul siap
           </p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2">

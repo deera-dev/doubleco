@@ -474,16 +474,33 @@ function). `supabase/config.toml` marks `activate-account` as callable without
 a user session (`verify_jwt = false`), since activation happens before the
 user has a password.
 
+Edge Functions deploy automatically on every push to `main` that touches
+`supabase/functions/**` (`.github/workflows/supabase-functions.yml`). The
+workflow needs two repository secrets (GitHub → Settings → Secrets and
+variables → Actions):
+
+| Secret                  | Value                                                              |
+| ----------------------- | ------------------------------------------------------------------ |
+| `SUPABASE_ACCESS_TOKEN` | A personal access token from supabase.com/dashboard/account/tokens |
+| `SUPABASE_PROJECT_REF`  | The project ref, e.g. `lylaezogaytdowqkfmrh`                       |
+
+Without them the workflow only prints a warning. Manual alternative:
+
 ```bash
 supabase link --project-ref <project-ref>
-supabase db push
-supabase functions deploy activate-account get-me
+supabase functions deploy
 ```
+
+Migrations are still applied by hand (SQL editor or `supabase db push`),
+since the earliest ones were run manually and the remote migration history
+is not tracked yet.
 
 Edge Functions read `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
 `SUPABASE_SERVICE_ROLE_KEY` from the runtime automatically;
 `SUPABASE_SECRET_KEY` (`supabase secrets set ...`) takes precedence over the
-service role key when present.
+service role key when present. Feature functions (`employees`,
+`master-data`) take `{ action, input }` and dispatch through
+`_shared/actions.ts`, so one deploy covers a whole feature.
 
 ### Vercel
 

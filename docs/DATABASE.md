@@ -411,6 +411,7 @@ bisa menampilkan pemberitahuan sesuai PRD § 5.10.
 | `lock_payroll(pay_on)`                                              | Kunci; snapshot rekening; catat cicilan; kartu → `paid`; peringatan rekening kosong / transfer minus. Kartu yang sudah di-scan saat setor otomatis ikut — tidak ada scan ulang                 |
 | `mark_payroll_line_paid(line_id)`                                   | Tandai sudah ditransfer; tolak jika sudah                                                                                                                                                      |
 | `find_similar_tailors(name)` / `find_account_number_owners(number)` | Pemeriksaan duplikat master data                                                                                                                                                               |
+| `save_tailor(...)`                                                  | Tambah/ubah penjahit + rekening aktif secara atomik; tolak kode ganda; peringatan nama mirip & nomor rekening dipakai penjahit lain; rekening lama disimpan sebagai riwayat                    |
 
 Pola error: `ERROR` dengan `message` = kode (mis. `CARD_ALREADY_SUBMITTED`) dan
 `detail` = JSON konteks. Peringatan dikembalikan sebagai

@@ -9,6 +9,15 @@ const businessMessages: Record<string, string> = {
   PASSWORD_UPDATE_FAILED: 'Password gagal disimpan. Coba lagi.',
   PROFILE_NOT_FOUND: 'Akun tidak ditemukan.',
   FORBIDDEN: 'Akun Anda tidak punya akses untuk tindakan ini.',
+  DUPLICATE: 'Data dengan nama/kode yang sama sudah ada.',
+  IN_USE: 'Data ini sudah dipakai di transaksi, jadi tidak bisa dihapus. Nonaktifkan saja.',
+  NOT_FOUND: 'Data tidak ditemukan. Muat ulang halaman.',
+  TAILOR_CODE_TAKEN: 'Kode penjahit sudah dipakai penjahit lain.',
+  TAILOR_NOT_ACTIVE: 'Penjahit tidak aktif.',
+  USE_MARK_TAILOR_LEFT: 'Gunakan tombol "Tandai keluar" untuk penjahit yang berhenti.',
+  RATE_ALREADY_ACTIVE: 'Tarif yang sudah berlaku tidak bisa dihapus. Tambahkan tarif baru.',
+  CONFIRMATION_REQUIRED: 'Ada data serupa yang perlu dikonfirmasi.',
+  UNKNOWN_ACTION: 'Versi aplikasi tidak cocok dengan server. Muat ulang halaman.',
 }
 
 export function describeError(error: AppError): string {

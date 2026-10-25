@@ -69,7 +69,12 @@ function DockEntry({ item }: { item: NavigationItem }) {
 
   if (item.to) {
     return (
-      <Link to={item.to} className={className} activeProps={{ className: 'text-foreground' }}>
+      <Link
+        to={item.to}
+        className={className}
+        activeOptions={{ exact: item.to === '/' }}
+        activeProps={{ className: 'text-foreground' }}
+      >
         {content}
       </Link>
     )
@@ -81,6 +86,9 @@ function DockEntry({ item }: { item: NavigationItem }) {
   )
 }
 
+const moreItemClass =
+  'flex h-12 items-center gap-2.5 rounded-2xl px-3 text-left text-muted-foreground text-sm transition-colors hover:bg-surface-hover hover:text-foreground active:scale-97'
+
 export function BottomDock() {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const moreItems = navigationSections
@@ -91,20 +99,33 @@ export function BottomDock() {
     <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
       {isMoreOpen && (
         <div className="surface chrome mb-2 grid origin-bottom animate-pop grid-cols-2 gap-1 rounded-3xl bg-popover/95 p-2">
-          {moreItems.map((item) => (
-            <button
-              key={item.title}
-              type="button"
-              onClick={() => {
-                setIsMoreOpen(false)
-                announceSoon(item)
-              }}
-              className="flex h-12 items-center gap-2.5 rounded-2xl px-3 text-left text-muted-foreground text-sm transition-colors hover:bg-surface-hover hover:text-foreground active:scale-97"
-            >
-              <item.icon className="size-4.5" />
-              {item.title}
-            </button>
-          ))}
+          {moreItems.map((item) =>
+            item.to ? (
+              <Link
+                key={item.title}
+                to={item.to}
+                onClick={() => setIsMoreOpen(false)}
+                className={moreItemClass}
+                activeProps={{ className: 'bg-surface-hover text-foreground' }}
+              >
+                <item.icon className="size-4.5" />
+                {item.title}
+              </Link>
+            ) : (
+              <button
+                key={item.title}
+                type="button"
+                onClick={() => {
+                  setIsMoreOpen(false)
+                  announceSoon(item)
+                }}
+                className={cn(moreItemClass, 'text-subtle-foreground')}
+              >
+                <item.icon className="size-4.5" />
+                {item.title}
+              </button>
+            ),
+          )}
         </div>
       )}
       <div className="surface chrome flex items-stretch rounded-3xl bg-popover/90 px-1">
