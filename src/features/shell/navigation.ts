@@ -15,7 +15,15 @@ export interface NavigationItem {
   shortTitle: string
   description: string
   icon: LucideIcon
-  to?: '/' | '/scan' | '/karyawan' | '/master-data' | '/work-order' | '/kartu-jahit'
+  to?:
+    | '/'
+    | '/scan'
+    | '/karyawan'
+    | '/master-data'
+    | '/work-order'
+    | '/kartu-jahit'
+    | '/gajian'
+    | '/kasbon'
 }
 
 export interface NavigationSection {
@@ -60,6 +68,7 @@ export const payrollItem: NavigationItem = {
   shortTitle: 'Gajian',
   description: 'Rekap otomatis & daftar transfer',
   icon: Banknote,
+  to: '/gajian',
 }
 
 export const cashAdvanceItem: NavigationItem = {
@@ -67,6 +76,7 @@ export const cashAdvanceItem: NavigationItem = {
   shortTitle: 'Kasbon',
   description: 'Pinjaman, cicilan, dan sisa',
   icon: HandCoins,
+  to: '/kasbon',
 }
 
 export const employeesItem: NavigationItem = {

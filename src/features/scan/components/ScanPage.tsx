@@ -1,14 +1,16 @@
 import { Keyboard, OctagonAlert, ScanLine } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { QrScanner } from '@/features/scan/components/QrScanner'
-import { ScannedCardPanel } from '@/features/scan/components/ScannedCardPanel'
+import { isActionable, ScannedCardPanel } from '@/features/scan/components/ScannedCardPanel'
 import { normalizeCardNumber } from '@/features/scan/lib/card-number'
 import { signal } from '@/features/scan/lib/feedback'
+import { useScanUiStore } from '@/features/scan/store'
 import { useScannedCard, useScanOptions, useSewingCards } from '@/features/sewing-cards/api/queries'
 import { CardDialogs } from '@/features/sewing-cards/components/CardDialogs'
 import { CardRow } from '@/features/sewing-cards/components/CardRow'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
@@ -53,12 +55,13 @@ function ManualEntry({ onSubmit }: { onSubmit: (value: string) => void }) {
   )
 }
 
-function TodayDeposits({ today }: { today: string }) {
+function CardQueue({ today, mode }: { today: string; mode: 'submit' | 'inspect' }) {
   const cards = useSewingCards({
     status: 'all',
     search: '',
     workOrderId: null,
-    submittedOn: today,
+    submittedOn: mode === 'submit' ? today : null,
+    needsInspection: mode === 'inspect',
   })
   const list = cards.data?.cards ?? []
   const pieces = list.reduce((sum, card) => sum + card.quantity, 0)
@@ -67,7 +70,7 @@ function TodayDeposits({ today }: { today: string }) {
     <section className="space-y-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-          Setoran hari ini
+          {mode === 'submit' ? 'Setoran hari ini' : 'Menunggu diperiksa'}
         </h2>
         {list.length > 0 && (
           <p className="text-muted-foreground text-sm">
@@ -84,7 +87,9 @@ function TodayDeposits({ today }: { today: string }) {
         </p>
       ) : list.length === 0 ? (
         <p className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground text-sm">
-          Belum ada kartu yang disetor hari ini.
+          {mode === 'submit'
+            ? 'Belum ada kartu yang disetor hari ini.'
+            : 'Semua kartu yang disetor sudah diperiksa.'}
         </p>
       ) : (
         <ul className="grid grid-cols-1 gap-2">
@@ -102,6 +107,8 @@ function TodayDeposits({ today }: { today: string }) {
 
 export function ScanPage() {
   const options = useScanOptions()
+  const mode = useScanUiStore((state) => state.mode)
+  const setMode = useScanUiStore((state) => state.setMode)
   const [number, setNumber] = useState<string | null>(null)
   const [notCard, setNotCard] = useState<string | null>(null)
   const scanned = useScannedCard(number)
@@ -142,19 +149,33 @@ export function ScanPage() {
     if (!number || signalled.current === number) return
     if (scanned.data?.number === number) {
       signalled.current = number
-      signal(scanned.data.status === 'taken' ? 'found' : 'blocked')
+      signal(isActionable(scanned.data, mode) ? 'found' : 'blocked')
     } else if (scanned.isError) {
       signalled.current = number
       signal('blocked')
     }
-  }, [number, scanned.data, scanned.isError])
+  }, [number, scanned.data, scanned.isError, mode])
 
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
-        eyebrow="Setoran"
+        eyebrow={mode === 'submit' ? 'Setoran' : 'Pemeriksaan'}
         title="Scan Kartu"
-        description="Scan QR kartu jahit saat penjahit setor. Kartu yang disetor otomatis masuk gajian Sabtu."
+        description={
+          mode === 'submit'
+            ? 'Scan QR kartu jahit saat penjahit setor. Kartu yang disetor otomatis masuk gajian Sabtu.'
+            : 'Scan kartu yang sudah disetor, lalu catat OK, perlu perbaikan, atau rusak permanen.'
+        }
+      />
+      <SegmentedControl
+        label="Mode scan"
+        value={mode}
+        onChange={setMode}
+        className="w-fit max-w-full"
+        options={[
+          { value: 'submit', label: 'Setor' },
+          { value: 'inspect', label: 'Periksa' },
+        ]}
       />
 
       {number === null ? (
@@ -205,7 +226,7 @@ export function ScanPage() {
         />
       )}
 
-      {options.data && <TodayDeposits today={options.data.today} />}
+      {options.data && <CardQueue key={mode} today={options.data.today} mode={mode} />}
     </div>
   )
 }

@@ -266,8 +266,9 @@ const list = defineAction({
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
     submittedOn: z.string().date().nullable().default(null),
+    needsInspection: z.boolean().default(false),
   }),
-  run: async ({ status, search, workOrderId, submittedOn }, request) => {
+  run: async ({ status, search, workOrderId, submittedOn, needsInspection }, request) => {
     const supabase = createUserClient(request)
     let query = supabase
       .from('sewing_cards')
@@ -277,6 +278,9 @@ const list = defineAction({
       .limit(500)
     if (workOrderId) query = query.eq('work_order_items.work_order_id', workOrderId)
     if (submittedOn) query = query.eq('submitted_on', submittedOn)
+    if (needsInspection) {
+      query = query.in('status', ['submitted', 'paid']).in('inspection_status', ['pending', 'in_repair'])
+    }
     const all = unwrap<CardRow[]>(await query).map(shapeCard)
     const needle = search.toLowerCase()
     return {
@@ -343,6 +347,20 @@ const scanOptions = defineAction({
   },
 })
 
+interface InspectionRow {
+  id: string
+  round: number
+  inspected_on: string
+  ok_quantity: number
+  repairable_quantity: number
+  defective_quantity: number
+  notes: string | null
+  deduction_proposals:
+    | { amount: number; decision: 'pending' | 'deduct' | 'waive' }
+    | { amount: number; decision: 'pending' | 'deduct' | 'waive' }[]
+    | null
+}
+
 const lookup = defineAction({
   input: z.object({ number: cardNumber }),
   run: async ({ number }, request) => {
@@ -351,10 +369,38 @@ const lookup = defineAction({
       await supabase.from('sewing_cards').select(cardSelect).eq('number', number).maybeSingle(),
     )
     if (!row) throw new Rejection('CARD_NOT_FOUND', 404, { number })
-    const submittedBy = row.submitted_by
-      ? unwrap<string | null>(await supabase.rpc('visible_display_name', { p_profile_id: row.submitted_by }))
-      : null
-    return { ...shapeCard(row), submittedByName: submittedBy }
+    const [submittedBy, inspections] = await Promise.all([
+      row.submitted_by
+        ? supabase.rpc('visible_display_name', { p_profile_id: row.submitted_by })
+        : Promise.resolve({ data: null, error: null }),
+      supabase
+        .from('inspections')
+        .select(
+          'id, round, inspected_on, ok_quantity, repairable_quantity, defective_quantity, notes, deduction_proposals(amount, decision)',
+        )
+        .eq('sewing_card_id', row.id)
+        .order('round'),
+    ])
+    return {
+      ...shapeCard(row),
+      submittedByName: unwrap<string | null>(submittedBy),
+      inspections: unwrap<InspectionRow[]>(inspections).map((inspection) => {
+        const proposal = Array.isArray(inspection.deduction_proposals)
+          ? inspection.deduction_proposals[0]
+          : inspection.deduction_proposals
+        return {
+          id: inspection.id,
+          round: inspection.round,
+          inspectedOn: inspection.inspected_on,
+          ok: inspection.ok_quantity,
+          repairable: inspection.repairable_quantity,
+          defective: inspection.defective_quantity,
+          notes: inspection.notes,
+          deductionAmount: proposal ? Number(proposal.amount) : null,
+          deductionDecision: proposal?.decision ?? null,
+        }
+      }),
+    }
   },
 })
 
@@ -382,6 +428,42 @@ const submit = defineAction({
       }),
     )
     return { number: input.number }
+  },
+})
+
+const quantity = z.number().int().min(0).max(100_000)
+
+const inspect = defineAction({
+  input: z.object({
+    number: cardNumber,
+    ok: quantity,
+    repairable: quantity,
+    defective: quantity,
+    notes: z.string().trim().max(500).nullable().default(null),
+    inspectedOn: z.string().date(),
+  }),
+  run: async (input, request) => {
+    const supabase = createUserClient(request)
+    unwrap(
+      await supabase.rpc('record_inspection', {
+        p_number: input.number,
+        p_ok_quantity: input.ok,
+        p_repairable_quantity: input.repairable,
+        p_defective_quantity: input.defective,
+        p_notes: input.notes,
+        p_inspected_on: input.inspectedOn,
+      }),
+    )
+    return { number: input.number }
+  },
+})
+
+const deleteInspection = defineAction({
+  input: z.object({ number: cardNumber, reason: z.string().trim().min(1).max(200) }),
+  run: async ({ number, reason }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('delete_last_inspection', { p_number: number, p_reason: reason }))
+    return { number }
   },
 })
 
@@ -438,4 +520,6 @@ serveActions({
   lookup,
   submit,
   unsubmit,
+  inspect,
+  delete_inspection: deleteInspection,
 })
