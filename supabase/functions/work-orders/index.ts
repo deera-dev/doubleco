@@ -188,6 +188,7 @@ interface FabricOptionRow {
   id: string
   name: string
   kind: 'motif' | 'plain'
+  code: string | null
   fabric_series: {
     id: string
     name: string
@@ -209,7 +210,7 @@ const formOptions = defineAction({
         .order('code'),
       supabase
         .from('fabrics')
-        .select('id, name, kind, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
+        .select('id, name, kind, code, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
         .eq('is_active', true)
         .order('name'),
       supabase.from('sizes').select('id, name').eq('is_active', true).order('sort_order').order('name'),
@@ -236,6 +237,7 @@ const formOptions = defineAction({
         id: fabric.id,
         name: fabric.name,
         kind: fabric.kind,
+        code: fabric.code,
         series: fabric.fabric_series
           .filter((series) => series.is_active)
           .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
@@ -281,6 +283,7 @@ const formInput = {
   product: label(40),
   category: z.enum(['S', 'M', 'L']).nullable().default(null),
   fabric: label(60),
+  fabricCode: optionalLabel(20),
   series: label(40),
   cutter: label(60),
   pattern: optionalLabel(40),
@@ -308,6 +311,7 @@ async function resolveMaster(
     product: string
     category: 'S' | 'M' | 'L' | null
     fabric: string
+    fabricCode: string | null
     series: string
     cutter: string
     pattern: string | null
@@ -329,6 +333,16 @@ async function resolveMaster(
     )
   }
   const fabricId = await ensureLabel(supabase, 'fabric', input.fabric)
+  if (input.fabricCode) {
+    const saved = await supabase
+      .from('fabrics')
+      .update({ code: input.fabricCode })
+      .eq('id', fabricId)
+      .is('code', null)
+      .select('id')
+    if (saved.error?.code === '23505') throw new Rejection('FABRIC_CODE_TAKEN', 409)
+    unwrap(saved)
+  }
   return {
     productId,
     fabricId,

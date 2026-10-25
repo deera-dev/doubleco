@@ -297,7 +297,16 @@ function FabricCard({ fabric }: { fabric: Fabric }) {
           <Shirt className="size-4.5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-sm">{fabric.name}</span>
+          <span className="flex items-center gap-2">
+            <span className="truncate font-medium text-sm">{fabric.name}</span>
+            {fabric.code ? (
+              <span className="shrink-0 rounded-md border px-1.5 font-mono text-muted-foreground text-xs">
+                {fabric.code}
+              </span>
+            ) : (
+              <span className="shrink-0 text-warning text-xs">kode belum diisi</span>
+            )}
+          </span>
           <span className="block text-muted-foreground text-xs">
             {fabric.series.length} seri · {colorCount} warna
           </span>

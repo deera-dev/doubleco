@@ -32,6 +32,7 @@ import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
@@ -88,6 +89,7 @@ function exportTab(tab: MasterDataTab, data: MasterData) {
         ),
         [
           { header: 'Bahan', value: (row) => row.fabric.name },
+          { header: 'Kode bahan', value: (row) => row.fabric.code },
           { header: 'Jenis', value: (row) => fabricKindLabel[row.fabric.kind] },
           { header: 'Seri', value: (row) => row.series?.name ?? null },
           { header: 'Warna', value: (row) => row.color?.name ?? null },
@@ -120,6 +122,7 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
   const saveFabric = useSaveFabric()
   const remove = useRemoveMasterData()
   const [kind, setKind] = useState<FabricKind>(fabric?.kind ?? 'motif')
+  const [code, setCode] = useState(fabric?.code ?? '')
 
   return (
     <NamedItemDialog
@@ -134,16 +137,18 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
       isDeleting={remove.isPending}
       saveError={saveFabric.error}
       onClose={closeEditor}
-      onSave={(values, onDuplicate) =>
+      onSave={(values) =>
         saveFabric.mutate(
-          { id: fabric?.id ?? null, kind, ...values },
+          { id: fabric?.id ?? null, kind, code: code.trim().toUpperCase() || null, ...values },
           {
             onSuccess: () => {
               toast.success(fabric ? 'Bahan diperbarui' : `${values.name} ditambahkan`)
               closeEditor()
             },
             onError: (error) =>
-              error.kind === 'business' && error.code === 'DUPLICATE' && onDuplicate(),
+              error.kind === 'business' &&
+              error.code === 'DUPLICATE' &&
+              toast.error('Nama atau kode bahan sudah dipakai bahan lain'),
           },
         )
       }
@@ -161,6 +166,20 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
         )
       }
     >
+      <div className="space-y-2">
+        <Label htmlFor="fabric-code">Kode bahan</Label>
+        <Input
+          id="fabric-code"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          placeholder="Mis. BLS"
+          autoCapitalize="characters"
+          className="h-12 font-mono uppercase placeholder:normal-case"
+        />
+        <p className="text-muted-foreground text-xs">
+          Dipakai di kode produk, mis. W-133 <span className="font-mono">BLS</span>.
+        </p>
+      </div>
       <div className="space-y-2">
         <Label>Jenis bahan</Label>
         <SegmentedControl

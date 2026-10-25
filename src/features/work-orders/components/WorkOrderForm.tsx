@@ -17,6 +17,12 @@ import {
   type WorkOrderFormValues,
   workOrderFormSchema,
 } from '@/features/work-orders/api/schema'
+import {
+  composeProductCode,
+  cutterInitial,
+  parseProductCode,
+  previewProductCode,
+} from '@/features/work-orders/lib/product-code'
 import { ChipToggleGroup } from '@/shared/components/ChipToggleGroup'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { LabelChipPicker } from '@/shared/components/LabelChipPicker'
@@ -39,6 +45,7 @@ import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
 import { findByLabel, labelKey, normalizeLabel } from '@/shared/lib/labels'
+import { cn } from '@/shared/lib/utils'
 import { confirmationWarnings } from '@/shared/lib/warnings'
 import { toAppError } from '@/shared/types/errors'
 
@@ -50,7 +57,10 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
   return {
     number: workOrder?.number ?? '',
     orderedOn: workOrder?.orderedOn ?? todayIsoDate(),
-    product: workOrder?.productCode ?? '',
+    productNumber: workOrder
+      ? (parseProductCode(workOrder.productCode)?.number ?? workOrder.productCode)
+      : '',
+    fabricCode: workOrder ? (parseProductCode(workOrder.productCode)?.fabricCode ?? '') : '',
     category: '',
     cutter: workOrder?.cutterName ?? '',
     pattern: workOrder?.patternCode ?? '',
@@ -65,13 +75,20 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
   }
 }
 
-function toPayload(values: WorkOrderFormValues): WorkOrderPayload {
+function productCodeOf(
+  values: Pick<WorkOrderFormValues, 'cutter' | 'productNumber' | 'fabricCode'>,
+) {
+  return composeProductCode(values.cutter, values.productNumber, values.fabricCode)
+}
+
+function toPayload(values: WorkOrderFormValues, keepProduct: string | null): WorkOrderPayload {
   return {
     number: values.number.toUpperCase(),
     orderedOn: values.orderedOn,
-    product: normalizeLabel(values.product),
+    product: keepProduct ?? productCodeOf(values),
     category: values.category === '' ? null : values.category,
     fabric: normalizeLabel(values.fabric),
+    fabricCode: normalizeLabel(values.fabricCode) || null,
     series: normalizeLabel(values.series),
     cutter: normalizeLabel(values.cutter),
     pattern: values.pattern ? normalizeLabel(values.pattern) : null,
@@ -80,6 +97,15 @@ function toPayload(values: WorkOrderFormValues): WorkOrderPayload {
     changeNotes: values.changeStatus === 'changed' ? values.changeNotes : null,
     additionalInfo: values.additionalInfo || null,
   }
+}
+
+function siblingProduct(options: FormOptions, number: string) {
+  const key = labelKey(number)
+  if (key === '') return undefined
+  const siblings = options.products.filter(
+    (candidate) => labelKey(parseProductCode(candidate.code)?.number ?? '') === key,
+  )
+  return siblings.find((candidate) => candidate.category !== null) ?? siblings[0]
 }
 
 function needsCategory(options: FormOptions, product: string): boolean {
@@ -109,7 +135,9 @@ function useDebouncedValue(value: string, delay = 400) {
 }
 
 function useSuggestedNumber(form: WorkOrderForm, isCreating: boolean) {
-  const product = useDebouncedValue(form.watch('product'))
+  const product = useDebouncedValue(
+    composeProductCode(form.watch('cutter'), form.watch('productNumber'), form.watch('fabricCode')),
+  )
   const suggestion = useNumberSuggestion(product, isCreating)
   const suggested = suggestion.data?.number
 
@@ -121,51 +149,119 @@ function useSuggestedNumber(form: WorkOrderForm, isCreating: boolean) {
 }
 
 function ProductFields({ form, options, isLocked }: FieldsProps) {
-  const product = form.watch('product')
+  const cutter = form.watch('cutter')
+  const productNumber = form.watch('productNumber')
+  const fabricCode = form.watch('fabricCode')
   const category = form.watch('category')
-  const isProductSettled =
-    form.formState.touchedFields.product === true || form.formState.isSubmitted
-  const showCategory = isProductSettled && needsCategory(options, product)
+  const product = composeProductCode(cutter, productNumber, fabricCode)
   const match = findByLabel(options.products, product, (candidate) => candidate.code)
+  const sibling = match ?? siblingProduct(options, productNumber)
+  const showCategory = product !== '' && needsCategory(options, product)
+  const numberOptions = [
+    ...new Map(
+      options.products.flatMap((candidate) => {
+        const parts = parseProductCode(candidate.code)
+        return parts ? [[labelKey(parts.number), parts.number] as const] : []
+      }),
+    ).values(),
+  ].map((value) => ({
+    label: value,
+    hint: options.products
+      .filter(
+        (candidate) => labelKey(parseProductCode(candidate.code)?.number ?? '') === labelKey(value),
+      )
+      .map((candidate) => candidate.code)
+      .slice(0, 2)
+      .join(', '),
+  }))
 
-  const onProductChange = (value: string) => {
-    form.setValue('product', value, { shouldValidate: form.formState.isSubmitted })
-    const chosen = findByLabel(options.products, value, (candidate) => candidate.code)
-    const pattern = options.patterns.find((candidate) => candidate.id === chosen?.defaultPatternId)
+  useEffect(() => {
+    if (!sibling) return
+    if (sibling.category && form.getValues('category') === '' && sibling.id !== match?.id) {
+      form.setValue('category', sibling.category)
+    }
+    const pattern = options.patterns.find((candidate) => candidate.id === sibling.defaultPatternId)
     if (pattern && !form.getFieldState('pattern').isDirty) {
       form.setValue('pattern', pattern.code)
     }
-  }
+  }, [sibling, match, options.patterns, form])
 
   return (
     <>
-      <FormField
-        control={form.control}
-        name="product"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Kode produk</FormLabel>
-            <FormControl>
-              <Combobox
-                ref={field.ref}
-                name={field.name}
-                value={field.value}
-                onValueChange={onProductChange}
-                onBlur={field.onBlur}
-                disabled={isLocked}
-                placeholder="Ketik, mis. W-133 BLS"
-                className="font-mono"
-                options={options.products.map((candidate) => ({
-                  label: candidate.code,
-                  hint: candidate.category ? `kategori ${candidate.category}` : 'tanpa kategori',
-                }))}
-                newHint={NEW_HINT}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="cutter"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tukang potong</FormLabel>
+              <FormControl>
+                <Combobox
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  disabled={isLocked}
+                  placeholder="Ketik nama"
+                  options={options.cutters.map((candidate) => ({
+                    label: candidate.name,
+                    hint: `huruf ${cutterInitial(candidate.name)}`,
+                  }))}
+                  newHint={NEW_HINT}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="productNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kode produk</FormLabel>
+              <FormControl>
+                <Combobox
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  disabled={isLocked}
+                  inputMode="numeric"
+                  placeholder="Mis. 124"
+                  className="font-mono"
+                  options={numberOptions}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <div
+        className={cn(
+          'flex flex-col gap-1 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3',
+          product ? 'border-brand-400/40 bg-brand-500/10' : 'border-dashed',
         )}
-      />
+      >
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs">Kode produk lengkap</p>
+          <p className="truncate font-mono font-semibold text-xl tracking-tight">
+            {previewProductCode(cutter, productNumber, fabricCode)}
+          </p>
+        </div>
+        <p className="text-muted-foreground text-xs sm:shrink-0 sm:text-right">
+          {product === ''
+            ? 'Huruf dari tukang potong, kode bahan dari bahan'
+            : match
+              ? match.category
+                ? `Sudah ada · kategori ${match.category}`
+                : 'Sudah ada · kategori belum diisi'
+              : 'Produk baru · ditambahkan saat disimpan'}
+        </p>
+      </div>
       {showCategory && (
         <FormField
           control={form.control}
@@ -182,13 +278,15 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
                   form.setValue(
                     'category',
                     value === 'S' || value === 'M' || value === 'L' ? value : '',
-                    {
-                      shouldValidate: true,
-                    },
+                    { shouldValidate: true },
                   )
                 }}
               />
-              <FormDescription>Disimpan ke Master Data → Produk. Wajib dipilih.</FormDescription>
+              <FormDescription>
+                {sibling && sibling.id !== match?.id && sibling.category
+                  ? `Diambil dari ${sibling.code}. Bisa diganti.`
+                  : 'Disimpan ke Master Data → Produk. Wajib dipilih.'}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -196,6 +294,31 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
       )}
     </>
   )
+}
+
+function FabricCodeHint({
+  fabric,
+  code,
+}: {
+  fabric: FormOptions['fabrics'][number] | undefined
+  code: string
+}) {
+  if (labelKey(code) === '') return null
+  if (!fabric?.code) {
+    return (
+      <FormDescription className="text-brand-200">
+        Disimpan sebagai kode bahan {fabric ? fabric.name : 'baru'} di Master Data.
+      </FormDescription>
+    )
+  }
+  if (labelKey(fabric.code) !== labelKey(code)) {
+    return (
+      <FormDescription>
+        Kode bahan {fabric.name} di Master Data: {fabric.code}. Yang ini hanya untuk produk ini.
+      </FormDescription>
+    )
+  }
+  return null
 }
 
 interface FieldsProps {
@@ -241,6 +364,9 @@ function FormFields({
     form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
     form.setValue('series', match?.series.length === 1 ? (match.series[0]?.name ?? '') : '')
     form.setValue('colors', [])
+    if (match?.code && !form.getFieldState('fabricCode').isDirty) {
+      form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
+    }
   }
 
   return (
@@ -276,28 +402,6 @@ function FormFields({
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="cutter"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tukang potong</FormLabel>
-                <FormControl>
-                  <Combobox
-                    ref={field.ref}
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="Ketik nama"
-                    options={options.cutters.map((cutter) => ({ label: cutter.name }))}
-                    newHint={NEW_HINT}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name="pattern"
@@ -345,6 +449,27 @@ function FormFields({
                     newHint={NEW_HINT}
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="fabricCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Kode bahan</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    disabled={isLocked}
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    placeholder="Mis. BLS"
+                    className="h-12 font-mono uppercase placeholder:normal-case"
+                  />
+                </FormControl>
+                <FabricCodeHint fabric={fabricMatch} code={field.value} />
                 <FormMessage />
               </FormItem>
             )}
@@ -507,7 +632,7 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
 
   const create = (values: WorkOrderFormValues, confirmed: boolean) =>
     createWorkOrder.mutate(
-      { ...toPayload(values), sizes: values.sizes, colors: values.colors, confirmed },
+      { ...toPayload(values, null), sizes: values.sizes, colors: values.colors, confirmed },
       {
         onSuccess: ({ id }) => {
           toast.success(`${values.number.toUpperCase()} dibuat`)
@@ -523,14 +648,29 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
       },
     )
 
+  const keptProductCode = () => {
+    if (!workOrder) return null
+    const touched = (['cutter', 'productNumber', 'fabricCode'] as const).some(
+      (name) => form.getFieldState(name).isDirty,
+    )
+    return touched ? null : workOrder.productCode
+  }
+
   const onSubmit = form.handleSubmit((values) => {
-    if (options.data && needsCategory(options.data, values.product) && values.category === '') {
+    const product = keptProductCode() ?? productCodeOf(values)
+    if (product === '') {
+      form.setError('productNumber', {
+        message: 'Lengkapi tukang potong, kode produk, dan kode bahan',
+      })
+      return
+    }
+    if (options.data && needsCategory(options.data, product) && values.category === '') {
       form.setError('category', { message: 'Pilih kategori S, M, atau L' })
       return
     }
     if (workOrder) {
       updateWorkOrder.mutate(
-        { id: workOrder.id, ...toPayload(values) },
+        { id: workOrder.id, ...toPayload(values, keptProductCode()) },
         {
           onSuccess: () => {
             toast.success('Perubahan disimpan')

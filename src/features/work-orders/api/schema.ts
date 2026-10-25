@@ -74,6 +74,7 @@ export const formOptionsSchema = z.object({
       id: z.string().uuid(),
       name: z.string(),
       kind: z.enum(['motif', 'plain']),
+      code: z.string().nullable(),
       series: z.array(
         z.object({
           id: z.string().uuid(),
@@ -108,7 +109,8 @@ export const workOrderFormSchema = z
   .object({
     number: z.string().trim().min(1, 'Nomor WO wajib diisi').max(60),
     orderedOn: z.string().date('Pilih tanggal'),
-    product: requiredLabel('Isi kode produk'),
+    productNumber: z.string().trim().min(1, 'Isi kode produk').max(20),
+    fabricCode: z.string().trim().min(1, 'Isi kode bahan').max(20),
     category: z.enum(['', 'S', 'M', 'L']),
     cutter: requiredLabel('Isi tukang potong'),
     pattern: z.string().trim().max(40),
