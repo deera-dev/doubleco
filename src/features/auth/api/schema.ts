@@ -9,6 +9,7 @@ const usernameField = z
 export const loginFormSchema = z.object({
   username: usernameField,
   password: z.string().min(1, 'Password wajib diisi'),
+  remember: z.boolean(),
 })
 
 export const activationFormSchema = z

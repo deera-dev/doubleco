@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { Switch } from '@/shared/components/ui/switch'
 import { describeError } from '@/shared/lib/error-messages'
 
 export function LoginForm() {
@@ -25,7 +26,7 @@ export function LoginForm() {
   const signIn = useSignIn()
   const form = useForm<LoginFormInput, unknown, LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: { username: '', password: '' },
+    defaultValues: { username: '', password: '', remember: true },
   })
 
   const onSubmit = form.handleSubmit((values) =>
@@ -66,6 +67,22 @@ export function LoginForm() {
               </FormControl>
               <FormMessage />
             </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="remember"
+          render={({ field }) => (
+            <Switch
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              label="Tetap masuk 30 hari"
+              description={
+                field.value
+                  ? 'Tidak perlu login lagi di perangkat ini selama 30 hari.'
+                  : 'Untuk HP/PC bersama: keluar otomatis setelah 12 jam.'
+              }
+            />
           )}
         />
         {signIn.error && (

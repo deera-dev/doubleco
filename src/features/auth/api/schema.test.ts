@@ -3,11 +3,15 @@ import { activationFormSchema, loginFormSchema } from '@/features/auth/api/schem
 
 describe('loginFormSchema', () => {
   it('lowercases and trims the username', () => {
-    expect(loginFormSchema.parse({ username: ' Koko ', password: 'x' }).username).toBe('koko')
+    expect(
+      loginFormSchema.parse({ username: ' Koko ', password: 'x', remember: true }).username,
+    ).toBe('koko')
   })
 
   it('rejects usernames with spaces or symbols', () => {
-    expect(loginFormSchema.safeParse({ username: 'ko ko', password: 'x' }).success).toBe(false)
+    expect(
+      loginFormSchema.safeParse({ username: 'ko ko', password: 'x', remember: true }).success,
+    ).toBe(false)
   })
 })
 
