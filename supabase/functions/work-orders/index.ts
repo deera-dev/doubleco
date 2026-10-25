@@ -15,8 +15,8 @@ interface WorkOrderRow {
   id: string
   number: string
   ordered_on: string
-  pattern_code: string | null
-  fabric_combination: string | null
+  pattern_id: string | null
+  fabric_combination_id: string | null
   change_status: 'changed' | 'follow_sample'
   change_notes: string | null
   additional_info: string | null
@@ -27,7 +27,9 @@ interface WorkOrderRow {
   fabric_id: string
   cutter_id: string
   products: { code: string; name: string | null; wage_category: 'S' | 'M' | 'L' | null } | null
-  fabrics: NamedRef | null
+  fabric: NamedRef | null
+  combination: NamedRef | null
+  patterns: { code: string } | null
   cutters: NamedRef | null
   work_order_items: {
     id: string
@@ -41,9 +43,11 @@ interface WorkOrderRow {
 }
 
 const workOrderSelect = `
-  id, number, ordered_on, pattern_code, fabric_combination, change_status, change_notes,
+  id, number, ordered_on, pattern_id, fabric_combination_id, change_status, change_notes,
   additional_info, sample_photo_public_id, status, created_at, product_id, fabric_id, cutter_id,
-  products(code, name, wage_category), fabrics(name), cutters(name),
+  products(code, name, wage_category), patterns(code), cutters(name),
+  fabric:fabrics!work_orders_fabric_id_fkey(name),
+  combination:fabrics!work_orders_fabric_combination_id_fkey(name),
   work_order_items(id, cut_quantity, size_id, fabric_color_id, sizes(name, sort_order), fabric_colors(name),
     sewing_cards(quantity, status))
 `
@@ -81,11 +85,13 @@ function shape(row: WorkOrderRow) {
     productName: row.products?.name ?? null,
     category: row.products?.wage_category ?? null,
     fabricId: row.fabric_id,
-    fabricName: row.fabrics?.name ?? '-',
-    fabricCombination: row.fabric_combination,
+    fabricName: row.fabric?.name ?? '-',
+    fabricCombinationId: row.fabric_combination_id,
+    fabricCombination: row.combination?.name ?? null,
     cutterId: row.cutter_id,
     cutterName: row.cutters?.name ?? '-',
-    patternCode: row.pattern_code,
+    patternId: row.pattern_id,
+    patternCode: row.patterns?.code ?? null,
     changeStatus: row.change_status,
     changeNotes: row.change_notes,
     additionalInfo: row.additional_info,
@@ -177,8 +183,12 @@ const formOptions = defineAction({
   input: z.object({}),
   run: async (_input, request) => {
     const supabase = createUserClient(request)
-    const [products, fabrics, sizes, cutters] = await Promise.all([
-      supabase.from('products').select('id, code, name, wage_category').eq('is_active', true).order('code'),
+    const [products, fabrics, sizes, cutters, patterns] = await Promise.all([
+      supabase
+        .from('products')
+        .select('id, code, name, wage_category, default_pattern_id')
+        .eq('is_active', true)
+        .order('code'),
       supabase
         .from('fabrics')
         .select('id, name, fabric_colors(id, name, is_active)')
@@ -186,15 +196,23 @@ const formOptions = defineAction({
         .order('name'),
       supabase.from('sizes').select('id, name').eq('is_active', true).order('sort_order').order('name'),
       supabase.from('cutters').select('id, name').eq('is_active', true).is('archived_at', null).order('name'),
+      supabase.from('patterns').select('id, code').eq('is_active', true).order('code'),
     ])
     return {
-      products: unwrap<{ id: string; code: string; name: string | null; wage_category: 'S' | 'M' | 'L' | null }[]>(
-        products,
-      ).map((product) => ({
+      products: unwrap<
+        {
+          id: string
+          code: string
+          name: string | null
+          wage_category: 'S' | 'M' | 'L' | null
+          default_pattern_id: string | null
+        }[]
+      >(products).map((product) => ({
         id: product.id,
         code: product.code,
         name: product.name,
         category: product.wage_category,
+        defaultPatternId: product.default_pattern_id,
       })),
       fabrics: unwrap<{ id: string; name: string; fabric_colors: { id: string; name: string; is_active: boolean }[] }[]>(
         fabrics,
@@ -208,6 +226,7 @@ const formOptions = defineAction({
       })),
       sizes: unwrap<{ id: string; name: string }[]>(sizes),
       cutters: unwrap<{ id: string; name: string }[]>(cutters),
+      patterns: unwrap<{ id: string; code: string }[]>(patterns),
     }
   },
 })
@@ -226,8 +245,8 @@ const formInput = {
   productId: uuid,
   fabricId: uuid,
   cutterId: uuid,
-  patternCode: z.string().trim().max(40).nullable().default(null),
-  fabricCombination: z.string().trim().max(60).nullable().default(null),
+  patternId: uuid.nullable().default(null),
+  fabricCombinationId: uuid.nullable().default(null),
   changeStatus: z.enum(['changed', 'follow_sample']),
   changeNotes: z.string().trim().max(1000).nullable().default(null),
   additionalInfo: z.string().trim().max(1000).nullable().default(null),
@@ -254,8 +273,8 @@ const create = defineAction({
           p_fabric_color_ids: input.colorIds,
           p_number: input.number,
           p_ordered_on: input.orderedOn,
-          p_pattern_code: input.patternCode,
-          p_fabric_combination: input.fabricCombination,
+          p_pattern_id: input.patternId,
+          p_fabric_combination_id: input.fabricCombinationId,
           p_change_notes: input.changeNotes,
           p_additional_info: input.additionalInfo,
           p_confirmed: input.confirmed,
@@ -270,6 +289,7 @@ const create = defineAction({
 const update = defineAction({
   input: z.object({ id: uuid, ...formInput }),
   run: async (input, request) => {
+    if (input.fabricCombinationId === input.fabricId) throw new Rejection('FABRIC_COMBINATION_SAME')
     const supabase = createUserClient(request)
     unwrap(
       await supabase
@@ -280,8 +300,8 @@ const update = defineAction({
           product_id: input.productId,
           fabric_id: input.fabricId,
           cutter_id: input.cutterId,
-          pattern_code: input.patternCode || null,
-          fabric_combination: input.fabricCombination || null,
+          pattern_id: input.patternId,
+          fabric_combination_id: input.fabricCombinationId,
           change_status: input.changeStatus,
           change_notes: input.changeStatus === 'changed' ? input.changeNotes || null : null,
           additional_info: input.additionalInfo || null,

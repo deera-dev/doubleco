@@ -47,8 +47,8 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
     productId: workOrder?.productId ?? '',
     fabricId: workOrder?.fabricId ?? '',
     cutterId: workOrder?.cutterId ?? '',
-    patternCode: workOrder?.patternCode ?? '',
-    fabricCombination: workOrder?.fabricCombination ?? '',
+    patternId: workOrder?.patternId ?? '',
+    fabricCombinationId: workOrder?.fabricCombinationId ?? '',
     changeStatus: workOrder?.changeStatus ?? 'follow_sample',
     changeNotes: workOrder?.changeNotes ?? '',
     additionalInfo: workOrder?.additionalInfo ?? '',
@@ -64,8 +64,8 @@ function toPayload(values: WorkOrderFormValues): WorkOrderPayload {
     productId: values.productId,
     fabricId: values.fabricId,
     cutterId: values.cutterId,
-    patternCode: values.patternCode.toUpperCase() || null,
-    fabricCombination: values.fabricCombination.toUpperCase() || null,
+    patternId: values.patternId || null,
+    fabricCombinationId: values.fabricCombinationId || null,
     changeStatus: values.changeStatus,
     changeNotes: values.changeStatus === 'changed' ? values.changeNotes : null,
     additionalInfo: values.additionalInfo || null,
@@ -81,6 +81,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       {children}
     </section>
   )
+}
+
+function EmptyOptionHint({ show, children }: { show: boolean; children: React.ReactNode }) {
+  if (!show) return null
+  return <FormDescription className="text-warning">{children}</FormDescription>
 }
 
 function useSuggestedNumber(
@@ -127,7 +132,19 @@ function FormFields({
             <FormItem>
               <FormLabel>Kode produk</FormLabel>
               <FormControl>
-                <NativeSelect {...field} disabled={isLocked}>
+                <NativeSelect
+                  {...field}
+                  disabled={isLocked}
+                  onChange={(event) => {
+                    field.onChange(event)
+                    const product = options.products.find(
+                      (candidate) => candidate.id === event.target.value,
+                    )
+                    if (product?.defaultPatternId && !form.getFieldState('patternId').isDirty) {
+                      form.setValue('patternId', product.defaultPatternId)
+                    }
+                  }}
+                >
                   <option value="">Pilih produk</option>
                   {options.products.map((product) => (
                     <option key={product.id} value={product.id}>
@@ -142,6 +159,9 @@ function FormFields({
                   Isi kategori S/M/L produk ini di Master Data dulu.
                 </FormDescription>
               )}
+              <EmptyOptionHint show={options.products.length === 0}>
+                Belum ada produk aktif. Tambahkan di Master Data → Produk.
+              </EmptyOptionHint>
               <FormMessage />
             </FormItem>
           )}
@@ -191,23 +211,32 @@ function FormFields({
                     ))}
                   </NativeSelect>
                 </FormControl>
+                <EmptyOptionHint show={options.cutters.length === 0}>
+                  Belum ada tukang potong. Tambahkan di menu Karyawan.
+                </EmptyOptionHint>
                 <FormMessage />
               </FormItem>
             )}
           />
           <FormField
             control={form.control}
-            name="patternCode"
+            name="patternId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Kode pola (opsional)</FormLabel>
                 <FormControl>
-                  <Input
-                    className="h-12 font-mono uppercase placeholder:normal-case"
-                    placeholder="P-133"
-                    {...field}
-                  />
+                  <NativeSelect className="font-mono" {...field}>
+                    <option value="">Tanpa kode pola</option>
+                    {options.patterns.map((pattern) => (
+                      <option key={pattern.id} value={pattern.id}>
+                        {pattern.code}
+                      </option>
+                    ))}
+                  </NativeSelect>
                 </FormControl>
+                <EmptyOptionHint show={options.patterns.length === 0}>
+                  Belum ada kode pola. Tambahkan di Master Data → Pola.
+                </EmptyOptionHint>
                 <FormMessage />
               </FormItem>
             )}
@@ -230,6 +259,9 @@ function FormFields({
                     onChange={(event) => {
                       field.onChange(event)
                       form.setValue('colorIds', [])
+                      if (form.getValues('fabricCombinationId') === event.target.value) {
+                        form.setValue('fabricCombinationId', '')
+                      }
                     }}
                   >
                     <option value="">Pilih bahan</option>
@@ -246,16 +278,21 @@ function FormFields({
           />
           <FormField
             control={form.control}
-            name="fabricCombination"
+            name="fabricCombinationId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Kombinasi (opsional)</FormLabel>
                 <FormControl>
-                  <Input
-                    className="h-12 uppercase placeholder:normal-case"
-                    placeholder="ORB"
-                    {...field}
-                  />
+                  <NativeSelect {...field}>
+                    <option value="">Tanpa kombinasi</option>
+                    {options.fabrics
+                      .filter((candidate) => candidate.id !== fabricId)
+                      .map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.name}
+                        </option>
+                      ))}
+                  </NativeSelect>
                 </FormControl>
                 <FormMessage />
               </FormItem>

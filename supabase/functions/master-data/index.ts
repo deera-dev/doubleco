@@ -10,6 +10,14 @@ interface ProductRow {
   code: string
   name: string | null
   wage_category: (typeof categories)[number] | null
+  default_pattern_id: string | null
+  is_active: boolean
+}
+
+interface PatternRow {
+  id: string
+  code: string
+  notes: string | null
   is_active: boolean
 }
 
@@ -42,14 +50,15 @@ const overview = defineAction({
   input: z.object({}),
   run: async (_input, request) => {
     const supabase = createUserClient(request)
-    const [products, fabrics, sizes, rates] = await Promise.all([
-      supabase.from('products').select('id, code, name, wage_category, is_active').order('code'),
+    const [products, fabrics, sizes, rates, patterns] = await Promise.all([
+      supabase.from('products').select('id, code, name, wage_category, default_pattern_id, is_active').order('code'),
       supabase.from('fabrics').select('id, name, is_active, fabric_colors(id, name, is_active)').order('name'),
       supabase.from('sizes').select('id, name, sort_order, is_active').order('sort_order').order('name'),
       supabase
         .from('wage_rates')
         .select('id, wage_category, amount, effective_from')
         .order('effective_from', { ascending: false }),
+      supabase.from('patterns').select('id, code, notes, is_active').order('code'),
     ])
 
     const today = todayInJakarta()
@@ -61,7 +70,14 @@ const overview = defineAction({
         code: product.code,
         name: product.name,
         category: product.wage_category,
+        defaultPatternId: product.default_pattern_id,
         isActive: product.is_active,
+      })),
+      patterns: unwrap<PatternRow[]>(patterns).map((pattern) => ({
+        id: pattern.id,
+        code: pattern.code,
+        notes: pattern.notes,
+        isActive: pattern.is_active,
       })),
       fabrics: unwrap<FabricRow[]>(fabrics).map((fabric) => ({
         id: fabric.id,
@@ -102,11 +118,18 @@ const saveProduct = defineAction({
     code: z.string().trim().min(1).max(40),
     name: z.string().trim().max(80).nullable().default(null),
     category: z.enum(categories).nullable().default(null),
+    defaultPatternId: optionalId,
     isActive: z.boolean().default(true),
   }),
-  run: async ({ id, code, name, category, isActive }, request) => {
+  run: async ({ id, code, name, category, defaultPatternId, isActive }, request) => {
     const supabase = createUserClient(request)
-    const row = { code, name: name || null, wage_category: category, is_active: isActive }
+    const row = {
+      code,
+      name: name || null,
+      wage_category: category,
+      default_pattern_id: defaultPatternId,
+      is_active: isActive,
+    }
     const saved = unwrap(
       id
         ? await supabase.from('products').update(row).eq('id', id).select('id').single()
@@ -172,6 +195,25 @@ const saveSize = defineAction({
   },
 })
 
+const savePattern = defineAction({
+  input: z.object({
+    id: optionalId,
+    code: z.string().trim().min(1).max(40),
+    notes: z.string().trim().max(200).nullable().default(null),
+    isActive: z.boolean().default(true),
+  }),
+  run: async ({ id, code, notes, isActive }, request) => {
+    const supabase = createUserClient(request)
+    const row = { code, notes: notes || null, is_active: isActive }
+    const saved = unwrap(
+      id
+        ? await supabase.from('patterns').update(row).eq('id', id).select('id').single()
+        : await supabase.from('patterns').insert(row).select('id').single(),
+    ) as { id: string }
+    return { id: saved.id }
+  },
+})
+
 const addWageRate = defineAction({
   input: z.object({
     category: z.enum(categories),
@@ -196,12 +238,13 @@ const deletableTables = {
   fabric: 'fabrics',
   color: 'fabric_colors',
   size: 'sizes',
+  pattern: 'patterns',
   wage_rate: 'wage_rates',
 } as const
 
 const remove = defineAction({
   input: z.object({
-    kind: z.enum(['product', 'fabric', 'color', 'size', 'wage_rate']),
+    kind: z.enum(['product', 'fabric', 'color', 'size', 'pattern', 'wage_rate']),
     id: z.string().uuid(),
   }),
   run: async ({ kind, id }, request) => {
@@ -210,7 +253,7 @@ const remove = defineAction({
       const usage = await supabase
         .from('work_orders')
         .select('id', { count: 'exact', head: true })
-        .eq('fabric_id', id)
+        .or(`fabric_id.eq.${id},fabric_combination_id.eq.${id}`)
       if ((usage.count ?? 0) > 0) throw new Rejection('IN_USE', 409)
       unwrap(await supabase.from('fabric_colors').delete().eq('fabric_id', id))
     }
@@ -228,6 +271,7 @@ serveActions({
   save_fabric: saveFabric,
   save_color: saveColor,
   save_size: saveSize,
+  save_pattern: savePattern,
   add_wage_rate: addWageRate,
   remove,
 })

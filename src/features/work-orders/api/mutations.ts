@@ -13,8 +13,8 @@ export interface WorkOrderPayload {
   productId: string
   fabricId: string
   cutterId: string
-  patternCode: string | null
-  fabricCombination: string | null
+  patternId: string | null
+  fabricCombinationId: string | null
   changeStatus: 'changed' | 'follow_sample'
   changeNotes: string | null
   additionalInfo: string | null

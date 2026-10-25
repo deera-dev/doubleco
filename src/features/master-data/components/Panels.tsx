@@ -1,4 +1,14 @@
-import { ArrowDown, ArrowUp, ChevronRight, Package, Plus, Ruler, Shirt, X } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  Package,
+  Plus,
+  Ruler,
+  Shirt,
+  SquareDashedKanban,
+  X,
+} from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -83,6 +93,60 @@ export function ProductsPanel({ data }: { data: MasterData }) {
                 </span>
               </span>
               {!product.isActive && <InactiveBadge />}
+              <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+export function PatternsPanel({ data }: { data: MasterData }) {
+  const openEditor = useMasterDataUiStore((state) => state.openEditor)
+
+  if (data.patterns.length === 0) {
+    return (
+      <EmptyState
+        icon={SquareDashedKanban}
+        title="Belum ada kode pola"
+        description="Tambahkan kode pola seperti P-133. Nanti tinggal dipilih saat membuat WO."
+        action={
+          <Button type="button" onClick={() => openEditor({ kind: 'pattern', pattern: null })}>
+            <Plus />
+            Tambah pola
+          </Button>
+        }
+      />
+    )
+  }
+
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {data.patterns.map((pattern) => {
+        const products = data.products.filter((product) => product.defaultPatternId === pattern.id)
+        return (
+          <li key={pattern.id}>
+            <button
+              type="button"
+              onClick={() => openEditor({ kind: 'pattern', pattern })}
+              className={cn(
+                'surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover',
+                !pattern.isActive && 'opacity-60',
+              )}
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 text-metal-200">
+                <SquareDashedKanban className="size-4.5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium font-mono text-sm">{pattern.code}</span>
+                <span className="block truncate text-muted-foreground text-xs">
+                  {products.length > 0
+                    ? `Bawaan ${products.map((product) => product.code).join(', ')}`
+                    : 'Belum jadi bawaan produk'}
+                </span>
+              </span>
+              {!pattern.isActive && <InactiveBadge />}
               <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
             </button>
           </li>

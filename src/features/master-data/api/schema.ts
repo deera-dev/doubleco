@@ -7,6 +7,14 @@ export const productSchema = z.object({
   code: z.string(),
   name: z.string().nullable(),
   category: wageCategorySchema.nullable(),
+  defaultPatternId: z.string().uuid().nullable(),
+  isActive: z.boolean(),
+})
+
+export const patternSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  notes: z.string().nullable(),
   isActive: z.boolean(),
 })
 
@@ -46,6 +54,7 @@ export const wageRateGroupSchema = z.object({
 
 export const masterDataSchema = z.object({
   products: z.array(productSchema),
+  patterns: z.array(patternSchema),
   fabrics: z.array(fabricSchema),
   sizes: z.array(sizeSchema),
   wageRates: z.array(wageRateGroupSchema),
@@ -62,6 +71,7 @@ export const productFormSchema = z.object({
     .transform((value) => value.toUpperCase()),
   name: z.string().trim().max(80, 'Maksimal 80 karakter'),
   category: z.enum(['', 'S', 'M', 'L']),
+  defaultPatternId: z.string(),
 })
 
 export const nameFormSchema = z.object({
@@ -86,6 +96,7 @@ export const wageRateFormSchema = z.object({
 
 export type WageCategory = z.infer<typeof wageCategorySchema>
 export type Product = z.infer<typeof productSchema>
+export type Pattern = z.infer<typeof patternSchema>
 export type Fabric = z.infer<typeof fabricSchema>
 export type FabricColor = z.infer<typeof colorSchema>
 export type Size = z.infer<typeof sizeSchema>

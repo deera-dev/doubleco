@@ -9,7 +9,9 @@ const businessMessages: Record<string, string> = {
   PASSWORD_UPDATE_FAILED: 'Password gagal disimpan. Coba lagi.',
   PROFILE_NOT_FOUND: 'Akun tidak ditemukan.',
   FORBIDDEN: 'Akun Anda tidak punya akses untuk tindakan ini.',
-  DUPLICATE: 'Data dengan nama/kode yang sama sudah ada.',
+  DUPLICATE:
+    'Data ini sudah ada. Beda huruf besar/kecil, spasi, atau tanda baca dianggap sama — pilih yang sudah ada.',
+  FABRIC_COMBINATION_SAME: 'Bahan kombinasi tidak boleh sama dengan bahan utama.',
   IN_USE: 'Data ini sudah dipakai di transaksi, jadi tidak bisa dihapus. Nonaktifkan saja.',
   NOT_FOUND: 'Data tidak ditemukan. Muat ulang halaman.',
   TAILOR_CODE_TAKEN: 'Kode penjahit sudah dipakai penjahit lain.',

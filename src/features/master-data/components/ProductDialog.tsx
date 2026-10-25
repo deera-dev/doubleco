@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useRemoveMasterData, useSaveProduct } from '@/features/master-data/api/mutations'
 import {
+  type Pattern,
   type Product,
   type ProductFormInput,
   type ProductFormValues,
@@ -31,6 +32,7 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Switch } from '@/shared/components/ui/switch'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
@@ -39,9 +41,11 @@ import { cn } from '@/shared/lib/utils'
 export function ProductDialog({
   product,
   wageRates,
+  patterns,
 }: {
   product: Product | null
   wageRates: WageRateGroup[]
+  patterns: Pattern[]
 }) {
   const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
   const saveProduct = useSaveProduct()
@@ -53,6 +57,7 @@ export function ProductDialog({
       code: product?.code ?? '',
       name: product?.name ?? '',
       category: product?.category ?? '',
+      defaultPatternId: product?.defaultPatternId ?? '',
     },
   })
   const category = form.watch('category')
@@ -64,6 +69,7 @@ export function ProductDialog({
         code: values.code,
         name: values.name || null,
         category: values.category === '' ? null : values.category,
+        defaultPatternId: values.defaultPatternId || null,
         isActive,
       },
       {
@@ -171,6 +177,30 @@ export function ProductDialog({
                   <FormDescription>
                     Wajib diisi sebelum produk bisa dipakai di Work Order.
                   </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="defaultPatternId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kode pola bawaan (opsional)</FormLabel>
+                  <FormControl>
+                    <NativeSelect className="font-mono" {...field}>
+                      <option value="">Tanpa pola bawaan</option>
+                      {patterns
+                        .filter(
+                          (pattern) => pattern.isActive || pattern.id === product?.defaultPatternId,
+                        )
+                        .map((pattern) => (
+                          <option key={pattern.id} value={pattern.id}>
+                            {pattern.code}
+                          </option>
+                        ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormDescription>Otomatis terpilih saat membuat WO produk ini.</FormDescription>
                 </FormItem>
               )}
             />

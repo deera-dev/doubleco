@@ -26,9 +26,11 @@ export const workOrderSchema = z.object({
   category: z.enum(['S', 'M', 'L']).nullable(),
   fabricId: z.string().uuid(),
   fabricName: z.string(),
+  fabricCombinationId: z.string().uuid().nullable(),
   fabricCombination: z.string().nullable(),
   cutterId: z.string().uuid(),
   cutterName: z.string(),
+  patternId: z.string().uuid().nullable(),
   patternCode: z.string().nullable(),
   changeStatus: changeStatusSchema,
   changeNotes: z.string().nullable(),
@@ -62,6 +64,7 @@ export const formOptionsSchema = z.object({
       code: z.string(),
       name: z.string().nullable(),
       category: z.enum(['S', 'M', 'L']).nullable(),
+      defaultPatternId: z.string().uuid().nullable(),
     }),
   ),
   fabrics: z.array(
@@ -73,6 +76,7 @@ export const formOptionsSchema = z.object({
   ),
   sizes: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
   cutters: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+  patterns: z.array(z.object({ id: z.string().uuid(), code: z.string() })),
 })
 
 export const suggestionSchema = z.object({ number: z.string() })
@@ -96,8 +100,8 @@ export const workOrderFormSchema = z
     productId: z.string().min(1, 'Pilih produk'),
     fabricId: z.string().min(1, 'Pilih bahan'),
     cutterId: z.string().min(1, 'Pilih tukang potong'),
-    patternCode: z.string().trim().max(40),
-    fabricCombination: z.string().trim().max(60),
+    patternId: z.string(),
+    fabricCombinationId: z.string(),
     changeStatus: changeStatusSchema,
     changeNotes: z.string().trim().max(1000),
     additionalInfo: z.string().trim().max(1000),
