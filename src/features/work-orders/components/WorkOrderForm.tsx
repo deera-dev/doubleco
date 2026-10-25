@@ -18,10 +18,6 @@ import {
   workOrderFormSchema,
 } from '@/features/work-orders/api/schema'
 import {
-  DEFAULT_SERIES,
-  SeriesColorPicker,
-} from '@/features/work-orders/components/SeriesColorPicker'
-import {
   composeProductCode,
   cutterInitial,
   parseProductCode,
@@ -69,7 +65,6 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
     cutter: workOrder?.cutterName ?? '',
     pattern: workOrder?.patternCode ?? '',
     fabric: workOrder?.fabricName ?? '',
-    series: workOrder?.seriesName ?? '',
     combination: workOrder?.fabricCombination ?? '',
     changeStatus: workOrder?.changeStatus ?? 'follow_sample',
     changeNotes: workOrder?.changeNotes ?? '',
@@ -93,7 +88,6 @@ function toPayload(values: WorkOrderFormValues, keepProduct: string | null): Wor
     category: values.category === '' ? null : values.category,
     fabric: normalizeLabel(values.fabric),
     fabricCode: normalizeLabel(values.fabricCode) || null,
-    series: normalizeLabel(values.series) || DEFAULT_SERIES,
     cutter: normalizeLabel(values.cutter),
     pattern: values.pattern ? normalizeLabel(values.pattern) : null,
     combination: values.combination ? normalizeLabel(values.combination) : null,
@@ -345,7 +339,6 @@ function FormFields({
   const sizes = form.watch('sizes')
   const colors = form.watch('colors')
   const isLocked = workOrder?.hasCards ?? false
-  const series = form.watch('series')
   const isFabricLocked = workOrder !== null
   const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
   const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
@@ -353,7 +346,7 @@ function FormFields({
       .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
       .map((candidate) => ({
         label: candidate.name,
-        hint: `${candidate.kind === 'motif' ? 'motif' : 'polos'} · ${candidate.series.length} seri`,
+        hint: `${candidate.kind === 'motif' ? 'motif' : 'polos'} · ${candidate.colors.length} warna`,
       }))
 
   const onFabricChange = (value: string) => {
@@ -363,7 +356,6 @@ function FormFields({
     }
     const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
     form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
-    form.setValue('series', match?.series[0]?.name ?? '')
     form.setValue('colors', [])
     if (match?.code && !form.getFieldState('fabricCode').isDirty) {
       form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
@@ -517,14 +509,12 @@ function FormFields({
               {labelKey(fabric) === '' ? (
                 <p className="text-muted-foreground text-sm">Isi bahan dulu.</p>
               ) : (
-                <SeriesColorPicker
-                  series={fabricMatch?.series ?? []}
-                  selectedSeries={series}
-                  colors={colors}
-                  onChange={(nextSeries, nextColors) => {
-                    form.setValue('series', nextSeries)
-                    form.setValue('colors', nextColors)
-                  }}
+                <LabelChipPicker
+                  label="Warna"
+                  options={fabricMatch?.colors.map((color) => color.name) ?? []}
+                  selected={colors}
+                  onChange={(value) => form.setValue('colors', value)}
+                  addPlaceholder={`Warna ${normalizeLabel(fabric)} lain`}
                 />
               )}
             </FormItem>

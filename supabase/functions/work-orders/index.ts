@@ -25,7 +25,7 @@ interface WorkOrderRow {
   created_at: string
   product_id: string
   fabric_id: string
-  fabric_series_id: string
+  fabric_series_id: string | null
   cutter_id: string
   products: { code: string; name: string | null; wage_category: 'S' | 'M' | 'L' | null } | null
   fabric: NamedRef | null
@@ -90,7 +90,7 @@ function shape(row: WorkOrderRow) {
     fabricId: row.fabric_id,
     fabricName: row.fabric?.name ?? '-',
     seriesId: row.fabric_series_id,
-    seriesName: row.series?.name ?? '-',
+    seriesName: row.series?.name ?? null,
     fabricCombinationId: row.fabric_combination_id,
     fabricCombination: row.combination?.name ?? null,
     cutterId: row.cutter_id,
@@ -238,17 +238,16 @@ const formOptions = defineAction({
         name: fabric.name,
         kind: fabric.kind,
         code: fabric.code,
-        series: fabric.fabric_series
-          .filter((series) => series.is_active)
-          .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
-          .map((series) => ({
-            id: series.id,
-            name: series.name,
-            colors: series.fabric_colors
-              .filter((color) => color.is_active)
-              .map((color) => ({ id: color.id, name: color.name }))
-              .sort((a, b) => a.name.localeCompare(b.name)),
-          })),
+        colors: [
+          ...new Map(
+            fabric.fabric_series
+              .filter((series) => series.is_active)
+              .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
+              .flatMap((series) => series.fabric_colors.filter((color) => color.is_active))
+              .map((color) => [keyOf(color.name), { id: color.id, name: color.name }] as const)
+              .reverse(),
+          ).values(),
+        ].sort((a, b) => a.name.localeCompare(b.name)),
       })),
       sizes: unwrap<{ id: string; name: string }[]>(sizes),
       cutters: unwrap<{ id: string; name: string }[]>(cutters),
@@ -284,7 +283,6 @@ const formInput = {
   category: z.enum(['S', 'M', 'L']).nullable().default(null),
   fabric: label(60),
   fabricCode: optionalLabel(20),
-  series: label(40),
   cutter: label(60),
   pattern: optionalLabel(40),
   combination: optionalLabel(60),
@@ -312,7 +310,6 @@ async function resolveMaster(
     category: 'S' | 'M' | 'L' | null
     fabric: string
     fabricCode: string | null
-    series: string
     cutter: string
     pattern: string | null
     combination: string | null
@@ -346,7 +343,6 @@ async function resolveMaster(
   return {
     productId,
     fabricId,
-    seriesId: await ensureLabel(supabase, 'series', input.series, fabricId),
     cutterId: await ensureLabel(supabase, 'cutter', input.cutter),
     patternId: input.pattern ? await ensureLabel(supabase, 'pattern', input.pattern) : null,
     combinationId: input.combination ? await ensureLabel(supabase, 'combination', input.combination) : null,
@@ -371,7 +367,7 @@ const create = defineAction({
     const supabase = createUserClient(request)
     const master = await resolveMaster(supabase, input)
     const sizeIds = await ensureAll(supabase, 'size', input.sizes)
-    const colorIds = await ensureAll(supabase, 'color', input.colors, master.seriesId)
+    const colorIds = await ensureAll(supabase, 'color', input.colors, master.fabricId)
     const created = unwrap<{ id: string }>(
       await supabase
         .rpc('create_work_order', {
@@ -389,7 +385,6 @@ const create = defineAction({
           p_additional_info: input.additionalInfo,
           p_confirmed: input.confirmed,
           p_override_reason: input.reason,
-          p_fabric_series_id: master.seriesId,
         })
         .single(),
     )
@@ -410,7 +405,6 @@ const update = defineAction({
           ordered_on: input.orderedOn,
           product_id: master.productId,
           fabric_id: master.fabricId,
-          fabric_series_id: master.seriesId,
           cutter_id: master.cutterId,
           pattern_id: master.patternId,
           fabric_combination_id: master.combinationId,

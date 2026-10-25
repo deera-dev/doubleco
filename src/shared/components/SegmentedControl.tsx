@@ -25,7 +25,7 @@ export function SegmentedControl<Value extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className={cn('surface flex gap-1 overflow-x-auto rounded-2xl p-1 no-scrollbar', className)}
+      className={cn('surface flex flex-wrap gap-1 rounded-2xl p-1', className)}
     >
       {options.map((option) => {
         const isActive = option.value === value
@@ -37,7 +37,7 @@ export function SegmentedControl<Value extends string>({
             aria-selected={isActive}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex h-9 shrink-0 items-center gap-2 rounded-xl px-3.5 font-medium text-muted-foreground text-sm transition-all duration-300 hover:text-foreground',
+              'flex h-9 grow items-center justify-center gap-2 rounded-xl px-3.5 font-medium text-muted-foreground text-sm transition-all duration-300 hover:text-foreground sm:grow-0',
               isActive && 'bg-surface-hover text-foreground shadow-xs',
             )}
           >

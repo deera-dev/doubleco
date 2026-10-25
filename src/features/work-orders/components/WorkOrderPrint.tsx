@@ -96,9 +96,7 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
       <section className="grid grid-cols-2 gap-x-[4mm] gap-y-[2mm]">
         <Field label="Tanggal">{formatWorkOrderDate(workOrder.orderedOn)}</Field>
         <Field label="Tukang potong">{workOrder.cutterName}</Field>
-        <Field label="Bahan">
-          {workOrder.fabricName} · {workOrder.seriesName}
-        </Field>
+        <Field label="Bahan">{workOrder.fabricName}</Field>
         <Field label="Kombinasi">{workOrder.fabricCombination ?? '—'}</Field>
         <Field label="Kode pola">{workOrder.patternCode ?? '—'}</Field>
         <Field label="Ukuran">{workOrder.sizes.join(' · ')}</Field>

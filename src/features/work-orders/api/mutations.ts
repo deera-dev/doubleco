@@ -14,7 +14,6 @@ export interface WorkOrderPayload {
   category: 'S' | 'M' | 'L' | null
   fabric: string
   fabricCode: string | null
-  series: string
   cutter: string
   pattern: string | null
   combination: string | null

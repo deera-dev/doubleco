@@ -30,9 +30,7 @@ function AddItemsDialog({ workOrder }: { workOrder: WorkOrder }) {
     ...new Set(workOrder.items.map((item) => item.colorId)),
   ])
   const colors =
-    options.data?.fabrics
-      .find((fabric) => fabric.id === workOrder.fabricId)
-      ?.series.find((series) => series.id === workOrder.seriesId)?.colors ?? []
+    options.data?.fabrics.find((fabric) => fabric.id === workOrder.fabricId)?.colors ?? []
 
   const save = () =>
     addItems.mutate(
@@ -68,9 +66,7 @@ function AddItemsDialog({ workOrder }: { workOrder: WorkOrder }) {
             />
           </div>
           <div className="space-y-2">
-            <Label>
-              Warna {workOrder.fabricName} · {workOrder.seriesName}
-            </Label>
+            <Label>Warna {workOrder.fabricName}</Label>
             <ChipToggleGroup
               label="Warna"
               options={colors.map((color) => ({ id: color.id, label: color.name }))}
