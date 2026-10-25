@@ -18,6 +18,11 @@ interface CardRow {
   wage_amount: number
   print_count: number
   submitted_on: string | null
+  submitted_at: string | null
+  submitted_by: string | null
+  submitted_incomplete: boolean
+  remaining_notes: string | null
+  inspection_status: 'pending' | 'in_repair' | 'done'
   tailors: { id: string; code: string; name: string } | null
   work_order_items: {
     id: string
@@ -35,6 +40,7 @@ interface CardRow {
 
 const cardSelect = `
   id, number, quantity, taken_on, status, wage_category, wage_amount, print_count, submitted_on,
+  submitted_at, submitted_by, submitted_incomplete, remaining_notes, inspection_status,
   tailors(id, code, name),
   work_order_items!inner(id, work_order_id, sizes(name), fabric_colors(name),
     work_orders(id, number, products(code, name), cutters(name), fabric:fabrics!work_orders_fabric_id_fkey(name)))
@@ -49,6 +55,10 @@ function shapeCard(row: CardRow) {
     quantity: row.quantity,
     takenOn: row.taken_on,
     submittedOn: row.submitted_on,
+    submittedAt: row.submitted_at,
+    submittedIncomplete: row.submitted_incomplete,
+    remainingNotes: row.remaining_notes,
+    inspectionStatus: row.inspection_status,
     category: row.wage_category,
     wageAmount: Number(row.wage_amount),
     printCount: row.print_count,
@@ -255,8 +265,9 @@ const list = defineAction({
     status: z.enum([...cardStatuses, 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
+    submittedOn: z.string().date().nullable().default(null),
   }),
-  run: async ({ status, search, workOrderId }, request) => {
+  run: async ({ status, search, workOrderId, submittedOn }, request) => {
     const supabase = createUserClient(request)
     let query = supabase
       .from('sewing_cards')
@@ -265,6 +276,7 @@ const list = defineAction({
       .order('number', { ascending: false })
       .limit(500)
     if (workOrderId) query = query.eq('work_order_items.work_order_id', workOrderId)
+    if (submittedOn) query = query.eq('submitted_on', submittedOn)
     const all = unwrap<CardRow[]>(await query).map(shapeCard)
     const needle = search.toLowerCase()
     return {
@@ -320,6 +332,68 @@ const cancel = defineAction({
   },
 })
 
+const scanOptions = defineAction({
+  input: z.object({}),
+  run: async (_input, request) => {
+    const supabase = createUserClient(request)
+    const tailors = unwrap<{ id: string; code: string; name: string }[]>(
+      await supabase.from('tailors').select('id, code, name').eq('status', 'active').is('archived_at', null),
+    )
+    return { tailors: tailors.sort(byTailorCode), today: today() }
+  },
+})
+
+const lookup = defineAction({
+  input: z.object({ number: cardNumber }),
+  run: async ({ number }, request) => {
+    const supabase = createUserClient(request)
+    const row = unwrap<CardRow | null>(
+      await supabase.from('sewing_cards').select(cardSelect).eq('number', number).maybeSingle(),
+    )
+    if (!row) throw new Rejection('CARD_NOT_FOUND', 404, { number })
+    const submittedBy = row.submitted_by
+      ? unwrap<string | null>(await supabase.rpc('visible_display_name', { p_profile_id: row.submitted_by }))
+      : null
+    return { ...shapeCard(row), submittedByName: submittedBy }
+  },
+})
+
+const submit = defineAction({
+  input: z.object({
+    number: cardNumber,
+    tailorId: uuid.nullable().default(null),
+    submittedOn: z.string().date(),
+    incomplete: z.boolean().default(false),
+    remainingNotes: z.string().trim().max(500).nullable().default(null),
+    confirmed: z.boolean().default(false),
+    reason: z.string().trim().max(200).nullable().default(null),
+  }),
+  run: async (input, request) => {
+    const supabase = createUserClient(request)
+    unwrap(
+      await supabase.rpc('submit_sewing_card', {
+        p_number: input.number,
+        p_submitted_on: input.submittedOn,
+        p_incomplete: input.incomplete,
+        p_remaining_notes: input.incomplete ? input.remainingNotes : null,
+        p_confirmed: input.confirmed,
+        p_override_reason: input.reason,
+        p_tailor_id: input.tailorId,
+      }),
+    )
+    return { number: input.number }
+  },
+})
+
+const unsubmit = defineAction({
+  input: z.object({ number: cardNumber, reason: z.string().trim().min(1).max(200) }),
+  run: async ({ number, reason }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('unsubmit_sewing_card', { p_number: number, p_reason: reason }))
+    return { number }
+  },
+})
+
 const printData = defineAction({
   input: z.object({ numbers: z.array(cardNumber).min(1).max(200) }),
   run: async ({ numbers }, request) => {
@@ -360,4 +434,8 @@ serveActions({
   cancel,
   print: printData,
   record_print: recordPrint,
+  scan_options: scanOptions,
+  lookup,
+  submit,
+  unsubmit,
 })

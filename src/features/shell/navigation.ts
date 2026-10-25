@@ -15,7 +15,7 @@ export interface NavigationItem {
   shortTitle: string
   description: string
   icon: LucideIcon
-  to?: '/' | '/karyawan' | '/master-data' | '/work-order' | '/kartu-jahit'
+  to?: '/' | '/scan' | '/karyawan' | '/master-data' | '/work-order' | '/kartu-jahit'
 }
 
 export interface NavigationSection {
@@ -34,8 +34,9 @@ export const homeItem: NavigationItem = {
 export const scanItem: NavigationItem = {
   title: 'Scan Kartu',
   shortTitle: 'Scan',
-  description: 'Setor & periksa dalam sekali scan',
+  description: 'Catat setoran kartu jahit',
   icon: ScanLine,
+  to: '/scan',
 }
 
 export const workOrderItem: NavigationItem = {

@@ -8,7 +8,7 @@ import {
   paydayInfo,
   workdays,
 } from '@/features/shell/lib/calendar'
-import { moduleItems, type NavigationItem, scanItem } from '@/features/shell/navigation'
+import { moduleItems, type NavigationItem } from '@/features/shell/navigation'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 
@@ -41,24 +41,20 @@ function ScanHero() {
           <span className="rounded-full border border-border-strong bg-background/40 px-3 py-1 font-medium text-brand-100 text-xs">
             Aksi utama
           </span>
-          <span className="text-muted-foreground text-xs">Segera hadir</span>
         </div>
         <div className="max-w-md space-y-2">
           <h2 className="font-semibold text-2xl tracking-tight sm:text-3xl">Scan kartu jahit</h2>
           <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-            Setor, periksa, dan langsung terhitung ke gajian Sabtu. Cukup sekali scan, tanpa catat
-            ulang di Excel.
+            Scan QR kartu saat penjahit setor, kartunya langsung terhitung ke gajian Sabtu. Cukup
+            sekali scan, tanpa catat ulang di Excel.
           </p>
         </div>
         <div className="mt-auto flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="lg"
-            onClick={() => announceSoon(scanItem)}
-          >
-            <ScanLine />
-            Mulai scan
+          <Button asChild variant="secondary" size="lg">
+            <Link to="/scan">
+              <ScanLine />
+              Mulai scan
+            </Link>
           </Button>
         </div>
       </div>

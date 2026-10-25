@@ -136,14 +136,13 @@ export function BottomDock() {
         <DockEntry item={workOrderItem} />
         <div className="flex flex-1 items-start justify-center">
           <span className="-mt-5 animate-pulse-ring rounded-2xl">
-            <button
-              type="button"
-              onClick={() => announceSoon(scanItem)}
+            <Link
+              to="/scan"
               aria-label={scanItem.title}
               className="sheen-primary flex size-14 items-center justify-center rounded-2xl text-primary-foreground outline-4 outline-background transition-transform duration-200 active:scale-90"
             >
               <scanItem.icon className="size-6" />
-            </button>
+            </Link>
           </span>
         </div>
         <DockEntry item={payrollItem} />
