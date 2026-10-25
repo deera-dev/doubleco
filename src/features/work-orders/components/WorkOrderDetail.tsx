@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Ban, Pencil, Printer } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { WorkOrderCards } from '@/features/sewing-cards/components/WorkOrderCards'
 import { useDeleteWorkOrder } from '@/features/work-orders/api/mutations'
 import { useWorkOrder } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
@@ -166,6 +167,13 @@ export function WorkOrderDetail({ id }: { id: string }) {
           <CutResults
             key={workOrder.data.items.map((item) => `${item.id}:${item.cutQuantity}`).join()}
             workOrder={workOrder.data}
+          />
+          <WorkOrderCards
+            workOrderId={workOrder.data.id}
+            canSplit={
+              workOrder.data.status !== 'cancelled' &&
+              workOrder.data.totals.cut > workOrder.data.totals.assigned
+            }
           />
           <DangerZone workOrder={workOrder.data} />
           <WorkOrderDialogs workOrder={workOrder.data} />

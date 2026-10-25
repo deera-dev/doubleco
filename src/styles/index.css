@@ -417,6 +417,16 @@
   width: 54mm;
 }
 
+@utility kj-card-sheet {
+  width: 60mm;
+  height: 100mm;
+}
+
+@utility kj-card-qr {
+  width: 23mm;
+  height: 23mm;
+}
+
 @utility print-text-2xs {
   font-size: 2.1mm;
 }
