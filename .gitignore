@@ -42,3 +42,6 @@ blob-report
 *.njsproj
 *.sln
 *.sw?
+
+# Deno (Edge Function type checks)
+deno.lock

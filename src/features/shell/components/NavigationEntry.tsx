@@ -26,6 +26,7 @@ export function SidebarEntry({ item }: { item: NavigationItem }) {
           baseClass,
           'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
         )}
+        activeOptions={{ exact: item.to === '/' }}
         activeProps={{ className: 'bg-surface-hover text-foreground shadow-xs' }}
       >
         {content}

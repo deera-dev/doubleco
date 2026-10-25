@@ -15,7 +15,7 @@ export interface NavigationItem {
   shortTitle: string
   description: string
   icon: LucideIcon
-  to?: '/'
+  to?: '/' | '/karyawan' | '/master-data'
 }
 
 export interface NavigationSection {
@@ -71,6 +71,7 @@ export const employeesItem: NavigationItem = {
   shortTitle: 'Karyawan',
   description: 'Aktif, tidak aktif, keluar',
   icon: Users,
+  to: '/karyawan',
 }
 
 export const masterDataItem: NavigationItem = {
@@ -78,6 +79,7 @@ export const masterDataItem: NavigationItem = {
   shortTitle: 'Master',
   description: 'Produk, bahan, warna, tarif',
   icon: Package,
+  to: '/master-data',
 }
 
 export const navigationSections: NavigationSection[] = [
