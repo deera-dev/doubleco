@@ -5,7 +5,14 @@ import { callAction } from '@/shared/lib/bff-action'
 import { queryClient } from '@/shared/lib/query-client'
 import type { AppError } from '@/shared/types/errors'
 
-export type RemovableKind = 'product' | 'fabric' | 'color' | 'size' | 'pattern' | 'wage_rate'
+export type RemovableKind =
+  | 'product'
+  | 'fabric'
+  | 'series'
+  | 'color'
+  | 'size'
+  | 'pattern'
+  | 'wage_rate'
 
 function useMasterDataAction<Input extends object>(action: string) {
   return useMutation<{ id: string }, AppError, Input>({
@@ -28,10 +35,20 @@ export const useSavePattern = () =>
   useMasterDataAction<{ id: string | null; code: string; isActive: boolean }>('save_pattern')
 
 export const useSaveFabric = () =>
-  useMasterDataAction<{ id: string | null; name: string; isActive: boolean }>('save_fabric')
+  useMasterDataAction<{
+    id: string | null
+    name: string
+    kind: 'motif' | 'plain'
+    isActive: boolean
+  }>('save_fabric')
+
+export const useSaveSeries = () =>
+  useMasterDataAction<{ id: string | null; fabricId: string; name: string; isActive: boolean }>(
+    'save_series',
+  )
 
 export const useSaveColor = () =>
-  useMasterDataAction<{ id: string | null; fabricId: string; name: string; isActive: boolean }>(
+  useMasterDataAction<{ id: string | null; seriesId: string; name: string; isActive: boolean }>(
     'save_color',
   )
 

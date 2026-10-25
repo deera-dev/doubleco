@@ -14,9 +14,10 @@ import { toast } from 'sonner'
 import {
   useRemoveMasterData,
   useSaveColor,
+  useSaveSeries,
   useSaveSize,
 } from '@/features/master-data/api/mutations'
-import type { Fabric, MasterData, Size } from '@/features/master-data/api/schema'
+import type { Fabric, FabricSeries, MasterData, Size } from '@/features/master-data/api/schema'
 import { useMasterDataUiStore } from '@/features/master-data/store'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Button } from '@/shared/components/ui/button'
@@ -24,6 +25,7 @@ import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatIsoDate, formatRupiah } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
+import type { AppError } from '@/shared/types/errors'
 
 function InactiveBadge() {
   return (
@@ -156,26 +158,21 @@ export function PatternsPanel({ data }: { data: MasterData }) {
   )
 }
 
-function AddColorForm({ fabric }: { fabric: Fabric }) {
-  const saveColor = useSaveColor()
+interface InlineAddFormProps {
+  placeholder: string
+  ariaLabel: string
+  isPending: boolean
+  onAdd: (name: string, reset: () => void) => void
+}
+
+function InlineAddForm({ placeholder, ariaLabel, isPending, onAdd }: InlineAddFormProps) {
   const [name, setName] = useState('')
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const trimmed = name.trim().toUpperCase()
+    const trimmed = name.trim().replace(/\s+/g, ' ').toUpperCase()
     if (!trimmed) return
-    saveColor.mutate(
-      { id: null, fabricId: fabric.id, name: trimmed, isActive: true },
-      {
-        onSuccess: () => setName(''),
-        onError: (error) =>
-          toast.error(
-            error.kind === 'business' && error.code === 'DUPLICATE'
-              ? `Warna ${trimmed} sudah ada`
-              : describeError(error),
-          ),
-      },
-    )
+    onAdd(trimmed, () => setName(''))
   }
 
   return (
@@ -183,8 +180,8 @@ function AddColorForm({ fabric }: { fabric: Fabric }) {
       <Input
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Tambah warna"
-        aria-label={`Tambah warna untuk ${fabric.name}`}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
         autoCapitalize="characters"
         className="h-10 uppercase placeholder:normal-case"
       />
@@ -192,8 +189,9 @@ function AddColorForm({ fabric }: { fabric: Fabric }) {
         type="submit"
         variant="outline"
         size="icon"
-        className="size-10"
-        disabled={saveColor.isPending}
+        className="size-10 shrink-0"
+        aria-label={ariaLabel}
+        disabled={isPending}
       >
         <Plus />
       </Button>
@@ -201,14 +199,92 @@ function AddColorForm({ fabric }: { fabric: Fabric }) {
   )
 }
 
+function duplicateOr(error: AppError, message: string) {
+  return error.kind === 'business' && error.code === 'DUPLICATE' ? message : describeError(error)
+}
+
+function SeriesBlock({ fabric, series }: { fabric: Fabric; series: FabricSeries }) {
+  const saveColor = useSaveColor()
+  const remove = useRemoveMasterData()
+
+  return (
+    <div className="space-y-2.5 rounded-xl border bg-background/30 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium text-xs uppercase tracking-wider">
+          {series.name}
+          <span className="ml-2 font-normal text-muted-foreground normal-case tracking-normal">
+            {series.colors.length} warna
+          </span>
+        </p>
+        {series.colors.length === 0 && fabric.series.length > 1 && (
+          <button
+            type="button"
+            aria-label={`Hapus ${series.name}`}
+            onClick={() =>
+              remove.mutate(
+                { kind: 'series', id: series.id },
+                { onError: (error) => toast.error(describeError(error)) },
+              )
+            }
+            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-hover hover:text-destructive"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+      {series.colors.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {series.colors.map((color) => (
+            <li
+              key={color.id}
+              className="flex animate-pop items-center gap-1 rounded-full border bg-background/50 py-1 pr-1 pl-3 text-xs"
+            >
+              {color.name}
+              <button
+                type="button"
+                aria-label={`Hapus warna ${color.name} ${series.name}`}
+                onClick={() =>
+                  remove.mutate(
+                    { kind: 'color', id: color.id },
+                    { onError: (error) => toast.error(describeError(error)) },
+                  )
+                }
+                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <InlineAddForm
+        placeholder="Tambah warna"
+        ariaLabel={`Tambah warna ${fabric.name} ${series.name}`}
+        isPending={saveColor.isPending}
+        onAdd={(name, reset) =>
+          saveColor.mutate(
+            { id: null, seriesId: series.id, name, isActive: true },
+            {
+              onSuccess: reset,
+              onError: (error) =>
+                toast.error(duplicateOr(error, `Warna ${name} sudah ada di ${series.name}`)),
+            },
+          )
+        }
+      />
+    </div>
+  )
+}
+
 function FabricCard({ fabric }: { fabric: Fabric }) {
   const openEditor = useMasterDataUiStore((state) => state.openEditor)
-  const removeColor = useRemoveMasterData()
+  const saveSeries = useSaveSeries()
+  const colorCount = fabric.series.reduce((sum, series) => sum + series.colors.length, 0)
 
   return (
     <li
       className={cn(
-        'surface flex flex-col gap-4 rounded-2xl p-4',
+        'surface flex flex-col gap-3 rounded-2xl p-4',
         !fabric.isActive && 'opacity-60',
       )}
     >
@@ -222,37 +298,31 @@ function FabricCard({ fabric }: { fabric: Fabric }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-sm">{fabric.name}</span>
-          <span className="block text-muted-foreground text-xs">{fabric.colors.length} warna</span>
+          <span className="block text-muted-foreground text-xs">
+            {fabric.series.length} seri · {colorCount} warna
+          </span>
         </span>
         {!fabric.isActive && <InactiveBadge />}
         <ChevronRight className="size-4 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
       </button>
-      {fabric.colors.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5">
-          {fabric.colors.map((color) => (
-            <li
-              key={color.id}
-              className="flex animate-pop items-center gap-1 rounded-full border bg-background/50 py-1 pr-1 pl-3 text-xs"
-            >
-              {color.name}
-              <button
-                type="button"
-                aria-label={`Hapus warna ${color.name}`}
-                onClick={() =>
-                  removeColor.mutate(
-                    { kind: 'color', id: color.id },
-                    { onError: (error) => toast.error(describeError(error)) },
-                  )
-                }
-                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-hover hover:text-foreground"
-              >
-                <X className="size-3" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <AddColorForm fabric={fabric} />
+      {fabric.series.map((series) => (
+        <SeriesBlock key={series.id} fabric={fabric} series={series} />
+      ))}
+      <InlineAddForm
+        placeholder={fabric.series.length === 0 ? 'Tambah seri, mis. SERI 1' : 'Tambah seri baru'}
+        ariaLabel={`Tambah seri ${fabric.name}`}
+        isPending={saveSeries.isPending}
+        onAdd={(name, reset) =>
+          saveSeries.mutate(
+            { id: null, fabricId: fabric.id, name, isActive: true },
+            {
+              onSuccess: reset,
+              onError: (error) =>
+                toast.error(duplicateOr(error, `${name} sudah ada di ${fabric.name}`)),
+            },
+          )
+        }
+      />
     </li>
   )
 }
@@ -276,12 +346,34 @@ export function FabricsPanel({ data }: { data: MasterData }) {
     )
   }
 
+  const groups = [
+    {
+      kind: 'motif',
+      title: 'Bahan motif',
+      fabrics: data.fabrics.filter((f) => f.kind === 'motif'),
+    },
+    {
+      kind: 'plain',
+      title: 'Bahan polos · untuk kombinasi',
+      fabrics: data.fabrics.filter((f) => f.kind === 'plain'),
+    },
+  ].filter((group) => group.fabrics.length > 0)
+
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {data.fabrics.map((fabric) => (
-        <FabricCard key={fabric.id} fabric={fabric} />
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <section key={group.kind} className="space-y-3">
+          <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+            {group.title} · {group.fabrics.length}
+          </h2>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {group.fabrics.map((fabric) => (
+              <FabricCard key={fabric.id} fabric={fabric} />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   )
 }
 

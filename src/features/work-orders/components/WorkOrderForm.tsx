@@ -55,6 +55,7 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
     cutter: workOrder?.cutterName ?? '',
     pattern: workOrder?.patternCode ?? '',
     fabric: workOrder?.fabricName ?? '',
+    series: workOrder?.seriesName ?? '',
     combination: workOrder?.fabricCombination ?? '',
     changeStatus: workOrder?.changeStatus ?? 'follow_sample',
     changeNotes: workOrder?.changeNotes ?? '',
@@ -71,6 +72,7 @@ function toPayload(values: WorkOrderFormValues): WorkOrderPayload {
     product: normalizeLabel(values.product),
     category: values.category === '' ? null : values.category,
     fabric: normalizeLabel(values.fabric),
+    series: normalizeLabel(values.series),
     cutter: normalizeLabel(values.cutter),
     pattern: values.pattern ? normalizeLabel(values.pattern) : null,
     combination: values.combination ? normalizeLabel(values.combination) : null,
@@ -216,11 +218,30 @@ function FormFields({
   const sizes = form.watch('sizes')
   const colors = form.watch('colors')
   const isLocked = workOrder?.hasCards ?? false
+  const series = form.watch('series')
+  const isFabricLocked = workOrder !== null
   const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
-  const fabricOptions = options.fabrics.map((candidate) => ({
-    label: candidate.name,
-    hint: `${candidate.colors.length} warna`,
-  }))
+  const seriesMatch = fabricMatch
+    ? findByLabel(fabricMatch.series, series, (candidate) => candidate.name)
+    : undefined
+  const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
+    [...options.fabrics]
+      .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
+      .map((candidate) => ({
+        label: candidate.name,
+        hint: `${candidate.kind === 'motif' ? 'motif' : 'polos'} · ${candidate.series.length} seri`,
+      }))
+
+  const onFabricChange = (value: string) => {
+    if (labelKey(value) === labelKey(fabric)) {
+      form.setValue('fabric', value)
+      return
+    }
+    const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
+    form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
+    form.setValue('series', match?.series.length === 1 ? (match.series[0]?.name ?? '') : '')
+    form.setValue('colors', [])
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -316,15 +337,41 @@ function FormFields({
                     ref={field.ref}
                     name={field.name}
                     value={field.value}
+                    onValueChange={onFabricChange}
+                    onBlur={field.onBlur}
+                    disabled={isFabricLocked}
+                    placeholder="Mis. BLACK SWAN"
+                    options={fabricOptionsFor('motif')}
+                    newHint={NEW_HINT}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="series"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Seri</FormLabel>
+                <FormControl>
+                  <Combobox
+                    ref={field.ref}
+                    name={field.name}
+                    value={field.value}
                     onValueChange={(value) => {
                       if (labelKey(value) !== labelKey(field.value)) form.setValue('colors', [])
                       field.onChange(value)
                     }}
                     onBlur={field.onBlur}
-                    disabled={isLocked}
-                    placeholder="Mis. BLACK SWAN"
-                    options={fabricOptions}
-                    newHint={NEW_HINT}
+                    disabled={isFabricLocked}
+                    placeholder="Mis. SERI 1"
+                    options={(fabricMatch?.series ?? []).map((candidate) => ({
+                      label: candidate.name,
+                      hint: `${candidate.colors.length} warna`,
+                    }))}
+                    newHint={labelKey(fabric) === '' ? undefined : NEW_HINT}
                   />
                 </FormControl>
                 <FormMessage />
@@ -336,7 +383,7 @@ function FormFields({
             name="combination"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Kombinasi (opsional)</FormLabel>
+                <FormLabel>Kombinasi · bahan polos (opsional)</FormLabel>
                 <FormControl>
                   <Combobox
                     ref={field.ref}
@@ -345,7 +392,7 @@ function FormFields({
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="Mis. ORB"
-                    options={fabricOptions.filter(
+                    options={fabricOptionsFor('plain').filter(
                       (option) => labelKey(option.label) !== labelKey(fabric),
                     )}
                     newHint={NEW_HINT}
@@ -370,15 +417,15 @@ function FormFields({
             </FormItem>
             <FormItem>
               <FormLabel>Warna</FormLabel>
-              {labelKey(fabric) === '' ? (
-                <p className="text-muted-foreground text-sm">Isi bahan dulu.</p>
+              {labelKey(fabric) === '' || labelKey(series) === '' ? (
+                <p className="text-muted-foreground text-sm">Isi bahan dan seri dulu.</p>
               ) : (
                 <LabelChipPicker
                   label="Warna"
-                  options={fabricMatch?.colors.map((color) => color.name) ?? []}
+                  options={seriesMatch?.colors.map((color) => color.name) ?? []}
                   selected={colors}
                   onChange={(value) => form.setValue('colors', value)}
-                  addPlaceholder={`Warna ${normalizeLabel(fabric)} lain`}
+                  addPlaceholder={`Warna ${normalizeLabel(series)} lain`}
                 />
               )}
             </FormItem>

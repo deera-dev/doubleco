@@ -25,9 +25,11 @@ interface WorkOrderRow {
   created_at: string
   product_id: string
   fabric_id: string
+  fabric_series_id: string
   cutter_id: string
   products: { code: string; name: string | null; wage_category: 'S' | 'M' | 'L' | null } | null
   fabric: NamedRef | null
+  series: NamedRef | null
   combination: NamedRef | null
   patterns: { code: string } | null
   cutters: NamedRef | null
@@ -46,6 +48,7 @@ const workOrderSelect = `
   id, number, ordered_on, pattern_id, fabric_combination_id, change_status, change_notes,
   additional_info, sample_photo_public_id, status, created_at, product_id, fabric_id, cutter_id,
   products(code, name, wage_category), patterns(code), cutters(name),
+  fabric_series_id, series:fabric_series(name),
   fabric:fabrics!work_orders_fabric_id_fkey(name),
   combination:fabrics!work_orders_fabric_combination_id_fkey(name),
   work_order_items(id, cut_quantity, size_id, fabric_color_id, sizes(name, sort_order), fabric_colors(name),
@@ -86,6 +89,8 @@ function shape(row: WorkOrderRow) {
     category: row.products?.wage_category ?? null,
     fabricId: row.fabric_id,
     fabricName: row.fabric?.name ?? '-',
+    seriesId: row.fabric_series_id,
+    seriesName: row.series?.name ?? '-',
     fabricCombinationId: row.fabric_combination_id,
     fabricCombination: row.combination?.name ?? null,
     cutterId: row.cutter_id,
@@ -179,6 +184,19 @@ const get = defineAction({
   },
 })
 
+interface FabricOptionRow {
+  id: string
+  name: string
+  kind: 'motif' | 'plain'
+  fabric_series: {
+    id: string
+    name: string
+    is_active: boolean
+    created_at: string
+    fabric_colors: { id: string; name: string; is_active: boolean }[]
+  }[]
+}
+
 const formOptions = defineAction({
   input: z.object({}),
   run: async (_input, request) => {
@@ -191,7 +209,7 @@ const formOptions = defineAction({
         .order('code'),
       supabase
         .from('fabrics')
-        .select('id, name, fabric_colors(id, name, is_active)')
+        .select('id, name, kind, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
         .eq('is_active', true)
         .order('name'),
       supabase.from('sizes').select('id, name').eq('is_active', true).order('sort_order').order('name'),
@@ -214,15 +232,21 @@ const formOptions = defineAction({
         category: product.wage_category,
         defaultPatternId: product.default_pattern_id,
       })),
-      fabrics: unwrap<{ id: string; name: string; fabric_colors: { id: string; name: string; is_active: boolean }[] }[]>(
-        fabrics,
-      ).map((fabric) => ({
+      fabrics: unwrap<FabricOptionRow[]>(fabrics).map((fabric) => ({
         id: fabric.id,
         name: fabric.name,
-        colors: fabric.fabric_colors
-          .filter((color) => color.is_active)
-          .map((color) => ({ id: color.id, name: color.name }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
+        kind: fabric.kind,
+        series: fabric.fabric_series
+          .filter((series) => series.is_active)
+          .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
+          .map((series) => ({
+            id: series.id,
+            name: series.name,
+            colors: series.fabric_colors
+              .filter((color) => color.is_active)
+              .map((color) => ({ id: color.id, name: color.name }))
+              .sort((a, b) => a.name.localeCompare(b.name)),
+          })),
       })),
       sizes: unwrap<{ id: string; name: string }[]>(sizes),
       cutters: unwrap<{ id: string; name: string }[]>(cutters),
@@ -257,6 +281,7 @@ const formInput = {
   product: label(40),
   category: z.enum(['S', 'M', 'L']).nullable().default(null),
   fabric: label(60),
+  series: label(40),
   cutter: label(60),
   pattern: optionalLabel(40),
   combination: optionalLabel(60),
@@ -279,7 +304,15 @@ async function ensureLabel(supabase: SupabaseClient, kind: string, value: string
 
 async function resolveMaster(
   supabase: SupabaseClient,
-  input: { product: string; category: 'S' | 'M' | 'L' | null; fabric: string; cutter: string; pattern: string | null; combination: string | null },
+  input: {
+    product: string
+    category: 'S' | 'M' | 'L' | null
+    fabric: string
+    series: string
+    cutter: string
+    pattern: string | null
+    combination: string | null
+  },
 ) {
   if (input.combination && keyOf(input.combination) === keyOf(input.fabric)) {
     throw new Rejection('FABRIC_COMBINATION_SAME')
@@ -299,9 +332,10 @@ async function resolveMaster(
   return {
     productId,
     fabricId,
+    seriesId: await ensureLabel(supabase, 'series', input.series, fabricId),
     cutterId: await ensureLabel(supabase, 'cutter', input.cutter),
     patternId: input.pattern ? await ensureLabel(supabase, 'pattern', input.pattern) : null,
-    combinationId: input.combination ? await ensureLabel(supabase, 'fabric', input.combination) : null,
+    combinationId: input.combination ? await ensureLabel(supabase, 'combination', input.combination) : null,
   }
 }
 
@@ -323,7 +357,7 @@ const create = defineAction({
     const supabase = createUserClient(request)
     const master = await resolveMaster(supabase, input)
     const sizeIds = await ensureAll(supabase, 'size', input.sizes)
-    const colorIds = await ensureAll(supabase, 'color', input.colors, master.fabricId)
+    const colorIds = await ensureAll(supabase, 'color', input.colors, master.seriesId)
     const created = unwrap<{ id: string }>(
       await supabase
         .rpc('create_work_order', {
@@ -341,6 +375,7 @@ const create = defineAction({
           p_additional_info: input.additionalInfo,
           p_confirmed: input.confirmed,
           p_override_reason: input.reason,
+          p_fabric_series_id: master.seriesId,
         })
         .single(),
     )
@@ -361,6 +396,7 @@ const update = defineAction({
           ordered_on: input.orderedOn,
           product_id: master.productId,
           fabric_id: master.fabricId,
+          fabric_series_id: master.seriesId,
           cutter_id: master.cutterId,
           pattern_id: master.patternId,
           fabric_combination_id: master.combinationId,

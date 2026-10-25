@@ -25,6 +25,7 @@ const exportColumns: CsvColumn<WorkOrder>[] = [
   { header: 'Kategori', value: (row) => row.category },
   { header: 'Kode pola', value: (row) => row.patternCode },
   { header: 'Bahan', value: (row) => row.fabricName },
+  { header: 'Seri', value: (row) => row.seriesName },
   { header: 'Kombinasi', value: (row) => row.fabricCombination },
   { header: 'Ukuran', value: (row) => row.sizes.join(', ') },
   { header: 'Warna', value: (row) => row.colors.join(', ') },
@@ -79,7 +80,8 @@ function WorkOrderRow({ workOrder }: { workOrder: WorkOrder }) {
           )}
         </span>
         <span className="block truncate text-muted-foreground text-xs">
-          {formatWorkOrderDate(workOrder.orderedOn)} · {workOrder.fabricName}
+          {formatWorkOrderDate(workOrder.orderedOn)} · {workOrder.fabricName} ·{' '}
+          {workOrder.seriesName}
           {workOrder.fabricCombination ? `+${workOrder.fabricCombination}` : ''} ·{' '}
           {workOrder.sizes.join(', ')} · {workOrder.cutterName}
         </span>

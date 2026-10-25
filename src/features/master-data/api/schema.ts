@@ -24,11 +24,21 @@ export const colorSchema = z.object({
   isActive: z.boolean(),
 })
 
-export const fabricSchema = z.object({
+export const fabricSeriesSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   isActive: z.boolean(),
   colors: z.array(colorSchema),
+})
+
+export const fabricKindSchema = z.enum(['motif', 'plain'])
+
+export const fabricSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  kind: fabricKindSchema,
+  isActive: z.boolean(),
+  series: z.array(fabricSeriesSchema),
 })
 
 export const sizeSchema = z.object({
@@ -99,6 +109,8 @@ export type Product = z.infer<typeof productSchema>
 export type Pattern = z.infer<typeof patternSchema>
 export type Fabric = z.infer<typeof fabricSchema>
 export type FabricColor = z.infer<typeof colorSchema>
+export type FabricSeries = z.infer<typeof fabricSeriesSchema>
+export type FabricKind = z.infer<typeof fabricKindSchema>
 export type Size = z.infer<typeof sizeSchema>
 export type WageRateGroup = z.infer<typeof wageRateGroupSchema>
 export type MasterData = z.infer<typeof masterDataSchema>

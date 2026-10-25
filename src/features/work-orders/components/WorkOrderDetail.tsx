@@ -74,7 +74,7 @@ function Details({ workOrder }: { workOrder: WorkOrder }) {
     <section className="surface stagger-1 grid animate-rise content-start gap-5 rounded-3xl p-5 sm:grid-cols-2 sm:p-6 lg:col-span-2">
       <Fact label="Tukang potong">{workOrder.cutterName}</Fact>
       <Fact label="Bahan">
-        {workOrder.fabricName}
+        {workOrder.fabricName} · {workOrder.seriesName}
         {workOrder.fabricCombination ? ` + ${workOrder.fabricCombination}` : ''}
       </Fact>
       <Fact label="Ukuran">{workOrder.sizes.join(', ')}</Fact>

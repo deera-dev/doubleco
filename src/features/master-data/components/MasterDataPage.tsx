@@ -1,4 +1,5 @@
 import { Download, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   useRemoveMasterData,
@@ -10,6 +11,8 @@ import { useMasterData } from '@/features/master-data/api/queries'
 import type {
   Fabric,
   FabricColor,
+  FabricKind,
+  FabricSeries,
   MasterData,
   Pattern,
   Size,
@@ -29,6 +32,7 @@ import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
+import { Label } from '@/shared/components/ui/label'
 import { downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
@@ -40,6 +44,14 @@ const addLabels: Record<MasterDataTab, string> = {
   fabrics: 'Bahan',
   sizes: 'Ukuran',
   wages: 'Tarif',
+}
+
+const fabricKindLabel: Record<FabricKind, string> = { motif: 'Motif', plain: 'Polos' }
+
+interface FabricExportRow {
+  fabric: Fabric
+  series: FabricSeries | null
+  color: FabricColor | null
 }
 
 function exportTab(tab: MasterDataTab, data: MasterData) {
@@ -65,13 +77,19 @@ function exportTab(tab: MasterDataTab, data: MasterData) {
     case 'fabrics':
       return downloadCsv(
         `bahan-warna-${date}.csv`,
-        data.fabrics.flatMap((fabric): { fabric: Fabric; color: FabricColor | null }[] =>
-          fabric.colors.length === 0
-            ? [{ fabric, color: null }]
-            : fabric.colors.map((color) => ({ fabric, color })),
+        data.fabrics.flatMap((fabric): FabricExportRow[] =>
+          fabric.series.length === 0
+            ? [{ fabric, series: null, color: null }]
+            : fabric.series.flatMap((series): FabricExportRow[] =>
+                series.colors.length === 0
+                  ? [{ fabric, series, color: null }]
+                  : series.colors.map((color) => ({ fabric, series, color })),
+              ),
         ),
         [
           { header: 'Bahan', value: (row) => row.fabric.name },
+          { header: 'Jenis', value: (row) => fabricKindLabel[row.fabric.kind] },
+          { header: 'Seri', value: (row) => row.series?.name ?? null },
           { header: 'Warna', value: (row) => row.color?.name ?? null },
           { header: 'Bahan aktif', value: (row) => (row.fabric.isActive ? 'Ya' : 'Tidak') },
         ],
@@ -101,11 +119,12 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
   const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
   const saveFabric = useSaveFabric()
   const remove = useRemoveMasterData()
+  const [kind, setKind] = useState<FabricKind>(fabric?.kind ?? 'motif')
 
   return (
     <NamedItemDialog
       title={fabric ? `Ubah ${fabric.name}` : 'Tambah bahan'}
-      description="Warna diatur langsung di kartu bahan."
+      description="Seri dan warna diatur langsung di kartu bahan."
       nameLabel="Nama bahan"
       placeholder="BLACK SWAN"
       initialName={fabric?.name ?? ''}
@@ -117,7 +136,7 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
       onClose={closeEditor}
       onSave={(values, onDuplicate) =>
         saveFabric.mutate(
-          { id: fabric?.id ?? null, ...values },
+          { id: fabric?.id ?? null, kind, ...values },
           {
             onSuccess: () => {
               toast.success(fabric ? 'Bahan diperbarui' : `${values.name} ditambahkan`)
@@ -141,7 +160,21 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
           },
         )
       }
-    />
+    >
+      <div className="space-y-2">
+        <Label>Jenis bahan</Label>
+        <SegmentedControl
+          label="Jenis bahan"
+          value={kind}
+          onChange={setKind}
+          options={[
+            { value: 'motif', label: 'Motif' },
+            { value: 'plain', label: 'Polos (kombinasi)' },
+          ]}
+          className="w-fit max-w-full"
+        />
+      </div>
+    </NamedItemDialog>
   )
 }
 

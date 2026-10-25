@@ -13,6 +13,7 @@ export interface WorkOrderPayload {
   product: string
   category: 'S' | 'M' | 'L' | null
   fabric: string
+  series: string
   cutter: string
   pattern: string | null
   combination: string | null

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   type NameFormInput,
@@ -30,6 +30,7 @@ import { describeError } from '@/shared/lib/error-messages'
 import type { AppError } from '@/shared/types/errors'
 
 interface NamedItemDialogProps {
+  children?: ReactNode
   title: string
   description: string
   nameLabel: string
@@ -46,6 +47,7 @@ interface NamedItemDialogProps {
 }
 
 export function NamedItemDialog({
+  children,
   title,
   description,
   nameLabel,
@@ -101,6 +103,7 @@ export function NamedItemDialog({
                 </FormItem>
               )}
             />
+            {children}
             <Switch checked={isActive} onCheckedChange={setIsActive} label="Aktif" />
             {saveError && (
               <p role="alert" className="text-destructive text-sm">

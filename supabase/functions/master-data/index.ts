@@ -24,8 +24,15 @@ interface PatternRow {
 interface FabricRow {
   id: string
   name: string
+  kind: 'motif' | 'plain'
   is_active: boolean
-  fabric_colors: { id: string; name: string; is_active: boolean }[]
+  fabric_series: {
+    id: string
+    name: string
+    is_active: boolean
+    created_at: string
+    fabric_colors: { id: string; name: string; is_active: boolean }[]
+  }[]
 }
 
 interface SizeRow {
@@ -52,7 +59,10 @@ const overview = defineAction({
     const supabase = createUserClient(request)
     const [products, fabrics, sizes, rates, patterns] = await Promise.all([
       supabase.from('products').select('id, code, name, wage_category, default_pattern_id, is_active').order('code'),
-      supabase.from('fabrics').select('id, name, is_active, fabric_colors(id, name, is_active)').order('name'),
+      supabase
+        .from('fabrics')
+        .select('id, name, kind, is_active, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
+        .order('name'),
       supabase.from('sizes').select('id, name, sort_order, is_active').order('sort_order').order('name'),
       supabase
         .from('wage_rates')
@@ -82,10 +92,18 @@ const overview = defineAction({
       fabrics: unwrap<FabricRow[]>(fabrics).map((fabric) => ({
         id: fabric.id,
         name: fabric.name,
+        kind: fabric.kind,
         isActive: fabric.is_active,
-        colors: fabric.fabric_colors
-          .map((color) => ({ id: color.id, name: color.name, isActive: color.is_active }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
+        series: fabric.fabric_series
+          .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
+          .map((series) => ({
+            id: series.id,
+            name: series.name,
+            isActive: series.is_active,
+            colors: series.fabric_colors
+              .map((color) => ({ id: color.id, name: color.name, isActive: color.is_active }))
+              .sort((a, b) => a.name.localeCompare(b.name)),
+          })),
       })),
       sizes: unwrap<SizeRow[]>(sizes).map((size) => ({
         id: size.id,
@@ -143,11 +161,12 @@ const saveFabric = defineAction({
   input: z.object({
     id: optionalId,
     name: z.string().trim().min(1).max(60),
+    kind: z.enum(['motif', 'plain']).default('motif'),
     isActive: z.boolean().default(true),
   }),
-  run: async ({ id, name, isActive }, request) => {
+  run: async ({ id, name, kind, isActive }, request) => {
     const supabase = createUserClient(request)
-    const row = { name, is_active: isActive }
+    const row = { name, kind, is_active: isActive }
     const saved = unwrap(
       id
         ? await supabase.from('fabrics').update(row).eq('id', id).select('id').single()
@@ -157,7 +176,7 @@ const saveFabric = defineAction({
   },
 })
 
-const saveColor = defineAction({
+const saveSeries = defineAction({
   input: z.object({
     id: optionalId,
     fabricId: z.string().uuid(),
@@ -167,6 +186,25 @@ const saveColor = defineAction({
   run: async ({ id, fabricId, name, isActive }, request) => {
     const supabase = createUserClient(request)
     const row = { fabric_id: fabricId, name, is_active: isActive }
+    const saved = unwrap(
+      id
+        ? await supabase.from('fabric_series').update(row).eq('id', id).select('id').single()
+        : await supabase.from('fabric_series').insert(row).select('id').single(),
+    ) as { id: string }
+    return { id: saved.id }
+  },
+})
+
+const saveColor = defineAction({
+  input: z.object({
+    id: optionalId,
+    seriesId: z.string().uuid(),
+    name: z.string().trim().min(1).max(40),
+    isActive: z.boolean().default(true),
+  }),
+  run: async ({ id, seriesId, name, isActive }, request) => {
+    const supabase = createUserClient(request)
+    const row = { series_id: seriesId, name, is_active: isActive }
     const saved = unwrap(
       id
         ? await supabase.from('fabric_colors').update(row).eq('id', id).select('id').single()
@@ -237,6 +275,7 @@ const deletableTables = {
   product: 'products',
   fabric: 'fabrics',
   color: 'fabric_colors',
+  series: 'fabric_series',
   size: 'sizes',
   pattern: 'patterns',
   wage_rate: 'wage_rates',
@@ -244,7 +283,7 @@ const deletableTables = {
 
 const remove = defineAction({
   input: z.object({
-    kind: z.enum(['product', 'fabric', 'color', 'size', 'pattern', 'wage_rate']),
+    kind: z.enum(['product', 'fabric', 'series', 'color', 'size', 'pattern', 'wage_rate']),
     id: z.string().uuid(),
   }),
   run: async ({ kind, id }, request) => {
@@ -256,6 +295,15 @@ const remove = defineAction({
         .or(`fabric_id.eq.${id},fabric_combination_id.eq.${id}`)
       if ((usage.count ?? 0) > 0) throw new Rejection('IN_USE', 409)
       unwrap(await supabase.from('fabric_colors').delete().eq('fabric_id', id))
+      unwrap(await supabase.from('fabric_series').delete().eq('fabric_id', id))
+    }
+    if (kind === 'series') {
+      const usage = await supabase
+        .from('work_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('fabric_series_id', id)
+      if ((usage.count ?? 0) > 0) throw new Rejection('IN_USE', 409)
+      unwrap(await supabase.from('fabric_colors').delete().eq('series_id', id))
     }
     const deleted = unwrap(
       await supabase.from(deletableTables[kind]).delete().eq('id', id).select('id'),
@@ -269,6 +317,7 @@ serveActions({
   overview,
   save_product: saveProduct,
   save_fabric: saveFabric,
+  save_series: saveSeries,
   save_color: saveColor,
   save_size: saveSize,
   save_pattern: savePattern,
