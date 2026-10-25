@@ -10,6 +10,7 @@ import { useMasterData } from '@/features/master-data/api/queries'
 import type {
   Fabric,
   FabricColor,
+  FabricSeries,
   MasterData,
   Pattern,
   Size,
@@ -42,6 +43,12 @@ const addLabels: Record<MasterDataTab, string> = {
   wages: 'Tarif',
 }
 
+interface FabricExportRow {
+  fabric: Fabric
+  series: FabricSeries | null
+  color: FabricColor | null
+}
+
 function exportTab(tab: MasterDataTab, data: MasterData) {
   const date = todayIsoDate()
   switch (tab) {
@@ -65,13 +72,18 @@ function exportTab(tab: MasterDataTab, data: MasterData) {
     case 'fabrics':
       return downloadCsv(
         `bahan-warna-${date}.csv`,
-        data.fabrics.flatMap((fabric): { fabric: Fabric; color: FabricColor | null }[] =>
-          fabric.colors.length === 0
-            ? [{ fabric, color: null }]
-            : fabric.colors.map((color) => ({ fabric, color })),
+        data.fabrics.flatMap((fabric): FabricExportRow[] =>
+          fabric.series.length === 0
+            ? [{ fabric, series: null, color: null }]
+            : fabric.series.flatMap((series): FabricExportRow[] =>
+                series.colors.length === 0
+                  ? [{ fabric, series, color: null }]
+                  : series.colors.map((color) => ({ fabric, series, color })),
+              ),
         ),
         [
           { header: 'Bahan', value: (row) => row.fabric.name },
+          { header: 'Seri', value: (row) => row.series?.name ?? null },
           { header: 'Warna', value: (row) => row.color?.name ?? null },
           { header: 'Bahan aktif', value: (row) => (row.fabric.isActive ? 'Ya' : 'Tidak') },
         ],
@@ -105,7 +117,7 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
   return (
     <NamedItemDialog
       title={fabric ? `Ubah ${fabric.name}` : 'Tambah bahan'}
-      description="Warna diatur langsung di kartu bahan."
+      description="Seri dan warna diatur langsung di kartu bahan."
       nameLabel="Nama bahan"
       placeholder="BLACK SWAN"
       initialName={fabric?.name ?? ''}

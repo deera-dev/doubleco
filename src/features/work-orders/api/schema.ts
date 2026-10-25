@@ -26,6 +26,8 @@ export const workOrderSchema = z.object({
   category: z.enum(['S', 'M', 'L']).nullable(),
   fabricId: z.string().uuid(),
   fabricName: z.string(),
+  seriesId: z.string().uuid(),
+  seriesName: z.string(),
   fabricCombinationId: z.string().uuid().nullable(),
   fabricCombination: z.string().nullable(),
   cutterId: z.string().uuid(),
@@ -71,7 +73,13 @@ export const formOptionsSchema = z.object({
     z.object({
       id: z.string().uuid(),
       name: z.string(),
-      colors: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+      series: z.array(
+        z.object({
+          id: z.string().uuid(),
+          name: z.string(),
+          colors: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+        }),
+      ),
     }),
   ),
   sizes: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
@@ -104,6 +112,7 @@ export const workOrderFormSchema = z
     cutter: requiredLabel('Isi tukang potong'),
     pattern: z.string().trim().max(40),
     fabric: requiredLabel('Isi bahan'),
+    series: requiredLabel('Isi seri bahan'),
     combination: z.string().trim().max(60),
     changeStatus: changeStatusSchema,
     changeNotes: z.string().trim().max(1000),

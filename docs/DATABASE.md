@@ -159,7 +159,11 @@ yang otomatis terpilih saat membuat WO produk ini.
 **`patterns`** — kode pola: `id`, `code` (unik, mis. `P-133`), `notes`, `is_active`, timestamps.
 **`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `is_active`, timestamps. Dipakai
 sebagai bahan utama **dan** bahan kombinasi WO.
-**`fabric_colors`** — `id`, `fabric_id`, `name`; unik per bahan.
+**`fabric_series`** — seri bahan: `id`, `fabric_id`, `name` (mis. `SERI 1`), `is_active`;
+unik per bahan. Satu bahan bisa punya beberapa seri, masing-masing dengan
+daftar warna sendiri.
+**`fabric_colors`** — `id`, `series_id`, `fabric_id` (diisi otomatis dari seri), `name`;
+unik per seri (warna yang sama boleh ada di seri lain).
 **`sizes`** — `id`, `name` (unik, mis. `MIDI`), `sort_order`.
 
 **Keseragaman penulisan.** Trigger `normalize_labels` merapikan setiap simpan:
@@ -203,6 +207,7 @@ Fungsi `wage_rate_on(category, date)` → tarif yang berlaku pada tanggal itu.
 | product_id             | uuid              | FK → products (kategori wajib terisi)                                        |
 | pattern_id             | uuid              | FK → patterns, null; default = pola bawaan produk                            |
 | fabric_id              | uuid              | FK → fabrics                                                                 |
+| fabric_series_id       | uuid              | FK → fabric_series milik `fabric_id`; warna item harus dari seri ini         |
 | fabric_combination_id  | uuid              | FK → fabrics, null; tidak boleh sama dengan `fabric_id`                      |
 | cutter_id              | uuid              | FK → cutters                                                                 |
 | change_status          | change_status     |                                                                              |
