@@ -67,7 +67,11 @@ export function NamedItemDialog({
   })
 
   const onSubmit = form.handleSubmit(({ name }) =>
-    onSave({ name, isActive }, () => form.setError('name', { message: 'Nama sudah ada' })),
+    onSave({ name, isActive }, () =>
+      form.setError('name', {
+        message: 'Sudah ada (beda spasi, tanda baca, atau huruf besar/kecil dianggap sama)',
+      }),
+    ),
   )
 
   return (

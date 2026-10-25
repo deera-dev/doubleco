@@ -17,6 +17,13 @@ function text(warning: ServerWarning, key: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '-'
 }
 
+function tailorOf(warning: ServerWarning): string {
+  const code = warning.tailor_code
+  const name = warning.tailor_name
+  if (typeof name !== 'string') return 'Penjahit ini'
+  return typeof code === 'string' ? `${name} (kode ${code})` : name
+}
+
 export function describeWarning(warning: ServerWarning): string {
   switch (warning.code) {
     case 'SIMILAR_TAILOR_NAME':
@@ -24,7 +31,11 @@ export function describeWarning(warning: ServerWarning): string {
     case 'ACCOUNT_NUMBER_USED':
       return `Nomor rekening sudah dipakai ${text(warning, 'name')} (kode ${text(warning, 'tailor_code')}).`
     case 'TAILOR_HAS_OPEN_CARD':
-      return `Masih memegang kartu ${text(warning, 'card_number')} yang belum selesai.`
+      return `${tailorOf(warning)} masih memegang kartu ${text(warning, 'card_number')} yang belum disetor.`
+    case 'DUPLICATE_CARD':
+      return `${tailorOf(warning)} sudah punya kartu ${text(warning, 'card_number')} (${text(warning, 'quantity')} pcs) untuk ukuran dan warna yang sama.`
+    case 'TAILOR_MULTIPLE_CARDS_IN_BATCH':
+      return `${tailorOf(warning)} mendapat lebih dari satu kartu sekaligus.`
     case 'DUPLICATE_CASH_ADVANCE':
       return 'Kasbon dengan nominal dan tanggal yang sama sudah dicatat.'
     case 'SIMILAR_WORK_ORDER_ACTIVE':

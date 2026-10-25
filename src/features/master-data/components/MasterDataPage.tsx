@@ -3,13 +3,21 @@ import { toast } from 'sonner'
 import {
   useRemoveMasterData,
   useSaveFabric,
+  useSavePattern,
   useSaveSize,
 } from '@/features/master-data/api/mutations'
 import { useMasterData } from '@/features/master-data/api/queries'
-import type { Fabric, FabricColor, MasterData, Size } from '@/features/master-data/api/schema'
+import type {
+  Fabric,
+  FabricColor,
+  MasterData,
+  Pattern,
+  Size,
+} from '@/features/master-data/api/schema'
 import { NamedItemDialog } from '@/features/master-data/components/NamedItemDialog'
 import {
   FabricsPanel,
+  PatternsPanel,
   ProductsPanel,
   SizesPanel,
   WageRatesPanel,
@@ -28,6 +36,7 @@ import { toAppError } from '@/shared/types/errors'
 
 const addLabels: Record<MasterDataTab, string> = {
   products: 'Produk',
+  patterns: 'Pola',
   fabrics: 'Bahan',
   sizes: 'Ukuran',
   wages: 'Tarif',
@@ -41,6 +50,16 @@ function exportTab(tab: MasterDataTab, data: MasterData) {
         { header: 'Kode produk', value: (row) => row.code },
         { header: 'Nama', value: (row) => row.name },
         { header: 'Kategori', value: (row) => row.category },
+        {
+          header: 'Kode pola bawaan',
+          value: (row) =>
+            data.patterns.find((pattern) => pattern.id === row.defaultPatternId)?.code ?? null,
+        },
+        { header: 'Aktif', value: (row) => (row.isActive ? 'Ya' : 'Tidak') },
+      ])
+    case 'patterns':
+      return downloadCsv(`kode-pola-${date}.csv`, data.patterns, [
+        { header: 'Kode pola', value: (row) => row.code },
         { header: 'Aktif', value: (row) => (row.isActive ? 'Ya' : 'Tidak') },
       ])
     case 'fabrics':
@@ -126,6 +145,54 @@ function FabricEditor({ fabric }: { fabric: Fabric | null }) {
   )
 }
 
+function PatternEditor({ pattern }: { pattern: Pattern | null }) {
+  const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
+  const savePattern = useSavePattern()
+  const remove = useRemoveMasterData()
+
+  return (
+    <NamedItemDialog
+      title={pattern ? `Ubah ${pattern.code}` : 'Tambah kode pola'}
+      description="Kode pola dipilih saat membuat WO, jadi cukup diketik sekali di sini."
+      nameLabel="Kode pola"
+      placeholder="P-133"
+      initialName={pattern?.code ?? ''}
+      initialActive={pattern?.isActive ?? true}
+      canDelete={pattern !== null}
+      isSaving={savePattern.isPending}
+      isDeleting={remove.isPending}
+      saveError={savePattern.error}
+      onClose={closeEditor}
+      onSave={({ name, isActive }, onDuplicate) =>
+        savePattern.mutate(
+          { id: pattern?.id ?? null, code: name, isActive },
+          {
+            onSuccess: () => {
+              toast.success(pattern ? 'Kode pola diperbarui' : `${name} ditambahkan`)
+              closeEditor()
+            },
+            onError: (error) =>
+              error.kind === 'business' && error.code === 'DUPLICATE' && onDuplicate(),
+          },
+        )
+      }
+      onDelete={() =>
+        pattern &&
+        remove.mutate(
+          { kind: 'pattern', id: pattern.id },
+          {
+            onSuccess: () => {
+              toast.success(`${pattern.code} dihapus`)
+              closeEditor()
+            },
+            onError: (error) => toast.error(describeError(error)),
+          },
+        )
+      }
+    />
+  )
+}
+
 function SizeEditor({ size, nextSortOrder }: { size: Size | null; nextSortOrder: number }) {
   const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
   const saveSize = useSaveSize()
@@ -178,7 +245,15 @@ function Editors({ data }: { data: MasterData }) {
   const editor = useMasterDataUiStore((state) => state.editor)
   switch (editor.kind) {
     case 'product':
-      return <ProductDialog product={editor.product} wageRates={data.wageRates} />
+      return (
+        <ProductDialog
+          product={editor.product}
+          wageRates={data.wageRates}
+          patterns={data.patterns}
+        />
+      )
+    case 'pattern':
+      return <PatternEditor pattern={editor.pattern} />
     case 'fabric':
       return <FabricEditor fabric={editor.fabric} />
     case 'size':
@@ -203,6 +278,8 @@ export function MasterDataPage() {
     switch (tab) {
       case 'products':
         return openEditor({ kind: 'product', product: null })
+      case 'patterns':
+        return openEditor({ kind: 'pattern', pattern: null })
       case 'fabrics':
         return openEditor({ kind: 'fabric', fabric: null })
       case 'sizes':
@@ -217,7 +294,7 @@ export function MasterDataPage() {
       <PageHeader
         eyebrow="Data"
         title="Master Data"
-        description="Produk, bahan & warna, ukuran, dan tarif upah. Diisi sekali, dipakai di semua kartu."
+        description="Produk, kode pola, bahan & warna, ukuran, dan tarif upah. Diisi sekali di sini, lalu tinggal dipilih di WO dan kartu jahit."
         actions={
           <>
             <Button
@@ -244,6 +321,7 @@ export function MasterDataPage() {
         className="stagger-1 w-fit max-w-full animate-rise"
         options={[
           { value: 'products', label: 'Produk', count: data?.products.length },
+          { value: 'patterns', label: 'Pola', count: data?.patterns.length },
           { value: 'fabrics', label: 'Bahan & warna', count: data?.fabrics.length },
           { value: 'sizes', label: 'Ukuran', count: data?.sizes.length },
           { value: 'wages', label: 'Tarif upah' },
@@ -259,6 +337,7 @@ export function MasterDataPage() {
       ) : (
         <div key={tab} className="stagger-2 animate-rise">
           {tab === 'products' && <ProductsPanel data={masterData.data} />}
+          {tab === 'patterns' && <PatternsPanel data={masterData.data} />}
           {tab === 'fabrics' && <FabricsPanel data={masterData.data} />}
           {tab === 'sizes' && <SizesPanel data={masterData.data} />}
           {tab === 'wages' && <WageRatesPanel data={masterData.data} />}

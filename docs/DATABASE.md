@@ -153,9 +153,22 @@ Rekening lama tidak dihapus, hanya dinonaktifkan (riwayat). Index biasa pada
 | is_active              | boolean       |                                                         |
 | created_at, updated_at | timestamptz   |                                                         |
 
-**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `is_active`, timestamps.
-**`fabric_colors`** — `id`, `fabric_id`, `name`; unik (`fabric_id`, lower(`name`)).
+`default_pattern_id` (FK → patterns, null, `on delete set null`) — kode pola
+yang otomatis terpilih saat membuat WO produk ini.
+
+**`patterns`** — kode pola: `id`, `code` (unik, mis. `P-133`), `notes`, `is_active`, timestamps.
+**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `is_active`, timestamps. Dipakai
+sebagai bahan utama **dan** bahan kombinasi WO.
+**`fabric_colors`** — `id`, `fabric_id`, `name`; unik per bahan.
 **`sizes`** — `id`, `name` (unik, mis. `MIDI`), `sort_order`.
+
+**Keseragaman penulisan.** Trigger `normalize_labels` merapikan setiap simpan:
+kode/nama master (produk, pola, bahan, warna, ukuran, tukang potong, nama
+penjahit) jadi HURUF BESAR dengan spasi tunggal; nama model produk dan catatan
+hanya dirapikan spasinya. Keunikan memakai `label_key()` (huruf kecil, hanya
+a–z dan 0–9), jadi `BLACK SWAN`, `black-swan`, dan `BlackSwan` dianggap
+**data yang sama** dan ditolak sebagai duplikat. Akibatnya WO dan kartu jahit
+cukup memilih dari daftar, tidak ada ketik ulang.
 
 **`wage_rates`** — tarif per kategori, tidak pernah ditimpa
 
@@ -180,14 +193,14 @@ Fungsi `wage_rate_on(category, date)` → tarif yang berlaku pada tanggal itu.
 | number                 | text              | **unik**; default `WO_<kode_produk>`, `_2`, `_3` bila sudah ada; bisa diedit |
 | ordered_on             | date              | tanggal WO                                                                   |
 | product_id             | uuid              | FK → products (kategori wajib terisi)                                        |
-| pattern_code           | text              | kode pola                                                                    |
+| pattern_id             | uuid              | FK → patterns, null; default = pola bawaan produk                            |
 | fabric_id              | uuid              | FK → fabrics                                                                 |
-| fabric_combination     | text              | kombinasi, mis. `ORB`                                                        |
+| fabric_combination_id  | uuid              | FK → fabrics, null; tidak boleh sama dengan `fabric_id`                      |
 | cutter_id              | uuid              | FK → cutters                                                                 |
 | change_status          | change_status     |                                                                              |
 | change_notes           | text              | wajib jika `changed`                                                         |
 | additional_info        | text              | info lebih lanjut                                                            |
-| sample_photo_public_id | text              | null = pakai foto produk                                                     |
+| sample_photo_public_id | text              | Path foto sampel di bucket privat `work-order-photos` (Supabase Storage)     |
 | status                 | work_order_status | diperbarui oleh fungsi, bukan diisi manual                                   |
 | created_by             | uuid              | FK → profiles                                                                |
 | created_at, updated_at | timestamptz       |                                                                              |

@@ -5,7 +5,7 @@ import { callAction } from '@/shared/lib/bff-action'
 import { queryClient } from '@/shared/lib/query-client'
 import type { AppError } from '@/shared/types/errors'
 
-export type RemovableKind = 'product' | 'fabric' | 'color' | 'size' | 'wage_rate'
+export type RemovableKind = 'product' | 'fabric' | 'color' | 'size' | 'pattern' | 'wage_rate'
 
 function useMasterDataAction<Input extends object>(action: string) {
   return useMutation<{ id: string }, AppError, Input>({
@@ -20,8 +20,12 @@ export const useSaveProduct = () =>
     code: string
     name: string | null
     category: WageCategory | null
+    defaultPatternId: string | null
     isActive: boolean
   }>('save_product')
+
+export const useSavePattern = () =>
+  useMasterDataAction<{ id: string | null; code: string; isActive: boolean }>('save_pattern')
 
 export const useSaveFabric = () =>
   useMasterDataAction<{ id: string | null; name: string; isActive: boolean }>('save_fabric')
