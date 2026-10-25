@@ -115,7 +115,7 @@ export const workOrderFormSchema = z
     cutter: requiredLabel('Isi tukang potong'),
     pattern: z.string().trim().max(40),
     fabric: requiredLabel('Isi bahan'),
-    series: requiredLabel('Isi seri bahan'),
+    series: z.string().trim().max(40),
     combination: z.string().trim().max(60),
     changeStatus: changeStatusSchema,
     changeNotes: z.string().trim().max(1000),

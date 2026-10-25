@@ -34,7 +34,7 @@ export function LabelChipPicker({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {chips.length > 0 && (
         <ChipToggleGroup
           label={label}
@@ -46,7 +46,7 @@ export function LabelChipPicker({
           onChange={onChange}
         />
       )}
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <Input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -57,13 +57,13 @@ export function LabelChipPicker({
           aria-label={addPlaceholder}
           autoCapitalize="characters"
           autoComplete="off"
-          className="h-11 uppercase placeholder:normal-case"
+          className="h-12 uppercase placeholder:normal-case"
         />
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="size-11 shrink-0"
+          className="size-12 shrink-0"
           aria-label={addPlaceholder}
           onClick={() => add()}
           disabled={labelKey(draft) === ''}

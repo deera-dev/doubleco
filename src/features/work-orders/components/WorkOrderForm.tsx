@@ -18,6 +18,10 @@ import {
   workOrderFormSchema,
 } from '@/features/work-orders/api/schema'
 import {
+  DEFAULT_SERIES,
+  SeriesColorPicker,
+} from '@/features/work-orders/components/SeriesColorPicker'
+import {
   composeProductCode,
   cutterInitial,
   parseProductCode,
@@ -89,7 +93,7 @@ function toPayload(values: WorkOrderFormValues, keepProduct: string | null): Wor
     category: values.category === '' ? null : values.category,
     fabric: normalizeLabel(values.fabric),
     fabricCode: normalizeLabel(values.fabricCode) || null,
-    series: normalizeLabel(values.series),
+    series: normalizeLabel(values.series) || DEFAULT_SERIES,
     cutter: normalizeLabel(values.cutter),
     pattern: values.pattern ? normalizeLabel(values.pattern) : null,
     combination: values.combination ? normalizeLabel(values.combination) : null,
@@ -344,9 +348,6 @@ function FormFields({
   const series = form.watch('series')
   const isFabricLocked = workOrder !== null
   const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
-  const seriesMatch = fabricMatch
-    ? findByLabel(fabricMatch.series, series, (candidate) => candidate.name)
-    : undefined
   const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
     [...options.fabrics]
       .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
@@ -362,7 +363,7 @@ function FormFields({
     }
     const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
     form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
-    form.setValue('series', match?.series.length === 1 ? (match.series[0]?.name ?? '') : '')
+    form.setValue('series', match?.series[0]?.name ?? '')
     form.setValue('colors', [])
     if (match?.code && !form.getFieldState('fabricCode').isDirty) {
       form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
@@ -476,35 +477,6 @@ function FormFields({
           />
           <FormField
             control={form.control}
-            name="series"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Seri</FormLabel>
-                <FormControl>
-                  <Combobox
-                    ref={field.ref}
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={(value) => {
-                      if (labelKey(value) !== labelKey(field.value)) form.setValue('colors', [])
-                      field.onChange(value)
-                    }}
-                    onBlur={field.onBlur}
-                    disabled={isFabricLocked}
-                    placeholder="Mis. SERI 1"
-                    options={(fabricMatch?.series ?? []).map((candidate) => ({
-                      label: candidate.name,
-                      hint: `${candidate.colors.length} warna`,
-                    }))}
-                    newHint={labelKey(fabric) === '' ? undefined : NEW_HINT}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="combination"
             render={({ field }) => (
               <FormItem>
@@ -542,15 +514,17 @@ function FormFields({
             </FormItem>
             <FormItem>
               <FormLabel>Warna</FormLabel>
-              {labelKey(fabric) === '' || labelKey(series) === '' ? (
-                <p className="text-muted-foreground text-sm">Isi bahan dan seri dulu.</p>
+              {labelKey(fabric) === '' ? (
+                <p className="text-muted-foreground text-sm">Isi bahan dulu.</p>
               ) : (
-                <LabelChipPicker
-                  label="Warna"
-                  options={seriesMatch?.colors.map((color) => color.name) ?? []}
-                  selected={colors}
-                  onChange={(value) => form.setValue('colors', value)}
-                  addPlaceholder={`Warna ${normalizeLabel(series)} lain`}
+                <SeriesColorPicker
+                  series={fabricMatch?.series ?? []}
+                  selectedSeries={series}
+                  colors={colors}
+                  onChange={(nextSeries, nextColors) => {
+                    form.setValue('series', nextSeries)
+                    form.setValue('colors', nextColors)
+                  }}
                 />
               )}
             </FormItem>
@@ -723,7 +697,7 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
                 {describeError(saveError)}
               </p>
             )}
-            <div className="chrome hide-with-keyboard sticky bottom-28 z-20 flex justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
+            <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
               <Button asChild type="button" variant="ghost" size="lg">
                 <Link
                   to={workOrder ? '/work-order/$id' : '/work-order'}

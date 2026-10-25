@@ -290,7 +290,7 @@ function SplitForm({ options }: { options: SplitOptions }) {
         )}
       </section>
 
-      <div className="chrome hide-with-keyboard sticky bottom-28 z-20 flex items-center justify-between gap-3 rounded-2xl border p-3 lg:bottom-4">
+      <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex items-center justify-between gap-3 rounded-2xl border p-3 lg:bottom-4">
         <p className="pl-1 text-muted-foreground text-sm">
           <span className="font-mono font-semibold text-foreground tabular-nums">
             {drafts.length}
