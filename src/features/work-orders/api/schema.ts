@@ -73,6 +73,7 @@ export const formOptionsSchema = z.object({
     z.object({
       id: z.string().uuid(),
       name: z.string(),
+      kind: z.enum(['motif', 'plain']),
       series: z.array(
         z.object({
           id: z.string().uuid(),

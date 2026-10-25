@@ -24,6 +24,7 @@ interface PatternRow {
 interface FabricRow {
   id: string
   name: string
+  kind: 'motif' | 'plain'
   is_active: boolean
   fabric_series: {
     id: string
@@ -60,7 +61,7 @@ const overview = defineAction({
       supabase.from('products').select('id, code, name, wage_category, default_pattern_id, is_active').order('code'),
       supabase
         .from('fabrics')
-        .select('id, name, is_active, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
+        .select('id, name, kind, is_active, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
         .order('name'),
       supabase.from('sizes').select('id, name, sort_order, is_active').order('sort_order').order('name'),
       supabase
@@ -91,6 +92,7 @@ const overview = defineAction({
       fabrics: unwrap<FabricRow[]>(fabrics).map((fabric) => ({
         id: fabric.id,
         name: fabric.name,
+        kind: fabric.kind,
         isActive: fabric.is_active,
         series: fabric.fabric_series
           .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
@@ -159,11 +161,12 @@ const saveFabric = defineAction({
   input: z.object({
     id: optionalId,
     name: z.string().trim().min(1).max(60),
+    kind: z.enum(['motif', 'plain']).default('motif'),
     isActive: z.boolean().default(true),
   }),
-  run: async ({ id, name, isActive }, request) => {
+  run: async ({ id, name, kind, isActive }, request) => {
     const supabase = createUserClient(request)
-    const row = { name, is_active: isActive }
+    const row = { name, kind, is_active: isActive }
     const saved = unwrap(
       id
         ? await supabase.from('fabrics').update(row).eq('id', id).select('id').single()

@@ -157,7 +157,8 @@ Rekening lama tidak dihapus, hanya dinonaktifkan (riwayat). Index biasa pada
 yang otomatis terpilih saat membuat WO produk ini.
 
 **`patterns`** — kode pola: `id`, `code` (unik, mis. `P-133`), `notes`, `is_active`, timestamps.
-**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `is_active`, timestamps. Dipakai
+**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `kind` (`motif` / `plain` = polos,
+biasanya untuk kombinasi; default `motif`), `is_active`, timestamps. Dipakai
 sebagai bahan utama **dan** bahan kombinasi WO.
 **`fabric_series`** — seri bahan: `id`, `fabric_id`, `name` (mis. `SERI 1`), `is_active`;
 unik per bahan. Satu bahan bisa punya beberapa seri, masing-masing dengan

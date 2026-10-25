@@ -35,7 +35,12 @@ export const useSavePattern = () =>
   useMasterDataAction<{ id: string | null; code: string; isActive: boolean }>('save_pattern')
 
 export const useSaveFabric = () =>
-  useMasterDataAction<{ id: string | null; name: string; isActive: boolean }>('save_fabric')
+  useMasterDataAction<{
+    id: string | null
+    name: string
+    kind: 'motif' | 'plain'
+    isActive: boolean
+  }>('save_fabric')
 
 export const useSaveSeries = () =>
   useMasterDataAction<{ id: string | null; fabricId: string; name: string; isActive: boolean }>(

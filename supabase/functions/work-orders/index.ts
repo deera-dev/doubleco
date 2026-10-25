@@ -187,6 +187,7 @@ const get = defineAction({
 interface FabricOptionRow {
   id: string
   name: string
+  kind: 'motif' | 'plain'
   fabric_series: {
     id: string
     name: string
@@ -208,7 +209,7 @@ const formOptions = defineAction({
         .order('code'),
       supabase
         .from('fabrics')
-        .select('id, name, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
+        .select('id, name, kind, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
         .eq('is_active', true)
         .order('name'),
       supabase.from('sizes').select('id, name').eq('is_active', true).order('sort_order').order('name'),
@@ -234,6 +235,7 @@ const formOptions = defineAction({
       fabrics: unwrap<FabricOptionRow[]>(fabrics).map((fabric) => ({
         id: fabric.id,
         name: fabric.name,
+        kind: fabric.kind,
         series: fabric.fabric_series
           .filter((series) => series.is_active)
           .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
@@ -333,7 +335,7 @@ async function resolveMaster(
     seriesId: await ensureLabel(supabase, 'series', input.series, fabricId),
     cutterId: await ensureLabel(supabase, 'cutter', input.cutter),
     patternId: input.pattern ? await ensureLabel(supabase, 'pattern', input.pattern) : null,
-    combinationId: input.combination ? await ensureLabel(supabase, 'fabric', input.combination) : null,
+    combinationId: input.combination ? await ensureLabel(supabase, 'combination', input.combination) : null,
   }
 }
 

@@ -1,3 +1,12 @@
+create type public.fabric_kind as enum ('motif', 'plain');
+
+alter table public.fabrics add column kind public.fabric_kind not null default 'motif';
+
+update public.fabrics f
+set kind = 'plain'
+where exists (select 1 from public.work_orders wo where wo.fabric_combination_id = f.id)
+  and not exists (select 1 from public.work_orders wo where wo.fabric_id = f.id);
+
 create table public.fabric_series (
   id uuid primary key default gen_random_uuid(),
   fabric_id uuid not null references public.fabrics (id) on delete cascade,
@@ -247,10 +256,12 @@ begin
       else
         update public.products set is_active = true where id = found and not is_active;
       end if;
-    when 'fabric' then
+    when 'fabric', 'combination' then
       select id into found from public.fabrics where public.label_key(name) = key;
       if found is null then
-        insert into public.fabrics (name) values (clean) returning id into found;
+        insert into public.fabrics (name, kind)
+        values (clean, case when p_kind = 'combination' then 'plain' else 'motif' end::public.fabric_kind)
+        returning id into found;
       else
         update public.fabrics set is_active = true where id = found and not is_active;
       end if;

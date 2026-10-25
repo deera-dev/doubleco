@@ -224,10 +224,13 @@ function FormFields({
   const seriesMatch = fabricMatch
     ? findByLabel(fabricMatch.series, series, (candidate) => candidate.name)
     : undefined
-  const fabricOptions = options.fabrics.map((candidate) => ({
-    label: candidate.name,
-    hint: `${candidate.series.length} seri`,
-  }))
+  const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
+    [...options.fabrics]
+      .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
+      .map((candidate) => ({
+        label: candidate.name,
+        hint: `${candidate.kind === 'motif' ? 'motif' : 'polos'} · ${candidate.series.length} seri`,
+      }))
 
   const onFabricChange = (value: string) => {
     if (labelKey(value) === labelKey(fabric)) {
@@ -338,7 +341,7 @@ function FormFields({
                     onBlur={field.onBlur}
                     disabled={isFabricLocked}
                     placeholder="Mis. BLACK SWAN"
-                    options={fabricOptions}
+                    options={fabricOptionsFor('motif')}
                     newHint={NEW_HINT}
                   />
                 </FormControl>
@@ -380,7 +383,7 @@ function FormFields({
             name="combination"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Kombinasi (opsional)</FormLabel>
+                <FormLabel>Kombinasi · bahan polos (opsional)</FormLabel>
                 <FormControl>
                   <Combobox
                     ref={field.ref}
@@ -389,7 +392,7 @@ function FormFields({
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="Mis. ORB"
-                    options={fabricOptions.filter(
+                    options={fabricOptionsFor('plain').filter(
                       (option) => labelKey(option.label) !== labelKey(fabric),
                     )}
                     newHint={NEW_HINT}

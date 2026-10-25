@@ -346,12 +346,34 @@ export function FabricsPanel({ data }: { data: MasterData }) {
     )
   }
 
+  const groups = [
+    {
+      kind: 'motif',
+      title: 'Bahan motif',
+      fabrics: data.fabrics.filter((f) => f.kind === 'motif'),
+    },
+    {
+      kind: 'plain',
+      title: 'Bahan polos · untuk kombinasi',
+      fabrics: data.fabrics.filter((f) => f.kind === 'plain'),
+    },
+  ].filter((group) => group.fabrics.length > 0)
+
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {data.fabrics.map((fabric) => (
-        <FabricCard key={fabric.id} fabric={fabric} />
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <section key={group.kind} className="space-y-3">
+          <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+            {group.title} · {group.fabrics.length}
+          </h2>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {group.fabrics.map((fabric) => (
+              <FabricCard key={fabric.id} fabric={fabric} />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   )
 }
 
