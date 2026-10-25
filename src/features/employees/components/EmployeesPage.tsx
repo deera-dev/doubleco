@@ -1,10 +1,10 @@
-import { Download, Plus, Search, Users } from 'lucide-react'
+import { Download, Plus, Search, Timer, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployees } from '@/features/employees/api/queries'
 import type { Employee } from '@/features/employees/api/schema'
 import { CutterDialog } from '@/features/employees/components/CutterDialog'
 import { EmployeeRow } from '@/features/employees/components/EmployeeRow'
-import { LeaveDialog } from '@/features/employees/components/LeaveDialog'
+import { RetentionDialog } from '@/features/employees/components/RetentionDialog'
 import { TailorDialog } from '@/features/employees/components/TailorDialog'
 import { useEmployeesUiStore } from '@/features/employees/store'
 import { EmptyState } from '@/shared/components/EmptyState'
@@ -21,7 +21,6 @@ import { toAppError } from '@/shared/types/errors'
 const statusLabels: Record<Employee['status'], string> = {
   active: 'Aktif',
   inactive: 'Tidak aktif',
-  left: 'Keluar',
 }
 
 const exportColumns: CsvColumn<Employee>[] = [
@@ -29,7 +28,7 @@ const exportColumns: CsvColumn<Employee>[] = [
   { header: 'Kode', value: (row) => row.code },
   { header: 'Nama', value: (row) => row.name },
   { header: 'Status', value: (row) => statusLabels[row.status] },
-  { header: 'Tanggal keluar', value: (row) => row.leftOn },
+  { header: 'Terhapus otomatis', value: (row) => row.purgeOn },
   { header: 'No. HP', value: (row) => row.phone },
   { header: 'Bank/E-wallet', value: (row) => row.account?.provider ?? null },
   { header: 'No. rekening', value: (row) => (row.account ? `'${row.account.number}` : null) },
@@ -45,8 +44,8 @@ function Editors() {
       return <TailorDialog employee={editor.employee} />
     case 'cutter':
       return <CutterDialog employee={editor.employee} />
-    case 'leave':
-      return <LeaveDialog employee={editor.employee} />
+    case 'retention':
+      return <RetentionDialog days={editor.days} />
     case 'closed':
       return null
   }
@@ -89,6 +88,20 @@ export function EmployeesPage() {
         }
         actions={
           <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!employees.data}
+              onClick={() =>
+                employees.data &&
+                openEditor({ kind: 'retention', days: employees.data.retentionDays })
+              }
+            >
+              <Timer />
+              {employees.data
+                ? `Hapus otomatis ${employees.data.retentionDays} hari`
+                : 'Hapus otomatis'}
+            </Button>
             <Button type="button" variant="outline" onClick={exportList}>
               <Download />
               Export
@@ -117,7 +130,6 @@ export function EmployeesPage() {
           options={[
             { value: 'active', label: 'Aktif', count: summary?.active },
             { value: 'inactive', label: 'Tidak aktif', count: summary?.inactive },
-            { value: 'left', label: 'Keluar', count: summary?.left },
             { value: 'all', label: 'Semua', count: summary?.all },
           ]}
         />

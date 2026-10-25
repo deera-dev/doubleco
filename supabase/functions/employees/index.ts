@@ -2,7 +2,7 @@ import { z } from 'npm:zod@4'
 import { defineAction, Rejection, serveActions, unwrap } from '../_shared/actions.ts'
 import { createUserClient } from '../_shared/supabase.ts'
 
-const statusFilter = z.enum(['active', 'inactive', 'left', 'all']).default('active')
+const statusFilter = z.enum(['active', 'inactive', 'all']).default('active')
 const typeFilter = z.enum(['tailor', 'cutter', 'all']).default('all')
 
 const accountInput = z
@@ -20,8 +20,8 @@ interface TailorRow {
   name: string
   phone: string | null
   notes: string | null
-  status: 'active' | 'inactive' | 'left'
-  left_on: string | null
+  status: 'active' | 'inactive'
+  inactive_since: string | null
   tailor_payment_accounts: {
     account_type: 'bank' | 'ewallet'
     provider: string
@@ -35,6 +35,15 @@ interface CutterRow {
   id: string
   name: string
   is_active: boolean
+  inactive_since: string | null
+}
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+
+function purgeDate(inactiveSince: string | null, retentionDays: number): string | null {
+  if (!inactiveSince) return null
+  const purgeAt = new Date(new Date(inactiveSince).getTime() + retentionDays * DAY_IN_MS)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(purgeAt)
 }
 
 function compareCodes(a: string | null, b: string | null): number {
@@ -52,15 +61,21 @@ const list = defineAction({
   }),
   run: async ({ status, type, search }, request) => {
     const supabase = createUserClient(request)
-    const [tailors, cutters, balances] = await Promise.all([
+    const purge = await supabase.rpc('purge_inactive_employees')
+    if (purge.error && purge.error.message !== 'FORBIDDEN') unwrap(purge)
+
+    const [tailors, cutters, balances, retention] = await Promise.all([
       supabase
         .from('tailors')
         .select(
-          'id, code, name, phone, notes, status, left_on, tailor_payment_accounts(account_type, provider, account_number, account_holder, is_active)',
-        ),
-      supabase.from('cutters').select('id, name, is_active'),
+          'id, code, name, phone, notes, status, inactive_since, tailor_payment_accounts(account_type, provider, account_number, account_holder, is_active)',
+        )
+        .is('archived_at', null),
+      supabase.from('cutters').select('id, name, is_active, inactive_since').is('archived_at', null),
       supabase.from('tailor_advance_balances').select('tailor_id, balance'),
+      supabase.rpc('employee_retention_days'),
     ])
+    const retentionDays = Number(unwrap(retention))
 
     const balanceByTailor = new Map(
       unwrap(balances).map((row: { tailor_id: string; balance: number }) => [row.tailor_id, row.balance]),
@@ -77,7 +92,7 @@ const list = defineAction({
           phone: tailor.phone,
           notes: tailor.notes,
           status: tailor.status,
-          leftOn: tailor.left_on,
+          purgeOn: purgeDate(tailor.inactive_since, retentionDays),
           account: account
             ? {
                 type: account.account_type,
@@ -97,7 +112,7 @@ const list = defineAction({
         phone: null,
         notes: null,
         status: cutter.is_active ? ('active' as const) : ('inactive' as const),
-        leftOn: null,
+        purgeOn: purgeDate(cutter.inactive_since, retentionDays),
         account: null,
         advanceBalance: 0,
       })),
@@ -118,10 +133,10 @@ const list = defineAction({
       )
 
     return {
+      retentionDays,
       summary: {
         active: ofType.filter((employee) => employee.status === 'active').length,
         inactive: ofType.filter((employee) => employee.status === 'inactive').length,
-        left: ofType.filter((employee) => employee.status === 'left').length,
         all: ofType.length,
       },
       employees: matches,
@@ -174,24 +189,19 @@ const setTailorStatus = defineAction({
   },
 })
 
-const markTailorLeft = defineAction({
-  input: z.object({
-    id: z.string().uuid(),
-    leftOn: z.string().date().nullable().default(null),
-    notes: z.string().trim().max(200).nullable().default(null),
-    confirmed: z.boolean().default(false),
-  }),
-  run: async ({ id, leftOn, notes, confirmed }, request) => {
+const setRetentionDays = defineAction({
+  input: z.object({ days: z.number().int().min(7).max(3650) }),
+  run: async ({ days }, request) => {
     const supabase = createUserClient(request)
-    const result = unwrap(
-      await supabase.rpc('mark_tailor_left', {
-        p_tailor_id: id,
-        p_left_on: leftOn,
-        p_notes: notes,
-        p_confirmed: confirmed,
-      }),
-    ) as { written_off: number }
-    return { writtenOff: Number(result.written_off) }
+    unwrap(
+      await supabase
+        .from('app_settings')
+        .update({ value: days })
+        .eq('key', 'employee_inactive_retention_days')
+        .select('id')
+        .single(),
+    )
+    return { days }
   },
 })
 
@@ -200,7 +210,14 @@ const deleteTailor = defineAction({
   run: async ({ id }, request) => {
     const supabase = createUserClient(request)
     const usages = await Promise.all(
-      ['sewing_cards', 'cash_advance_entries', 'payroll_lines', 'legacy_wage_records'].map((table) =>
+      [
+        'sewing_cards',
+        'cash_advance_entries',
+        'payroll_lines',
+        'deduction_proposals',
+        'legacy_wage_records',
+        'legacy_deposit_records',
+      ].map((table) =>
         supabase.from(table).select('id', { count: 'exact', head: true }).eq('tailor_id', id),
       ),
     )
@@ -242,7 +259,7 @@ serveActions({
   list,
   save_tailor: saveTailor,
   set_tailor_status: setTailorStatus,
-  mark_tailor_left: markTailorLeft,
+  set_retention_days: setRetentionDays,
   delete_tailor: deleteTailor,
   save_cutter: saveCutter,
   delete_cutter: deleteCutter,

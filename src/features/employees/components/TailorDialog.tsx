@@ -39,7 +39,7 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
-import { formatRupiah } from '@/shared/lib/format'
+import { formatIsoDate, formatRupiah } from '@/shared/lib/format'
 import { confirmationWarnings } from '@/shared/lib/warnings'
 
 const providerSuggestions = [
@@ -89,7 +89,6 @@ function toPayload(id: string | null, values: TailorFormValues): SaveTailorInput
 }
 
 function StatusActions({ employee }: { employee: Employee }) {
-  const openEditor = useEmployeesUiStore((state) => state.openEditor)
   const closeEditor = useEmployeesUiStore((state) => state.closeEditor)
   const setStatus = useSetTailorStatus()
   const deleteTailor = useDeleteTailor()
@@ -120,6 +119,11 @@ function StatusActions({ employee }: { employee: Employee }) {
   return (
     <div className="mt-6 space-y-2 border-t pt-5">
       <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</p>
+      <p className="text-muted-foreground text-sm">
+        {employee.status === 'inactive' && employee.purgeOn
+          ? `Tidak aktif. Terhapus otomatis ${formatIsoDate(employee.purgeOn)} kecuali diaktifkan kembali.`
+          : 'Penjahit yang dinonaktifkan akan terhapus otomatis setelah masa tidak aktif berakhir.'}
+      </p>
       <div className="grid gap-2 sm:grid-cols-2">
         {employee.status === 'active' ? (
           <Button
@@ -137,21 +141,11 @@ function StatusActions({ employee }: { employee: Employee }) {
             onClick={() => changeStatus('active')}
             disabled={setStatus.isPending}
           >
-            {employee.status === 'left' ? 'Aktifkan kembali' : 'Aktifkan'}
-          </Button>
-        )}
-        {employee.status !== 'left' && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => openEditor({ kind: 'leave', employee })}
-          >
-            Tandai keluar
+            Aktifkan kembali
           </Button>
         )}
         <ConfirmDeleteButton
           label="Hapus penjahit"
-          className="sm:col-span-2"
           onConfirm={remove}
           isPending={deleteTailor.isPending}
         />

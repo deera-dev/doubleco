@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { employeeKeys } from '@/features/employees/api/queries'
-import { leftResultSchema, savedIdSchema } from '@/features/employees/api/schema'
+import { retentionResultSchema, savedIdSchema } from '@/features/employees/api/schema'
 import { callAction } from '@/shared/lib/bff-action'
 import { queryClient } from '@/shared/lib/query-client'
 import type { AppError } from '@/shared/types/errors'
@@ -38,10 +38,9 @@ export function useSetTailorStatus() {
   )
 }
 
-export function useMarkTailorLeft() {
-  return useEmployeeAction(
-    (input: { id: string; leftOn: string; notes: string | null; confirmed: boolean }) =>
-      callAction('employees', 'mark_tailor_left', leftResultSchema, input),
+export function useSetRetentionDays() {
+  return useEmployeeAction((input: { days: number }) =>
+    callAction('employees', 'set_retention_days', retentionResultSchema, input),
   )
 }
 
