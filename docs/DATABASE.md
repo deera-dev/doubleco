@@ -187,7 +187,7 @@ Fungsi `wage_rate_on(category, date)` → tarif yang berlaku pada tanggal itu.
 | change_status          | change_status     |                                                                              |
 | change_notes           | text              | wajib jika `changed`                                                         |
 | additional_info        | text              | info lebih lanjut                                                            |
-| sample_photo_public_id | text              | null = pakai foto produk                                                     |
+| sample_photo_public_id | text              | Path foto sampel di bucket privat `work-order-photos` (Supabase Storage)     |
 | status                 | work_order_status | diperbarui oleh fungsi, bukan diisi manual                                   |
 | created_by             | uuid              | FK → profiles                                                                |
 | created_at, updated_at | timestamptz       |                                                                              |

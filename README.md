@@ -264,6 +264,11 @@ per-feature choice:
   user-scoped read forwards the caller's JWT instead (see the reference
   function) so Postgres RLS still applies — the BFF pattern replaces
   _where business logic lives_, it doesn't replace RLS as a safety net.
+- **File uploads** (e.g. a work order's sample photo) go straight from the
+  browser to Supabase Storage, but only through a one-time signed upload
+  URL that an Edge Function issues after checking the caller's role. The
+  same function then confirms the object and records its path, and serves
+  short-lived signed URLs for viewing. Buckets stay private.
 - Realtime subscriptions are the one case `supabase-js` in the browser may
   talk to Postgres directly (Realtime needs a live client connection) —
   confirm per-feature when the PRD actually needs it; default to the BFF.

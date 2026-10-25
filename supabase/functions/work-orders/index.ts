@@ -1,9 +1,11 @@
 import { z } from 'npm:zod@4'
 import { defineAction, Rejection, serveActions, unwrap } from '../_shared/actions.ts'
-import { createUserClient } from '../_shared/supabase.ts'
+import { createAdminClient, createUserClient } from '../_shared/supabase.ts'
 
 const statusValues = ['draft', 'cutting', 'sewing', 'done', 'cancelled'] as const
 const uuid = z.string().uuid()
+const photoBucket = 'work-order-photos'
+const photoExtensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as const
 
 interface NamedRef {
   name: string
@@ -18,6 +20,7 @@ interface WorkOrderRow {
   change_status: 'changed' | 'follow_sample'
   change_notes: string | null
   additional_info: string | null
+  sample_photo_public_id: string | null
   status: (typeof statusValues)[number]
   created_at: string
   product_id: string
@@ -39,7 +42,7 @@ interface WorkOrderRow {
 
 const workOrderSelect = `
   id, number, ordered_on, pattern_code, fabric_combination, change_status, change_notes,
-  additional_info, status, created_at, product_id, fabric_id, cutter_id,
+  additional_info, sample_photo_public_id, status, created_at, product_id, fabric_id, cutter_id,
   products(code, name, wage_category), fabrics(name), cutters(name),
   work_order_items(id, cut_quantity, size_id, fabric_color_id, sizes(name, sort_order), fabric_colors(name),
     sewing_cards(quantity, status))
@@ -95,7 +98,24 @@ function shape(row: WorkOrderRow) {
       submitted: items.reduce((sum, item) => sum + item.submittedQuantity, 0),
     },
     hasCards: items.some((item) => item.cardCount > 0),
+    hasPhoto: row.sample_photo_public_id !== null,
+    photoUrl: null as string | null,
   }
+}
+
+async function withPhotoUrl(row: WorkOrderRow) {
+  const workOrder = shape(row)
+  if (!row.sample_photo_public_id) return workOrder
+  const { data } = await createAdminClient()
+    .storage.from(photoBucket)
+    .createSignedUrl(row.sample_photo_public_id, 60 * 60)
+  return { ...workOrder, photoUrl: data?.signedUrl ?? null }
+}
+
+async function removePhotoObject(path: string | null) {
+  if (!path) return
+  const { error } = await createAdminClient().storage.from(photoBucket).remove([path])
+  if (error) console.error(error)
 }
 
 const list = defineAction({
@@ -149,7 +169,7 @@ const get = defineAction({
       await supabase.from('work_orders').select(workOrderSelect).eq('id', id).maybeSingle(),
     )
     if (!row) throw new Rejection('NOT_FOUND', 404)
-    return shape(row)
+    return withPhotoUrl(row)
   },
 })
 
@@ -328,7 +348,11 @@ const remove = defineAction({
   input: z.object({ id: uuid, reason: z.string().trim().max(200).default('Dihapus') }),
   run: async ({ id, reason }, request) => {
     const supabase = createUserClient(request)
+    const current = unwrap<{ sample_photo_public_id: string | null } | null>(
+      await supabase.from('work_orders').select('sample_photo_public_id').eq('id', id).maybeSingle(),
+    )
     unwrap(await supabase.rpc('delete_work_order', { p_work_order_id: id, p_reason: reason }))
+    await removePhotoObject(current?.sample_photo_public_id ?? null)
     return { id }
   },
 })
@@ -348,10 +372,72 @@ const printData = defineAction({
     const workOrder = unwrap<WorkOrderRow | null>(row)
     if (!workOrder) throw new Rejection('NOT_FOUND', 404)
     const offsets = unwrap<{ offset_top_mm: number; offset_left_mm: number } | null>(settings)
+    const shaped = await withPhotoUrl(workOrder)
+    const sumCut = (items: typeof shaped.items) =>
+      items.some((item) => item.cutQuantity !== null)
+        ? items.reduce((sum, item) => sum + (item.cutQuantity ?? 0), 0)
+        : null
     return {
-      workOrder: shape(workOrder),
+      workOrder: shaped,
+      cutMatrix: {
+        sizes: shaped.sizes,
+        rows: shaped.colors.map((color) => {
+          const items = shaped.items.filter((item) => item.colorName === color)
+          return {
+            color,
+            cells: shaped.sizes.map((size) => {
+              const item = items.find((candidate) => candidate.sizeName === size)
+              return { planned: item !== undefined, quantity: item?.cutQuantity ?? null }
+            }),
+            total: sumCut(items),
+          }
+        }),
+        total: sumCut(shaped.items),
+      },
       offsets: { top: Number(offsets?.offset_top_mm ?? 0), left: Number(offsets?.offset_left_mm ?? 0) },
     }
+  },
+})
+
+const photoUploadUrl = defineAction({
+  input: z.object({ id: uuid, contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']) }),
+  run: async ({ id, contentType }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('assert_work_order_photo_editable', { p_work_order_id: id }))
+    const path = `${id}/${crypto.randomUUID()}.${photoExtensions[contentType]}`
+    const { data, error } = await createAdminClient().storage.from(photoBucket).createSignedUploadUrl(path)
+    if (error || !data) throw new Rejection('PHOTO_STORAGE_FAILED', 502)
+    return { bucket: photoBucket, path: data.path, token: data.token }
+  },
+})
+
+const setPhoto = defineAction({
+  input: z.object({ id: uuid, path: z.string().max(200) }),
+  run: async ({ id, path }, request) => {
+    const fileName = path.slice(id.length + 1)
+    if (!path.startsWith(`${id}/`) || fileName === '' || fileName.includes('/')) {
+      throw new Rejection('WORK_ORDER_PHOTO_INVALID')
+    }
+    const stored = await createAdminClient().storage.from(photoBucket).list(id, { search: fileName })
+    if (!stored.data?.some((object) => object.name === fileName)) throw new Rejection('WORK_ORDER_PHOTO_INVALID')
+    const supabase = createUserClient(request)
+    const previous = unwrap<string | null>(
+      await supabase.rpc('set_work_order_photo', { p_work_order_id: id, p_path: path }),
+    )
+    if (previous !== path) await removePhotoObject(previous)
+    return { id }
+  },
+})
+
+const removePhoto = defineAction({
+  input: z.object({ id: uuid }),
+  run: async ({ id }, request) => {
+    const supabase = createUserClient(request)
+    const previous = unwrap<string | null>(
+      await supabase.rpc('set_work_order_photo', { p_work_order_id: id, p_path: null }),
+    )
+    await removePhotoObject(previous)
+    return { id }
   },
 })
 
@@ -368,4 +454,7 @@ serveActions({
   cancel,
   delete: remove,
   print: printData,
+  photo_upload_url: photoUploadUrl,
+  set_photo: setPhoto,
+  remove_photo: removePhoto,
 })

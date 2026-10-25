@@ -134,7 +134,7 @@ membuka akses peran lain tidak perlu bongkar ulang.
   model A), list tetap".
 - Status WO: `DRAFT → DIPOTONG → DIJAHIT → SELESAI` (+ `BATAL`), dihitung dari
   status kartu-kartunya.
-- **Cetak Kartu WO 12×16 cm** dengan QR WO.
+- **Cetak Kartu WO 12×16 cm** berlabel jelas, foto sampel hasil unggah, dan tabel rincian potong (tanpa QR).
 
 ### 5.3 Hasil potong & pembagian ke penjahit
 
@@ -341,12 +341,12 @@ dilindungi supaya riwayat tidak rusak; setiap ubah/hapus tercatat di audit log.
 
 Printer: **Epson L1250** (inkjet, Wi-Fi), kertas sudah dipotong sesuai ukuran.
 
-| Dokumen                        | Ukuran       | Isi utama                                                                                                                                                              |
-| ------------------------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kartu WO                       | 120 × 160 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel, QR |
-| Kartu Jahit                    | 60 × 100 mm  | "PRODUCTION", Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit, Kode, Warna, QR, nomor kartu, TTD                                                                         |
-| THP                            | A4           | Seperti `CONT_THP.xlsx` + QR WO                                                                                                                                        |
-| Daftar transfer / rekap gajian | A4           | Tabel rekap                                                                                                                                                            |
+| Dokumen                        | Ukuran       | Isi utama                                                                                                                                                                                     |
+| ------------------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kartu WO                       | 120 × 160 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel (diunggah), rincian potong |
+| Kartu Jahit                    | 60 × 100 mm  | "PRODUCTION", Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit, Kode, Warna, QR, nomor kartu, TTD                                                                                                |
+| THP                            | A4           | Seperti `CONT_THP.xlsx` + QR WO                                                                                                                                                               |
+| Daftar transfer / rekap gajian | A4           | Tabel rekap                                                                                                                                                                                   |
 - Dicetak dari browser dengan `@page { size: … }` per dokumen; tersedia
   **halaman tes cetak** dan pengaturan offset (geser atas/kiri dalam mm) untuk
   kalibrasi printer.

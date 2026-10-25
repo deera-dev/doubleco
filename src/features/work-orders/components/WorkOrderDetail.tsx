@@ -6,6 +6,7 @@ import { useDeleteWorkOrder } from '@/features/work-orders/api/mutations'
 import { useWorkOrder } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { CutResults } from '@/features/work-orders/components/CutResults'
+import { SamplePhoto } from '@/features/work-orders/components/SamplePhoto'
 import { WorkOrderDialogs } from '@/features/work-orders/components/WorkOrderDialogs'
 import { formatWorkOrderDate, workOrderStatusMeta } from '@/features/work-orders/lib/status'
 import { useWorkOrdersUiStore } from '@/features/work-orders/store'
@@ -69,7 +70,7 @@ function Summary({ workOrder }: { workOrder: WorkOrder }) {
 
 function Details({ workOrder }: { workOrder: WorkOrder }) {
   return (
-    <section className="surface stagger-1 animate-rise grid gap-5 rounded-3xl p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-4">
+    <section className="surface stagger-1 grid animate-rise content-start gap-5 rounded-3xl p-5 sm:grid-cols-2 sm:p-6 lg:col-span-2">
       <Fact label="Tukang potong">{workOrder.cutterName}</Fact>
       <Fact label="Bahan">
         {workOrder.fabricName}
@@ -158,7 +159,10 @@ export function WorkOrderDetail({ id }: { id: string }) {
       ) : (
         <>
           <Summary workOrder={workOrder.data} />
-          <Details workOrder={workOrder.data} />
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <Details workOrder={workOrder.data} />
+            <SamplePhoto workOrder={workOrder.data} />
+          </div>
           <CutResults
             key={workOrder.data.items.map((item) => `${item.id}:${item.cutQuantity}`).join()}
             workOrder={workOrder.data}

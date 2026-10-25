@@ -38,6 +38,8 @@ export const workOrderSchema = z.object({
   items: z.array(workOrderItemSchema),
   totals: z.object({ cut: z.number(), assigned: z.number(), submitted: z.number() }),
   hasCards: z.boolean(),
+  hasPhoto: z.boolean(),
+  photoUrl: z.string().url().nullable(),
 })
 
 export const workOrderListSchema = z.object({
@@ -75,10 +77,26 @@ export const formOptionsSchema = z.object({
 
 export const suggestionSchema = z.object({ number: z.string() })
 export const savedIdSchema = z.object({ id: z.string().uuid() })
+export const photoUploadSchema = z.object({
+  bucket: z.string(),
+  path: z.string(),
+  token: z.string(),
+})
 export const countSchema = z.object({ count: z.number() })
 
 export const printDataSchema = z.object({
   workOrder: workOrderSchema,
+  cutMatrix: z.object({
+    sizes: z.array(z.string()),
+    rows: z.array(
+      z.object({
+        color: z.string(),
+        cells: z.array(z.object({ planned: z.boolean(), quantity: z.number().nullable() })),
+        total: z.number().nullable(),
+      }),
+    ),
+    total: z.number().nullable(),
+  }),
   offsets: z.object({ top: z.number(), left: z.number() }),
 })
 

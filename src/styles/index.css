@@ -414,13 +414,11 @@
 }
 
 @utility wo-card-photo {
-  width: 50mm;
-  height: 66mm;
+  width: 44mm;
 }
 
-@utility wo-card-qr {
-  width: 26mm;
-  height: 26mm;
+@utility print-text-2xs {
+  font-size: 2.1mm;
 }
 
 @utility print-text-xs {
@@ -437,6 +435,10 @@
 
 @utility print-text-lg {
   font-size: 5.2mm;
+}
+
+@utility print-text-xl {
+  font-size: 6.6mm;
 }
 
 @utility text-metal {
