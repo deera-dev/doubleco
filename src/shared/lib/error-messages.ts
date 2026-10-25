@@ -14,7 +14,6 @@ const businessMessages: Record<string, string> = {
   NOT_FOUND: 'Data tidak ditemukan. Muat ulang halaman.',
   TAILOR_CODE_TAKEN: 'Kode penjahit sudah dipakai penjahit lain.',
   TAILOR_NOT_ACTIVE: 'Penjahit tidak aktif.',
-  USE_MARK_TAILOR_LEFT: 'Gunakan tombol "Tandai keluar" untuk penjahit yang berhenti.',
   RATE_ALREADY_ACTIVE: 'Tarif yang sudah berlaku tidak bisa dihapus. Tambahkan tarif baru.',
   CONFIRMATION_REQUIRED: 'Ada data serupa yang perlu dikonfirmasi.',
   UNKNOWN_ACTION: 'Versi aplikasi tidak cocok dengan server. Muat ulang halaman.',

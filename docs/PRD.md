@@ -109,15 +109,15 @@ membuka akses peran lain tidak perlu bongkar ulang.
 
 ### 5.1 Master data
 
-| Entitas           | Field                                                                                    | Aturan                                                                                                                                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Penjahit          | **kode penjahit** (unik), nama, no. HP, status **aktif / tidak aktif / keluar**, catatan | Kode adalah identitas utama di semua layar & cetakan, nama hanya label. Belum ada daftar kode resmi: Kepala Produksi menginput kode tiap penjahit satu kali (saat impor atau tambah penjahit) |
-| Rekening penjahit | jenis (bank / e-wallet), penyedia (SeaBank, DANA, …), nomor, atas nama                   | Satu rekening aktif per penjahit; riwayat perubahan disimpan; peringatan jika a.n. ≠ nama penjahit                                                                                            |
-| Tukang potong     | nama, status                                                                             | —                                                                                                                                                                                             |
-| Produk            | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel      | Kategori wajib sebelum produk bisa dipakai di WO. Fase 1 diisi Kepala Produksi; fase 2 Kepala Finishing                                                                                       |
-| Bahan             | nama (mis. BLACK SWAN), daftar warna                                                     | Warna mengikuti bahan                                                                                                                                                                         |
-| Ukuran            | nama (mis. MIDI)                                                                         | Daftar dapat ditambah                                                                                                                                                                         |
-| Tarif upah        | kategori, nominal, berlaku mulai                                                         | Tarif tidak pernah ditimpa — tarif baru = baris baru dengan tanggal berlaku                                                                                                                   |
+| Entitas           | Field                                                                               | Aturan                                                                                                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Penjahit          | **kode penjahit** (unik), nama, no. HP, status **aktif / tidak aktif**, catatan     | Kode adalah identitas utama di semua layar & cetakan, nama hanya label. Belum ada daftar kode resmi: Kepala Produksi menginput kode tiap penjahit satu kali (saat impor atau tambah penjahit) |
+| Rekening penjahit | jenis (bank / e-wallet), penyedia (SeaBank, DANA, …), nomor, atas nama              | Satu rekening aktif per penjahit; riwayat perubahan disimpan; peringatan jika a.n. ≠ nama penjahit                                                                                            |
+| Tukang potong     | nama, status                                                                        | —                                                                                                                                                                                             |
+| Produk            | **kode produk** (mis. `W-133 BLS`), nama, **kategori kesulitan S/M/L**, foto sampel | Kategori wajib sebelum produk bisa dipakai di WO. Fase 1 diisi Kepala Produksi; fase 2 Kepala Finishing                                                                                       |
+| Bahan             | nama (mis. BLACK SWAN), daftar warna                                                | Warna mengikuti bahan                                                                                                                                                                         |
+| Ukuran            | nama (mis. MIDI)                                                                    | Daftar dapat ditambah                                                                                                                                                                         |
+| Tarif upah        | kategori, nominal, berlaku mulai                                                    | Tarif tidak pernah ditimpa — tarif baru = baris baru dengan tanggal berlaku                                                                                                                   |
 
 ### 5.2 Work Order (WO)
 
@@ -230,9 +230,9 @@ membuka akses peran lain tidak perlu bongkar ulang.
 - Catat **cicilan** (otomatis dari gajian, atau manual di luar gajian).
 - Buku kasbon per penjahit: riwayat + **sisa kasbon** selalu terlihat.
 - Daftar penjahit dengan kasbon berjalan beserta total sisanya.
-- Penjahit **keluar** dengan kasbon belum lunas → sisa kasbon dicatat sebagai
+- Penjahit yang **terhapus otomatis** dengan kasbon belum lunas → sisa kasbon dicatat sebagai
   **kerugian** (hapus buku) dengan tanggal & catatan; total kerugian kasbon
-  tampil di laporan. Penjahit keluar tidak bisa diberi kartu atau kasbon baru.
+  tampil di laporan. Penjahit tidak aktif tidak bisa diberi kartu atau kasbon baru.
 
 ### 5.8 Impor data lama
 
@@ -297,11 +297,16 @@ Jaminan teknis (bukan hanya tampilan):
 ### 5.11 Daftar karyawan
 
 - Satu daftar karyawan (penjahit + tukang potong) dengan filter **Aktif /
-  Tidak aktif / Keluar** dan pencarian kode/nama.
-- **Tidak aktif** = sementara tidak bekerja (cuti, sakit); bisa diaktifkan
-  lagi. Tidak bisa diberi kartu atau kasbon baru.
-- **Keluar** = berhenti; sisa kasbon menjadi kerugian (lihat 5.7). Bisa
-  diaktifkan kembali bila bekerja lagi.
+  Tidak aktif** dan pencarian kode/nama. Tidak ada status "keluar".
+- **Tidak aktif** tidak bisa diberi kartu atau kasbon baru, dan bisa
+  diaktifkan kembali kapan saja.
+- **Hapus otomatis**: karyawan yang tidak aktif melewati batas (default
+  **90 hari**, bisa diubah di halaman Karyawan) terhapus otomatis.
+  - Belum punya riwayat (kartu, kasbon, gajian) → dihapus permanen.
+  - Sudah punya riwayat → disembunyikan dari semua daftar, datanya tetap
+    disimpan agar slip gaji, buku kasbon, dan THP lama tetap utuh. Sisa
+    kasbon dicatat sebagai kerugian. Kodenya boleh dipakai penjahit baru.
+- Impor data lama dari Excel dilakukan oleh Kepala Produksi lewat aplikasi.
 
 ### 5.12 Tambah, lihat, ubah, hapus (CRUD)
 
@@ -406,9 +411,9 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 | Kartu belum selesai | Boleh disetor atas kesepakatan; dibayar penuh, sisa produk tetap wajib diserahkan                                                                                                                                          |
 | Duplikasi           | Setiap aksi ganda (scan, input, impor) memunculkan pemberitahuan; lihat 5.10                                                                                                                                               |
 | Sekali input        | Tidak ada scan/input ulang; kartu yang di-scan saat setor otomatis masuk gajian Sabtu                                                                                                                                      |
-| Karyawan            | Daftar aktif / tidak aktif / keluar                                                                                                                                                                                        |
+| Karyawan            | Daftar aktif / tidak aktif; tidak aktif > 90 hari (bisa diubah) terhapus otomatis                                                                                                                                          |
 | CRUD & export       | Semua data bisa dikelola dan diunduh (5.12, 5.13)                                                                                                                                                                          |
-| Kasbon              | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit keluar = kerugian                                                                                                      |
+| Kasbon              | Pinjaman baru ditransfer bersama upah Sabtu; cicilan bebas sesuai kesepakatan; sisa kasbon penjahit yang terhapus otomatis = kerugian                                                                                      |
 | Kode penjahit       | Diinput satu kali oleh Kepala Produksi                                                                                                                                                                                     |
 | Kartu jahit         | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai                                                                                                                                                      |
 | WO                  | Satu kode produk + satu bahan, banyak ukuran & warna; nomor default `WO_<kode_produk>`, bisa diedit                                                                                                                        |

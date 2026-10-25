@@ -99,7 +99,7 @@ export function CutterDialog({ employee }: { employee: Employee | null }) {
               checked={isActive}
               onCheckedChange={setIsActive}
               label="Aktif"
-              description="Tukang potong tidak aktif tidak muncul saat membuat WO."
+              description="Yang tidak aktif tidak muncul saat membuat WO dan terhapus otomatis setelah masa tidak aktif."
             />
             {saveCutter.error && (
               <p role="alert" className="text-destructive text-sm">

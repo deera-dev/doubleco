@@ -10,13 +10,13 @@ const statusStyles: Record<Employee['status'], { label: string; className: strin
     label: 'Tidak aktif',
     className: 'border-border-strong bg-muted text-muted-foreground',
   },
-  left: { label: 'Keluar', className: 'border-destructive/30 bg-destructive/10 text-destructive' },
 }
 
 function subtitleOf(employee: Employee): string {
+  if (employee.status === 'inactive' && employee.purgeOn) {
+    return `Terhapus otomatis ${formatIsoDate(employee.purgeOn)}`
+  }
   if (employee.type === 'cutter') return 'Tukang potong'
-  if (employee.status === 'left' && employee.leftOn)
-    return `Keluar ${formatIsoDate(employee.leftOn)}`
   if (employee.account) {
     return `${employee.account.provider} ${maskAccountNumber(employee.account.number)}`
   }
@@ -51,9 +51,7 @@ export function EmployeeRow({ employee, onSelect }: { employee: Employee; onSele
         <span
           className={cn(
             'block truncate text-muted-foreground text-xs',
-            employee.type === 'tailor' &&
-              !employee.account &&
-              employee.status === 'active' &&
+            ((employee.type === 'tailor' && !employee.account) || employee.status === 'inactive') &&
               'text-warning',
           )}
         >

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const employeeStatusSchema = z.enum(['active', 'inactive', 'left'])
+export const employeeStatusSchema = z.enum(['active', 'inactive'])
 export const employeeTypeSchema = z.enum(['tailor', 'cutter'])
 
 export const accountSchema = z.object({
@@ -18,23 +18,32 @@ export const employeeSchema = z.object({
   phone: z.string().nullable(),
   notes: z.string().nullable(),
   status: employeeStatusSchema,
-  leftOn: z.string().nullable(),
+  purgeOn: z.string().nullable(),
   account: accountSchema.nullable(),
   advanceBalance: z.number(),
 })
 
 export const employeeListSchema = z.object({
+  retentionDays: z.number().int(),
   summary: z.object({
     active: z.number(),
     inactive: z.number(),
-    left: z.number(),
     all: z.number(),
   }),
   employees: z.array(employeeSchema),
 })
 
 export const savedIdSchema = z.object({ id: z.string().uuid() })
-export const leftResultSchema = z.object({ writtenOff: z.number() })
+export const retentionResultSchema = z.object({ days: z.number().int() })
+
+export const retentionFormSchema = z.object({
+  days: z
+    .string()
+    .trim()
+    .regex(/^[0-9]+$/, 'Isi angka saja')
+    .transform(Number)
+    .refine((days) => days >= 7 && days <= 3650, 'Antara 7 dan 3650 hari'),
+})
 
 const optionalText = (max: number) => z.string().trim().max(max, `Maksimal ${max} karakter`)
 
@@ -94,3 +103,5 @@ export type TailorFormInput = z.input<typeof tailorFormSchema>
 export type TailorFormValues = z.output<typeof tailorFormSchema>
 export type CutterFormInput = z.input<typeof cutterFormSchema>
 export type CutterFormValues = z.output<typeof cutterFormSchema>
+export type RetentionFormInput = z.input<typeof retentionFormSchema>
+export type RetentionFormValues = z.output<typeof retentionFormSchema>

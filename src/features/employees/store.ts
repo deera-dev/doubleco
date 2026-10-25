@@ -8,7 +8,7 @@ export type EmployeeEditor =
   | { kind: 'closed' }
   | { kind: 'tailor'; employee: Employee | null }
   | { kind: 'cutter'; employee: Employee | null }
-  | { kind: 'leave'; employee: Employee }
+  | { kind: 'retention'; days: number }
 
 interface EmployeesUiState {
   status: StatusFilter

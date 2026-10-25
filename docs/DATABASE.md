@@ -69,7 +69,7 @@ erDiagram
 | Enum                      | Nilai                                                                                                               |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `app_role`                | `master` (semua hak — dev & testing), `production_head`, `finishing_head`, `warehouse`, `owner`, `cutter`, `tailor` |
-| `tailor_status`           | `active`, `inactive` (sementara tidak bekerja), `left` (keluar)                                                     |
+| `tailor_status`           | `active`, `inactive` (nilai lama `left` tidak dipakai lagi, dicegah constraint)                                     |
 | `payment_account_type`    | `bank`, `ewallet`                                                                                                   |
 | `wage_category`           | `S`, `M`, `L`                                                                                                       |
 | `change_status`           | `changed` (ADA PERUBAHAN), `follow_sample` (TIDAK ADA PERUBAHAN / IKUT SAMPEL)                                      |
@@ -448,6 +448,16 @@ memanggil ulang dengan `p_confirmed => true` dan `p_override_reason`.
 supabase link --project-ref <project-ref>
 supabase db push
 ```
+
+### Karyawan tidak aktif & hapus otomatis
+
+`tailors.inactive_since` / `cutters.inactive_since` diisi otomatis oleh
+trigger saat status menjadi tidak aktif dan dikosongkan saat aktif lagi.
+`purge_inactive_employees()` (dipanggil saat daftar karyawan dibuka)
+menghapus permanen yang tidak punya riwayat, dan mengisi `archived_at`
+untuk yang punya riwayat (sisa kasbon → `write_off`). Batas hari disimpan
+di `app_settings` (`employee_inactive_retention_days`, default 90).
+Kode penjahit unik hanya di antara yang belum diarsipkan.
 
 ### Akun master (developer)
 
