@@ -96,7 +96,10 @@ export function BottomDock() {
     .filter((item) => ![homeItem, scanItem, workOrderItem, payrollItem].includes(item))
 
   return (
-    <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
+    <nav
+      aria-label="Navigasi utama"
+      className="hide-with-keyboard fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden"
+    >
       {isMoreOpen && (
         <div className="surface chrome mb-2 grid origin-bottom animate-pop grid-cols-2 gap-1 rounded-3xl bg-popover/95 p-2">
           {moreItems.map((item) =>

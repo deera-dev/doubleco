@@ -15,7 +15,7 @@ export const workOrderKeys = {
     [...workOrderKeys.all, 'list', filters] as const,
   detail: (id: string) => [...workOrderKeys.all, 'detail', id] as const,
   options: ['work-orders', 'form-options'] as const,
-  suggestion: (productId: string) => ['work-orders', 'suggestion', productId] as const,
+  suggestion: (product: string) => ['work-orders', 'suggestion', product] as const,
   print: (id: string) => [...workOrderKeys.all, 'print', id] as const,
 }
 
@@ -41,11 +41,11 @@ export function useWorkOrderFormOptions() {
   })
 }
 
-export function useNumberSuggestion(productId: string, enabled: boolean) {
+export function useNumberSuggestion(product: string, enabled: boolean) {
   return useQuery({
-    queryKey: workOrderKeys.suggestion(productId),
-    queryFn: () => callAction('work-orders', 'suggest_number', suggestionSchema, { productId }),
-    enabled: enabled && productId !== '',
+    queryKey: workOrderKeys.suggestion(product),
+    queryFn: () => callAction('work-orders', 'suggest_number', suggestionSchema, { product }),
+    enabled: enabled && product.trim() !== '',
     staleTime: 0,
   })
 }

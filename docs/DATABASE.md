@@ -170,6 +170,14 @@ a–z dan 0–9), jadi `BLACK SWAN`, `black-swan`, dan `BlackSwan` dianggap
 **data yang sama** dan ditolak sebagai duplikat. Akibatnya WO dan kartu jahit
 cukup memilih dari daftar, tidak ada ketik ulang.
 
+**Tambah otomatis dari form WO.** Form WO boleh diketik bebas dengan saran
+dari master data. Fungsi `ensure_master_label(kind, label, parent)` (khusus
+Kepala Produksi) mencari data dengan `label_key()` yang sama; jika ada dipakai
+(dan diaktifkan kembali bila nonaktif), jika belum ada dibuat. Berlaku untuk
+produk, bahan (termasuk kombinasi), tukang potong, kode pola, ukuran, dan warna
+per bahan. `suggest_work_order_number_for_label(label)` mengusulkan nomor WO
+dari kode produk yang diketik, termasuk produk baru.
+
 **`wage_rates`** — tarif per kategori, tidak pernah ditimpa
 
 | Kolom          | Tipe          | Aturan                                   |
