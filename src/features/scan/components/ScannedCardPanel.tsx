@@ -1,9 +1,10 @@
-import { Ban, CircleCheck, OctagonAlert, ScanLine, Undo2 } from 'lucide-react'
+import { Ban, CircleCheck, ClipboardCheck, OctagonAlert, ScanLine, Undo2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
+import { InspectionPanel } from '@/features/scan/components/InspectionPanel'
 import { signal } from '@/features/scan/lib/feedback'
 import { formatSubmittedAt } from '@/features/scan/lib/format'
-import { useScanUiStore } from '@/features/scan/store'
+import { type ScanMode, useScanUiStore } from '@/features/scan/store'
 import { useSubmitCard, useUnsubmitCard } from '@/features/sewing-cards/api/mutations'
 import type { ScannedCard, ScanTailor } from '@/features/sewing-cards/api/schema'
 import { cardStatusMeta } from '@/features/sewing-cards/lib/status'
@@ -263,6 +264,8 @@ function UnsubmitDialog({ card, onClose }: { card: ScannedCard; onClose: () => v
 
 function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
   const [isUnsubmitting, setIsUnsubmitting] = useState(false)
+  const setMode = useScanUiStore((state) => state.setMode)
+  const canInspect = card.status !== 'cancelled' && card.inspectionStatus !== 'done'
   const title =
     card.status === 'cancelled'
       ? 'Kartu ini sudah dibatalkan'
@@ -306,6 +309,12 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
             Batalkan setoran
           </Button>
         )}
+        {canInspect && (
+          <Button type="button" variant="outline" size="lg" onClick={() => setMode('inspect')}>
+            <ClipboardCheck />
+            Periksa kartu ini
+          </Button>
+        )}
         <Button type="button" size="lg" onClick={onDone}>
           <ScanLine />
           Scan kartu lain
@@ -324,6 +333,35 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
   )
 }
 
+function NotSubmitted({ onDone }: { onDone: () => void }) {
+  const setMode = useScanUiStore((state) => state.setMode)
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm">
+        <OctagonAlert className="mt-0.5 size-5 shrink-0 text-warning" />
+        <p className="font-semibold text-warning">
+          Kartu ini belum disetor. Catat setornya dulu, baru bisa diperiksa.
+        </p>
+      </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" size="lg" onClick={onDone}>
+          Scan kartu lain
+        </Button>
+        <Button type="button" size="lg" onClick={() => setMode('submit')}>
+          <CircleCheck />
+          Catat setor
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Whether a scan landed on a card that can be worked on in this mode (drives sound and border). */
+export function isActionable(card: ScannedCard, mode: ScanMode): boolean {
+  if (mode === 'submit') return card.status === 'taken'
+  return (card.status === 'submitted' || card.status === 'paid') && card.inspectionStatus !== 'done'
+}
+
 interface ScannedCardPanelProps {
   card: ScannedCard
   tailors: ScanTailor[]
@@ -332,18 +370,27 @@ interface ScannedCardPanelProps {
 }
 
 export function ScannedCardPanel({ card, tailors, today, onDone }: ScannedCardPanelProps) {
+  const mode = useScanUiStore((state) => state.mode)
+  const isCancelled = card.status === 'cancelled'
+
   return (
     <section
       className={cn(
         'surface animate-rise space-y-5 rounded-3xl p-5 sm:p-6',
-        card.status === 'taken' ? 'border-brand-400/50' : 'border-destructive/50',
+        isActionable(card, mode) ? 'border-brand-400/50' : 'border-destructive/50',
       )}
     >
       <CardSummary card={card} />
-      {card.status === 'taken' ? (
-        <SubmitForm card={card} tailors={tailors} today={today} onDone={onDone} />
+      {mode === 'submit' || isCancelled ? (
+        card.status === 'taken' ? (
+          <SubmitForm card={card} tailors={tailors} today={today} onDone={onDone} />
+        ) : (
+          <Blocked card={card} onDone={onDone} />
+        )
+      ) : card.status === 'taken' ? (
+        <NotSubmitted onDone={onDone} />
       ) : (
-        <Blocked card={card} onDone={onDone} />
+        <InspectionPanel card={card} today={today} onDone={onDone} />
       )}
     </section>
   )

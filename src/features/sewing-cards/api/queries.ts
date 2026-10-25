@@ -15,6 +15,7 @@ export interface CardListFilters {
   search: string
   workOrderId: string | null
   submittedOn?: string | null
+  needsInspection?: boolean
 }
 
 export const sewingCardKeys = {

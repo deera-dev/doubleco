@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { formatRupiah } from '@/shared/lib/format'
 import type { AppError } from '@/shared/types/errors'
 
 const warningSchema = z.looseObject({ code: z.string() })
@@ -40,6 +41,12 @@ export function describeWarning(warning: ServerWarning): string {
       return 'Kasbon dengan nominal dan tanggal yang sama sudah dicatat.'
     case 'SIMILAR_WORK_ORDER_ACTIVE':
       return `WO serupa masih aktif: ${text(warning, 'work_order_number')}.`
+    case 'ADVANCE_BALANCE_NEGATIVE':
+      return `Cicilan melebihi sisa kasbon (${formatRupiah(Number(warning.balance ?? 0))}). Sisa jadi ${formatRupiah(Number(warning.after ?? 0))}.`
+    case 'TRANSFER_NEGATIVE':
+      return `${tailorOf(warning)}: transfer jadi minus (${formatRupiah(Number(warning.transfer_amount ?? 0))}).`
+    case 'MISSING_PAYMENT_ACCOUNT':
+      return `${tailorOf(warning)} belum punya rekening. Transfernya perlu dibayar tunai.`
     case 'SUNDAY_IS_HOLIDAY':
       return 'Tanggal yang dipilih hari Minggu (libur).'
     default:

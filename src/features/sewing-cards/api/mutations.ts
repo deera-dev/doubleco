@@ -64,3 +64,22 @@ export const useUnsubmitCard = () =>
   useCardAction((input: { number: string; reason: string }) =>
     callAction('sewing-cards', 'unsubmit', cardNumberSchema, input),
   )
+
+export interface InspectCardInput {
+  number: string
+  ok: number
+  repairable: number
+  defective: number
+  notes: string | null
+  inspectedOn: string
+}
+
+export const useInspectCard = () =>
+  useCardAction((input: InspectCardInput) =>
+    callAction('sewing-cards', 'inspect', cardNumberSchema, input),
+  )
+
+export const useDeleteInspection = () =>
+  useCardAction((input: { number: string; reason: string }) =>
+    callAction('sewing-cards', 'delete_inspection', cardNumberSchema, input),
+  )
