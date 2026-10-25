@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { CardStatus, SewingCard } from '@/features/sewing-cards/api/schema'
 
 export type CardStatusFilter = CardStatus | 'all'
-export type CuttingTab = 'split' | 'cards'
+export type CuttingTab = 'ready' | 'cards'
 
 export type CardDialog =
   | { kind: 'none' }
@@ -25,7 +25,7 @@ interface SewingCardsUiState {
 }
 
 export const useSewingCardsUiStore = create<SewingCardsUiState>((set) => ({
-  tab: 'split',
+  tab: 'ready',
   status: 'taken',
   search: '',
   selected: [],

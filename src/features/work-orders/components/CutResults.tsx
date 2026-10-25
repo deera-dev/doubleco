@@ -1,15 +1,21 @@
-import { Plus, Scissors, X } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Plus, Printer, Scissors, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useIssueCards } from '@/features/sewing-cards/api/mutations'
+import { cardPrintSearch } from '@/features/sewing-cards/lib/status'
 import { useRecordCut, useRemoveWorkOrderItem } from '@/features/work-orders/api/mutations'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { useWorkOrdersUiStore } from '@/features/work-orders/store'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
+import { todayIsoDate } from '@/shared/lib/format'
 
 export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
+  const navigate = useNavigate()
   const recordCut = useRecordCut()
+  const issueCards = useIssueCards()
   const removeItem = useRemoveWorkOrderItem()
   const openDialog = useWorkOrdersUiStore((state) => state.openDialog)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -24,6 +30,35 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
   const invalid = changed.find(
     ({ item, value }) => !Number.isInteger(value) || value <= 0 || value < item.assignedQuantity,
   )
+
+  // One card per cut size × colour, holding every piece that has no card yet.
+  const cardable = workOrder.items.filter(
+    (item) => item.cutQuantity !== null && item.cutQuantity > item.assignedQuantity,
+  )
+  const cardPieces = cardable.reduce(
+    (sum, item) => sum + (item.cutQuantity ?? 0) - item.assignedQuantity,
+    0,
+  )
+
+  const issue = () =>
+    issueCards.mutate(
+      {
+        takenOn: todayIsoDate(),
+        cards: cardable.map((item) => ({
+          workOrderItemId: item.id,
+          quantity: (item.cutQuantity ?? 0) - item.assignedQuantity,
+        })),
+        confirmed: false,
+        reason: null,
+      },
+      {
+        onSuccess: ({ numbers }) => {
+          toast.success(`${numbers.length} kartu jahit dibuat`)
+          navigate({ to: '/cetak/kartu-jahit', search: cardPrintSearch(numbers) })
+        },
+        onError: (error) => toast.error(describeError(error)),
+      },
+    )
 
   const save = () => {
     if (invalid) {
@@ -126,19 +161,28 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
       )}
 
       {!isClosed && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={save}
-            disabled={changed.length === 0 || recordCut.isPending}
-          >
-            <Scissors />
-            {recordCut.isPending
-              ? 'Menyimpan…'
-              : changed.length > 0
-                ? `Simpan ${changed.length} hasil potong`
-                : 'Simpan hasil potong'}
-          </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {changed.length > 0 ? (
+            <Button type="button" onClick={save} disabled={recordCut.isPending}>
+              <Scissors />
+              {recordCut.isPending ? 'Menyimpan…' : `Simpan ${changed.length} hasil potong`}
+            </Button>
+          ) : cardable.length > 0 ? (
+            <>
+              <p className="mr-auto text-muted-foreground text-sm">
+                {cardable.length} hasil potong belum punya kartu · {cardPieces} pcs
+              </p>
+              <Button type="button" onClick={issue} disabled={issueCards.isPending}>
+                <Printer />
+                {issueCards.isPending ? 'Membuat…' : `Buat & cetak ${cardable.length} kartu`}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" disabled>
+              <Scissors />
+              Simpan hasil potong
+            </Button>
+          )}
         </div>
       )}
     </section>

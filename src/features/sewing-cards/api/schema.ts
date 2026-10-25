@@ -12,6 +12,10 @@ export const sewingCardSchema = z.object({
   quantity: z.number(),
   takenOn: z.string(),
   submittedOn: z.string().nullable(),
+  submittedAt: z.string().nullable(),
+  submittedIncomplete: z.boolean(),
+  remainingNotes: z.string().nullable(),
+  inspectionStatus: z.enum(['pending', 'in_repair', 'done']),
   category,
   wageAmount: z.number(),
   printCount: z.number(),
@@ -90,6 +94,15 @@ export const splitOptionsSchema = z.object({
   today: z.string(),
 })
 
+export const scannedCardSchema = sewingCardSchema.extend({
+  submittedByName: z.string().nullable(),
+})
+
+export const scanOptionsSchema = z.object({
+  tailors: z.array(z.object({ id, code: z.string(), name: z.string() })),
+  today: z.string(),
+})
+
 export const issuedSchema = z.object({ numbers: z.array(z.string()) })
 export const cardNumberSchema = z.object({ number: z.string() })
 export const countSchema = z.object({ count: z.number() })
@@ -109,3 +122,6 @@ export type SplitOptions = z.infer<typeof splitOptionsSchema>
 export type SplitItem = z.infer<typeof splitItemSchema>
 export type SplitTailor = z.infer<typeof splitTailorSchema>
 export type PrintData = z.infer<typeof printDataSchema>
+export type ScannedCard = z.infer<typeof scannedCardSchema>
+export type ScanOptions = z.infer<typeof scanOptionsSchema>
+export type ScanTailor = ScanOptions['tailors'][number]

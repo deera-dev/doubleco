@@ -15,7 +15,7 @@ export interface NavigationItem {
   shortTitle: string
   description: string
   icon: LucideIcon
-  to?: '/' | '/karyawan' | '/master-data' | '/work-order' | '/potong-bagi'
+  to?: '/' | '/scan' | '/karyawan' | '/master-data' | '/work-order' | '/kartu-jahit'
 }
 
 export interface NavigationSection {
@@ -34,8 +34,9 @@ export const homeItem: NavigationItem = {
 export const scanItem: NavigationItem = {
   title: 'Scan Kartu',
   shortTitle: 'Scan',
-  description: 'Setor & periksa dalam sekali scan',
+  description: 'Catat setoran kartu jahit',
   icon: ScanLine,
+  to: '/scan',
 }
 
 export const workOrderItem: NavigationItem = {
@@ -47,11 +48,11 @@ export const workOrderItem: NavigationItem = {
 }
 
 export const cuttingItem: NavigationItem = {
-  title: 'Potong & Bagi',
-  shortTitle: 'Potong',
-  description: 'Hasil potong jadi kartu jahit',
+  title: 'Kartu Jahit',
+  shortTitle: 'Kartu',
+  description: 'Cetak dan pantau kartu jahit',
   icon: Scissors,
-  to: '/potong-bagi',
+  to: '/kartu-jahit',
 }
 
 export const payrollItem: NavigationItem = {

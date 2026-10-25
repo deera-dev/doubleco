@@ -44,3 +44,23 @@ export const useRecordPrint = () =>
   useCardAction((input: { numbers: string[] }) =>
     callAction('sewing-cards', 'record_print', countSchema, input),
   )
+
+export interface SubmitCardInput {
+  number: string
+  tailorId: string | null
+  submittedOn: string
+  incomplete: boolean
+  remainingNotes: string | null
+  confirmed: boolean
+  reason: string | null
+}
+
+export const useSubmitCard = () =>
+  useCardAction((input: SubmitCardInput) =>
+    callAction('sewing-cards', 'submit', cardNumberSchema, input),
+  )
+
+export const useUnsubmitCard = () =>
+  useCardAction((input: { number: string; reason: string }) =>
+    callAction('sewing-cards', 'unsubmit', cardNumberSchema, input),
+  )
