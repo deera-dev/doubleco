@@ -106,7 +106,6 @@ function defaultsFor(workOrder: WorkOrder | null): WorkOrderFormInput {
     changeNotes: workOrder?.changeNotes ?? '',
     additionalInfo: workOrder?.additionalInfo ?? '',
     sizes: [],
-    colors: [],
   }
 }
 
@@ -374,7 +373,6 @@ function FormFields({
   const fabric = form.watch('fabric')
   const changeStatus = form.watch('changeStatus')
   const sizes = form.watch('sizes')
-  const colors = form.watch('colors')
   const isLocked = workOrder?.hasCards ?? false
   const isFabricLocked = workOrder !== null
   const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
@@ -393,7 +391,6 @@ function FormFields({
     }
     const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
     form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
-    form.setValue('colors', [])
     if (match?.code && !form.getFieldState('fabricCode').isDirty) {
       form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
     }
@@ -551,23 +548,9 @@ function FormFields({
                 </FormItem>
               )}
             />
-            <FormItem>
-              <FormLabel>Warna (opsional)</FormLabel>
-              {labelKey(fabric) === '' ? (
-                <p className="text-muted-foreground text-sm">Isi bahan dulu.</p>
-              ) : (
-                <LabelChipPicker
-                  label="Warna"
-                  options={fabricMatch?.colors.map((color) => color.name) ?? []}
-                  selected={colors}
-                  onChange={(value) => form.setValue('colors', value)}
-                  addPlaceholder={`Warna ${normalizeLabel(fabric)} lain`}
-                />
-              )}
-              <FormDescription>
-                Boleh dikosongkan. Warna bisa ditambah nanti di halaman WO saat isi hasil potong.
-              </FormDescription>
-            </FormItem>
+            <p className="rounded-2xl border border-dashed px-4 py-3 text-muted-foreground text-sm">
+              Warna dipilih setelah WO dibuat, di halaman WO → Hasil potong → Ukuran / warna.
+            </p>
           </>
         )}
       </Section>
@@ -673,7 +656,7 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
 
   const create = (values: WorkOrderFormValues, confirmed: boolean) =>
     createWorkOrder.mutate(
-      { ...toPayload(values, null), sizes: values.sizes, colors: values.colors, confirmed },
+      { ...toPayload(values, null), sizes: values.sizes, confirmed },
       {
         onSuccess: ({ id }) => {
           toast.success(`${values.number.toUpperCase()} dibuat`)

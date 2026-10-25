@@ -114,7 +114,6 @@ export const workOrderFormSchema = z
     changeNotes: z.string().trim().max(1000),
     additionalInfo: z.string().trim().max(1000),
     sizes: z.array(z.string()),
-    colors: z.array(z.string()),
   })
   .superRefine((values, context) => {
     if (values.changeStatus === 'changed' && values.changeNotes === '') {

@@ -76,21 +76,20 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
       className="wo-card-sheet relative flex flex-col gap-[3mm] overflow-hidden bg-print-paper p-[6mm] text-print-ink"
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
-      <header className="flex items-center gap-[3.5mm] border-print-ink border-b-[0.6mm] pb-[2mm]">
-        <MaryamLogo className="h-[15mm]" />
-        <div className="min-w-0 flex-1 space-y-[0.8mm]">
-          <Label>Kartu work order</Label>
+      <header className="flex items-center justify-between gap-[4mm] border-print-ink border-b-[0.6mm] pb-[2.5mm]">
+        <MaryamLogo className="h-[11mm]" />
+        <div className="min-w-0 space-y-[0.8mm] text-right">
+          <Label>Kartu WO</Label>
           <p
             className={cn(
               'truncate font-extrabold font-mono leading-none',
-              workOrder.productCode.length > 14 ? 'print-text-lg' : 'print-text-xl',
+              workOrder.productCode.length > 12 ? 'print-text-lg' : 'print-text-xl',
             )}
           >
             {workOrder.productCode}
           </p>
           <p className="truncate font-semibold print-text-sm">
             {formatWorkOrderDate(workOrder.orderedOn)}
-            {workOrder.productName ? ` · ${workOrder.productName}` : ''}
           </p>
         </div>
       </header>

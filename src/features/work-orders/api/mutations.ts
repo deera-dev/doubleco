@@ -30,9 +30,8 @@ function useWorkOrderAction<Input extends object, Output>(run: (input: Input) =>
 }
 
 export const useCreateWorkOrder = () =>
-  useWorkOrderAction(
-    (input: WorkOrderPayload & { sizes: string[]; colors: string[]; confirmed: boolean }) =>
-      callAction('work-orders', 'create', savedIdSchema, input),
+  useWorkOrderAction((input: WorkOrderPayload & { sizes: string[]; confirmed: boolean }) =>
+    callAction('work-orders', 'create', savedIdSchema, input),
   )
 
 export const useUpdateWorkOrder = () =>
