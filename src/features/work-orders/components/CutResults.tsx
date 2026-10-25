@@ -86,8 +86,8 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
                 </p>
                 <p className="text-muted-foreground text-xs">
                   {item.assignedQuantity > 0
-                    ? `Dibagi ${item.assignedQuantity} · disetor ${item.submittedQuantity}`
-                    : 'Belum dibagi ke penjahit'}
+                    ? `Di kartu ${item.assignedQuantity} · disetor ${item.submittedQuantity}`
+                    : 'Belum ada kartu jahit'}
                 </p>
               </div>
               <Input
