@@ -372,28 +372,8 @@ const printData = defineAction({
     const workOrder = unwrap<WorkOrderRow | null>(row)
     if (!workOrder) throw new Rejection('NOT_FOUND', 404)
     const offsets = unwrap<{ offset_top_mm: number; offset_left_mm: number } | null>(settings)
-    const shaped = await withPhotoUrl(workOrder)
-    const sumCut = (items: typeof shaped.items) =>
-      items.some((item) => item.cutQuantity !== null)
-        ? items.reduce((sum, item) => sum + (item.cutQuantity ?? 0), 0)
-        : null
     return {
-      workOrder: shaped,
-      cutMatrix: {
-        sizes: shaped.sizes,
-        rows: shaped.colors.map((color) => {
-          const items = shaped.items.filter((item) => item.colorName === color)
-          return {
-            color,
-            cells: shaped.sizes.map((size) => {
-              const item = items.find((candidate) => candidate.sizeName === size)
-              return { planned: item !== undefined, quantity: item?.cutQuantity ?? null }
-            }),
-            total: sumCut(items),
-          }
-        }),
-        total: sumCut(shaped.items),
-      },
+      workOrder: await withPhotoUrl(workOrder),
       offsets: { top: Number(offsets?.offset_top_mm ?? 0), left: Number(offsets?.offset_left_mm ?? 0) },
     }
   },

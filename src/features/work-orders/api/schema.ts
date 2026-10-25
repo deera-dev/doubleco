@@ -86,17 +86,6 @@ export const countSchema = z.object({ count: z.number() })
 
 export const printDataSchema = z.object({
   workOrder: workOrderSchema,
-  cutMatrix: z.object({
-    sizes: z.array(z.string()),
-    rows: z.array(
-      z.object({
-        color: z.string(),
-        cells: z.array(z.object({ planned: z.boolean(), quantity: z.number().nullable() })),
-        total: z.number().nullable(),
-      }),
-    ),
-    total: z.number().nullable(),
-  }),
   offsets: z.object({ top: z.number(), left: z.number() }),
 })
 

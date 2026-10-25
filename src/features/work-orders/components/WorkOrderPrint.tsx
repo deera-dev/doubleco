@@ -49,7 +49,7 @@ function ChangeStatus({ workOrder }: { workOrder: PrintData['workOrder'] }) {
       </p>
       <p
         className={cn(
-          'line-clamp-4 print-text-xs leading-snug',
+          'line-clamp-6 print-text-xs leading-snug',
           isChanged ? 'font-semibold text-print-red' : 'text-print-blue',
         )}
       >
@@ -59,60 +59,8 @@ function ChangeStatus({ workOrder }: { workOrder: PrintData['workOrder'] }) {
   )
 }
 
-function CutMatrix({ matrix }: { matrix: PrintData['cutMatrix'] }) {
-  const cell = cn(
-    'border border-print-line px-[1.2mm]',
-    matrix.rows.length > 3 ? 'py-[0.3mm]' : 'py-[0.7mm]',
-  )
-  return (
-    <div className="space-y-[1mm]">
-      <div className="flex items-baseline justify-between">
-        <Label>Rincian potong (pcs)</Label>
-        <span className="text-print-muted print-text-2xs">Kosong = isi manual</span>
-      </div>
-      <table className="w-full table-fixed border-collapse text-center print-text-xs">
-        <thead>
-          <tr className="font-semibold text-print-muted">
-            <th className={cn(cell, 'w-[28%] text-left')}>Warna</th>
-            {matrix.sizes.map((size) => (
-              <th key={size} className={cn(cell, 'truncate')}>
-                {size}
-              </th>
-            ))}
-            <th className={cn(cell, 'w-[16%]')}>Jumlah</th>
-          </tr>
-        </thead>
-        <tbody className="font-mono tabular-nums">
-          {matrix.rows.map((row) => (
-            <tr key={row.color}>
-              <td className={cn(cell, 'truncate text-left font-sans font-semibold')}>
-                {row.color}
-              </td>
-              {row.cells.map((value, index) => (
-                <td
-                  key={matrix.sizes[index]}
-                  className={cn(cell, !value.planned && 'bg-print-line/40 text-print-muted')}
-                >
-                  {value.planned ? (value.quantity ?? '') : '–'}
-                </td>
-              ))}
-              <td className={cn(cell, 'font-bold')}>{row.total ?? ''}</td>
-            </tr>
-          ))}
-          <tr className="font-bold">
-            <td className={cn(cell, 'text-left font-sans')} colSpan={matrix.sizes.length + 1}>
-              Total
-            </td>
-            <td className={cell}>{matrix.total ?? ''}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
-  const { workOrder, offsets, cutMatrix } = data
+  const { workOrder, offsets } = data
 
   return (
     <article
@@ -152,6 +100,12 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
         <Field label="Kombinasi">{workOrder.fabricCombination ?? '—'}</Field>
         <Field label="Kode pola">{workOrder.patternCode ?? '—'}</Field>
         <Field label="Ukuran">{workOrder.sizes.join(' · ')}</Field>
+        <div className="col-span-2 min-w-0 space-y-[0.6mm]">
+          <Label>Warna</Label>
+          <p className="line-clamp-2 font-bold print-text-md leading-tight">
+            {workOrder.colors.join(', ')}
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-1 gap-[3mm]">
@@ -177,14 +131,12 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
           <ChangeStatus workOrder={workOrder} />
           <div className="min-h-0 space-y-[0.8mm]">
             <Label>Info lanjutan</Label>
-            <p className="line-clamp-2 font-semibold print-text-xs leading-snug">
+            <p className="line-clamp-4 font-semibold print-text-xs leading-snug">
               {workOrder.additionalInfo ?? 'Info lebih lanjut hubungi tukang potong.'}
             </p>
           </div>
         </div>
       </section>
-
-      <CutMatrix matrix={cutMatrix} />
 
       <footer className="flex items-end justify-between border-print-line border-t pt-[1.5mm] text-print-muted print-text-2xs">
         <span>Dicetak {formatIsoDate(todayIsoDate())}</span>
