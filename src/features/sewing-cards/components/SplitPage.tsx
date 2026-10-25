@@ -4,20 +4,18 @@ import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { useIssueCards } from '@/features/sewing-cards/api/mutations'
 import { useSplitOptions } from '@/features/sewing-cards/api/queries'
-import type { SplitOptions, SplitTailor } from '@/features/sewing-cards/api/schema'
+import type { SplitOptions } from '@/features/sewing-cards/api/schema'
 import { cardPrintSearch } from '@/features/sewing-cards/lib/status'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Button } from '@/shared/components/ui/button'
-import { Combobox } from '@/shared/components/ui/combobox'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
-import { labelKey } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
 import { confirmationWarnings } from '@/shared/lib/warnings'
 import { toAppError } from '@/shared/types/errors'
@@ -25,34 +23,21 @@ import { toAppError } from '@/shared/types/errors'
 interface DraftCard {
   key: string
   workOrderItemId: string
-  tailorId: string
   quantity: number
 }
 
-function tailorLabel(tailor: SplitTailor): string {
-  return `${tailor.code} · ${tailor.name}`
-}
-
-function resolveTailor(tailors: SplitTailor[], text: string): SplitTailor | undefined {
-  const key = labelKey(text)
-  if (key === '') return undefined
-  return (
-    tailors.find((tailor) => labelKey(tailorLabel(tailor)) === key) ??
-    tailors.find((tailor) => labelKey(tailor.code) === key)
-  )
-}
+const MAX_CARDS_PER_ADD = 30
 
 function SplitForm({ options }: { options: SplitOptions }) {
   const navigate = useNavigate()
   const issueCards = useIssueCards()
   const [drafts, setDrafts] = useState<DraftCard[]>([])
   const [takenOn, setTakenOn] = useState(options.today)
-  const [tailorText, setTailorText] = useState('')
   const [itemId, setItemId] = useState('')
   const [quantity, setQuantity] = useState('')
+  const [cardCount, setCardCount] = useState('1')
   const [isConfirming, setIsConfirming] = useState(false)
-  const { workOrder, items, tailors } = options
-  const tailorId = resolveTailor(tailors, tailorText)?.id ?? ''
+  const { workOrder, items } = options
 
   const draftedFor = (id: string) =>
     drafts.filter((draft) => draft.workOrderItemId === id).reduce((sum, d) => sum + d.quantity, 0)
@@ -62,18 +47,23 @@ function SplitForm({ options }: { options: SplitOptions }) {
   }
   const selectedAvailable = itemId ? available(itemId) : 0
   const parsedQuantity = Number(quantity)
+  const parsedCount = Number(cardCount)
+  const requested = parsedQuantity * parsedCount
   const canAdd =
-    tailorId !== '' &&
     itemId !== '' &&
     Number.isInteger(parsedQuantity) &&
     parsedQuantity > 0 &&
-    parsedQuantity <= selectedAvailable
+    Number.isInteger(parsedCount) &&
+    parsedCount > 0 &&
+    parsedCount <= MAX_CARDS_PER_ADD &&
+    requested <= selectedAvailable
   const totalPieces = drafts.reduce((sum, draft) => sum + draft.quantity, 0)
   const warnings = confirmationWarnings(issueCards.error)
 
   const chooseItem = (id: string) => {
     setItemId(id)
     setQuantity(id ? String(available(id)) : '')
+    setCardCount('1')
   }
 
   const add = (event: FormEvent) => {
@@ -81,11 +71,15 @@ function SplitForm({ options }: { options: SplitOptions }) {
     if (!canAdd) return
     setDrafts((current) => [
       ...current,
-      { key: crypto.randomUUID(), workOrderItemId: itemId, tailorId, quantity: parsedQuantity },
+      ...Array.from({ length: parsedCount }, () => ({
+        key: crypto.randomUUID(),
+        workOrderItemId: itemId,
+        quantity: parsedQuantity,
+      })),
     ])
-    setTailorText('')
     setItemId('')
     setQuantity('')
+    setCardCount('1')
   }
 
   const submit = (confirmed: boolean) =>
@@ -106,7 +100,6 @@ function SplitForm({ options }: { options: SplitOptions }) {
       },
     )
 
-  const tailorById = new Map(tailors.map((tailor) => [tailor.id, tailor]))
   const itemById = new Map(items.map((item) => [item.id, item]))
 
   return (
@@ -156,24 +149,8 @@ function SplitForm({ options }: { options: SplitOptions }) {
         <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
           Tambah kartu
         </h2>
-        <div className="grid gap-4 md:grid-cols-4 md:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="split-tailor">Penjahit</Label>
-            <Combobox
-              id="split-tailor"
-              value={tailorText}
-              onValueChange={setTailorText}
-              placeholder="Ketik kode / nama"
-              options={tailors.map((tailor) => ({
-                label: tailorLabel(tailor),
-                hint: tailor.openCards > 0 ? `pegang ${tailor.openCards} kartu` : undefined,
-              }))}
-            />
-            {tailorText.trim() !== '' && tailorId === '' && (
-              <p className="text-destructive text-xs">Penjahit tidak ditemukan.</p>
-            )}
-          </div>
-          <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:items-end">
+          <div className="col-span-2 space-y-2 md:col-span-1">
             <Label htmlFor="split-item">Ukuran · warna</Label>
             <NativeSelect
               id="split-item"
@@ -191,7 +168,7 @@ function SplitForm({ options }: { options: SplitOptions }) {
             </NativeSelect>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="split-quantity">Jumlah</Label>
+            <Label htmlFor="split-quantity">Isi per kartu</Label>
             <Input
               id="split-quantity"
               inputMode="numeric"
@@ -202,18 +179,38 @@ function SplitForm({ options }: { options: SplitOptions }) {
               placeholder="pcs"
             />
           </div>
-          <Button type="submit" size="lg" variant="outline" disabled={!canAdd}>
+          <div className="space-y-2">
+            <Label htmlFor="split-count">Banyak kartu</Label>
+            <Input
+              id="split-count"
+              inputMode="numeric"
+              className="h-12 font-mono"
+              value={cardCount}
+              onChange={(event) => setCardCount(event.target.value.replace(/\D/g, ''))}
+              aria-invalid={
+                cardCount !== '' && (parsedCount < 1 || parsedCount > MAX_CARDS_PER_ADD)
+              }
+            />
+          </div>
+          <Button
+            type="submit"
+            size="lg"
+            variant="outline"
+            disabled={!canAdd}
+            className="col-span-2 md:col-span-1"
+          >
             <Plus />
             Tambah
           </Button>
         </div>
-        {tailors.length === 0 && (
-          <p className="text-sm text-warning">
-            Belum ada penjahit aktif. Tambahkan di menu Karyawan.
+        <p className="text-muted-foreground text-sm">
+          Nama dan kode penjahit ditulis tangan di kartu, lalu dicatat saat kartu disetor.
+        </p>
+        {itemId !== '' && requested > selectedAvailable && (
+          <p className="text-destructive text-sm">
+            {parsedCount > 1 ? `${parsedCount} × ${parsedQuantity} = ${requested} pcs, ` : ''}
+            melebihi sisa ({selectedAvailable} pcs).
           </p>
-        )}
-        {itemId !== '' && parsedQuantity > selectedAvailable && (
-          <p className="text-destructive text-sm">Melebihi sisa ({selectedAvailable} pcs).</p>
         )}
       </form>
 
@@ -240,12 +237,11 @@ function SplitForm({ options }: { options: SplitOptions }) {
         </div>
         {drafts.length === 0 ? (
           <p className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground text-sm">
-            Belum ada kartu. Pilih penjahit, ukuran · warna, dan jumlah di atas.
+            Belum ada kartu. Pilih ukuran · warna dan isi per kartu di atas.
           </p>
         ) : (
           <ul className="space-y-2">
-            {drafts.map((draft) => {
-              const tailor = tailorById.get(draft.tailorId)
+            {drafts.map((draft, index) => {
               const item = itemById.get(draft.workOrderItemId)
               return (
                 <li
@@ -253,12 +249,14 @@ function SplitForm({ options }: { options: SplitOptions }) {
                   className="flex animate-pop items-center gap-3 rounded-2xl border bg-background/40 p-3"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-strong font-mono font-semibold text-sm">
-                    {tailor?.code}
+                    {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-sm">{tailor?.name}</span>
-                    <span className="block truncate text-muted-foreground text-xs">
+                    <span className="block truncate font-medium text-sm">
                       {item?.sizeName} · {item?.colorName}
+                    </span>
+                    <span className="block truncate text-muted-foreground text-xs">
+                      Kartu {index + 1}
                       {workOrder.wageRate
                         ? ` · upah ${formatRupiah(draft.quantity * workOrder.wageRate)}`
                         : ''}
@@ -271,7 +269,7 @@ function SplitForm({ options }: { options: SplitOptions }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Hapus baris ${tailor?.name ?? ''}`}
+                    aria-label={`Hapus kartu ${index + 1}`}
                     onClick={() =>
                       setDrafts((current) => current.filter((value) => value.key !== draft.key))
                     }
@@ -334,7 +332,7 @@ export function SplitPage({ workOrderId }: { workOrderId: string }) {
         </Link>
       </Button>
       <PageHeader
-        eyebrow="Bagi ke penjahit"
+        eyebrow="Bagi kartu jahit"
         title={workOrder?.number ?? 'Memuat…'}
         description={
           workOrder

@@ -2,28 +2,49 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Printer } from 'lucide-react'
 import type { ReactNode } from 'react'
+import markSvg from '@/assets/maryam-mark.svg?raw'
 import { useRecordPrint } from '@/features/sewing-cards/api/mutations'
 import { useCardPrint } from '@/features/sewing-cards/api/queries'
 import type { PrintData, SewingCard } from '@/features/sewing-cards/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
+import { MaryamLogo } from '@/shared/components/MaryamLogo'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { qrDataUri } from '@/shared/lib/qr'
+import { cn } from '@/shared/lib/utils'
 import { toAppError } from '@/shared/types/errors'
 
 const PAGE_STYLE = '@page { size: 60mm 100mm; margin: 0; }'
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children?: ReactNode
+  className?: string
+}) {
   return (
-    <div className="flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.7mm]">
+    <div
+      className={cn(
+        'flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.7mm]',
+        className,
+      )}
+    >
       <span className="w-[15mm] shrink-0 font-semibold text-print-muted uppercase print-text-2xs">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-bold print-text-sm leading-tight">
+      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red print-text-sm leading-tight">
         {children}
       </span>
     </div>
   )
+}
+
+/** Written by hand: who takes the card is only known at the cutting table. */
+function HandwrittenRow({ label }: { label: string }) {
+  return <Row label={label} className="h-[7.5mm] border-print-ink/60 border-solid" />
 }
 
 interface CardSheetProps {
@@ -39,7 +60,7 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
       <header className="flex items-center justify-between border-print-ink border-b-[0.5mm] pb-[1.2mm]">
-        <span className="font-extrabold tracking-widest print-text-md">PRODUCTION</span>
+        <MaryamLogo className="h-[7.5mm]" />
         <span className="flex size-[6mm] items-center justify-center rounded-[1mm] border-[0.4mm] border-print-ink font-extrabold print-text-sm">
           {card.category}
         </span>
@@ -50,14 +71,14 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
         <Row label="T.Potong">{card.cutterName}</Row>
         <Row label="Model">{card.productCode}</Row>
         <Row label="Ukuran">{card.sizeName}</Row>
-        <Row label="Warna">{card.colorName}</Row>
+        <Row label="Warna">
+          <span className="uppercase print-text-md">{card.colorName}</span>
+        </Row>
         <Row label="Jumlah">
-          <span className="print-text-md">{card.quantity}</span> pcs
+          <span className="print-text-md">{card.quantity}</span>
         </Row>
-        <Row label="T.Jahit">{card.tailorName}</Row>
-        <Row label="Kode">
-          <span className="font-mono print-text-lg leading-none">{card.tailorCode}</span>
-        </Row>
+        <HandwrittenRow label="T.Jahit" />
+        <HandwrittenRow label="Kode" />
       </div>
 
       <div className="mt-auto flex items-end gap-[2.5mm] pt-[2mm]">
@@ -85,7 +106,11 @@ function useQrImages(numbers: string[]) {
     queryKey: ['qr-images', numbers],
     queryFn: async () =>
       Object.fromEntries(
-        await Promise.all(numbers.map(async (value) => [value, await qrDataUri(value)] as const)),
+        await Promise.all(
+          numbers.map(
+            async (value) => [value, await qrDataUri(value, { logoSvg: markSvg })] as const,
+          ),
+        ),
       ),
     enabled: numbers.length > 0,
     staleTime: Number.POSITIVE_INFINITY,

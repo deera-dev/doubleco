@@ -24,7 +24,7 @@ function EditCardDialog({ card }: { card: SewingCard }) {
   const openDialog = useSewingCardsUiStore((state) => state.openDialog)
   const options = useSplitOptions(card.workOrderId)
   const updateCard = useUpdateCard()
-  const [tailorId, setTailorId] = useState(card.tailorId)
+  const [tailorId, setTailorId] = useState(card.tailorId ?? '')
   const [quantity, setQuantity] = useState(String(card.quantity))
   const [reason, setReason] = useState('')
   const item = options.data?.items.find((candidate) => candidate.id === card.workOrderItemId)
@@ -32,14 +32,14 @@ function EditCardDialog({ card }: { card: SewingCard }) {
   const parsedQuantity = Number(quantity)
   const isQuantityValid =
     Number.isInteger(parsedQuantity) && parsedQuantity > 0 && parsedQuantity <= maxQuantity
-  const isChanged = tailorId !== card.tailorId || parsedQuantity !== card.quantity
+  const isChanged = tailorId !== (card.tailorId ?? '') || parsedQuantity !== card.quantity
 
   const save = () =>
     updateCard.mutate(
       {
         number: card.number,
         quantity: parsedQuantity === card.quantity ? null : parsedQuantity,
-        tailorId: tailorId === card.tailorId ? null : tailorId,
+        tailorId: tailorId === (card.tailorId ?? '') || tailorId === '' ? null : tailorId,
         reason: reason.trim(),
       },
       {
@@ -61,14 +61,18 @@ function EditCardDialog({ card }: { card: SewingCard }) {
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="card-tailor">Penjahit</Label>
+            <Label htmlFor="card-tailor">Penjahit (opsional)</Label>
             <NativeSelect
               id="card-tailor"
               value={tailorId}
               onChange={(event) => setTailorId(event.target.value)}
               disabled={!options.data}
             >
-              {!options.data && <option value={card.tailorId}>{card.tailorName}</option>}
+              {(!card.tailorId || !options.data) && (
+                <option value={card.tailorId ?? ''}>
+                  {card.tailorName ?? 'Belum dicatat — diisi saat setor'}
+                </option>
+              )}
               {options.data?.tailors.map((tailor) => (
                 <option key={tailor.id} value={tailor.id}>
                   {tailor.code} · {tailor.name}
@@ -154,8 +158,9 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
         <DialogHeader>
           <DialogTitle>Batalkan {card.number}?</DialogTitle>
           <DialogDescription>
-            {card.quantity} pcs {card.sizeName} · {card.colorName} milik {card.tailorName} kembali
-            menjadi sisa yang bisa dibagi. Kartu fisiknya jangan dipakai lagi.
+            {card.quantity} pcs {card.sizeName} · {card.colorName}{' '}
+            {card.tailorName ? `milik ${card.tailorName} ` : ''}kembali menjadi sisa yang bisa
+            dibagi. Kartu fisiknya jangan dipakai lagi.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

@@ -47,12 +47,21 @@ export function CardRow({
         </button>
       )}
       <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border border-border-strong bg-background/60">
-        <span className="font-mono font-semibold text-sm leading-none">{card.tailorCode}</span>
+        <span className="font-mono font-semibold text-sm leading-none">
+          {card.tailorCode ?? '—'}
+        </span>
         <span className="mt-0.5 text-subtle-foreground text-xs leading-none">kode</span>
       </span>
       <span className="min-w-0 flex-1 space-y-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="truncate font-medium text-sm">{card.tailorName}</span>
+          <span
+            className={cn(
+              'truncate font-medium text-sm',
+              !card.tailorName && 'text-muted-foreground',
+            )}
+          >
+            {card.tailorName ?? 'Belum dicatat'}
+          </span>
           <span className={cn('rounded-full border px-2 py-0.5 text-xs', status.className)}>
             {status.label}
           </span>

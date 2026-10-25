@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import { useWorkOrderPrint } from '@/features/work-orders/api/queries'
 import type { PrintData } from '@/features/work-orders/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
+import { MaryamLogo } from '@/shared/components/MaryamLogo'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatIsoDate, todayIsoDate } from '@/shared/lib/format'
@@ -20,9 +21,17 @@ function Label({ children }: { children: ReactNode }) {
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <div className="min-w-0 space-y-[0.6mm]">
+    <div className={cn('min-w-0 space-y-[0.6mm]', className)}>
       <Label>{label}</Label>
       <p className="truncate font-bold print-text-md leading-tight">{children}</p>
     </div>
@@ -67,44 +76,41 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
       className="wo-card-sheet relative flex flex-col gap-[3mm] overflow-hidden bg-print-paper p-[6mm] text-print-ink"
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
-      <header className="flex items-start justify-between gap-[3mm] border-print-ink border-b-[0.6mm] pb-[2mm]">
-        <div className="min-w-0 space-y-[0.6mm]">
-          <Label>Kartu work order</Label>
+      <header className="flex items-center justify-between gap-[4mm] border-print-ink border-b-[0.6mm] pb-[2.5mm]">
+        <MaryamLogo className="h-[11mm]" />
+        <div className="min-w-0 space-y-[0.8mm] text-right">
+          <Label>Kartu WO</Label>
           <p
             className={cn(
               'truncate font-extrabold font-mono leading-none',
-              workOrder.number.length > 16 ? 'print-text-lg' : 'print-text-xl',
+              workOrder.productCode.length > 12 ? 'print-text-lg' : 'print-text-xl',
             )}
           >
-            {workOrder.number}
+            {workOrder.productCode}
           </p>
-          <p className="truncate print-text-sm">
-            <span className="font-bold">{workOrder.productCode}</span>
-            {workOrder.productName ? ` · ${workOrder.productName}` : ''}
+          <p className="truncate font-semibold print-text-sm">
+            {formatWorkOrderDate(workOrder.orderedOn)}
           </p>
         </div>
-        {workOrder.category && (
-          <div className="flex shrink-0 flex-col items-center rounded-[1.5mm] border-[0.5mm] border-print-ink px-[2.4mm] py-[1mm]">
-            <span className="font-semibold text-print-muted uppercase print-text-2xs">
-              Kategori
-            </span>
-            <span className="font-extrabold print-text-xl leading-none">{workOrder.category}</span>
-          </div>
-        )}
       </header>
 
       <section className="grid grid-cols-2 gap-x-[4mm] gap-y-[2mm]">
-        <Field label="Tanggal">{formatWorkOrderDate(workOrder.orderedOn)}</Field>
         <Field label="Tukang potong">{workOrder.cutterName}</Field>
         <Field label="Bahan">{workOrder.fabricName}</Field>
         <Field label="Kombinasi">{workOrder.fabricCombination ?? '—'}</Field>
         <Field label="Kode pola">{workOrder.patternCode ?? '—'}</Field>
-        <Field label="Ukuran">{workOrder.sizes.join(' · ')}</Field>
+        <Field label="Ukuran" className="col-span-2">
+          {workOrder.sizes.join(' · ')}
+        </Field>
         <div className="col-span-2 min-w-0 space-y-[0.6mm]">
           <Label>Warna</Label>
-          <p className="line-clamp-2 font-bold print-text-md leading-tight">
-            {workOrder.colors.join(', ')}
-          </p>
+          {workOrder.colors.length > 0 ? (
+            <p className="line-clamp-2 font-bold print-text-md leading-tight">
+              {workOrder.colors.join(', ')}
+            </p>
+          ) : (
+            <div aria-hidden className="h-[5mm] border-print-line border-b border-dashed" />
+          )}
         </div>
       </section>
 
@@ -138,9 +144,13 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
         </div>
       </section>
 
-      <footer className="flex items-end justify-between border-print-line border-t pt-[1.5mm] text-print-muted print-text-2xs">
-        <span>Dicetak {formatIsoDate(todayIsoDate())}</span>
-        <span className="font-mono">{workOrder.number}</span>
+      <footer className="flex items-end justify-between gap-[3mm] border-print-line border-t pt-[1.5mm]">
+        <span className="text-print-muted print-text-2xs">
+          Dicetak {formatIsoDate(todayIsoDate())}
+        </span>
+        <span className="min-w-0 truncate font-bold font-mono print-text-sm">
+          {workOrder.number}
+        </span>
       </footer>
     </article>
   )

@@ -26,7 +26,7 @@ export function WorkOrderCards({ workOrderId, canSplit }: WorkOrderCardsProps) {
           <p className="text-muted-foreground text-sm">
             {list.length > 0
               ? `${list.length} kartu · ${openNumbers.length} masih di penjahit.`
-              : 'Belum ada kartu. Bagi hasil potong ke penjahit untuk membuatnya.'}
+              : 'Belum ada kartu. Bagi hasil potong jadi kartu jahit untuk membuatnya.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -42,7 +42,7 @@ export function WorkOrderCards({ workOrderId, canSplit }: WorkOrderCardsProps) {
             <Button asChild>
               <Link to="/potong-bagi/$workOrderId" params={{ workOrderId }}>
                 <Users />
-                Bagi ke penjahit
+                Bagi kartu jahit
               </Link>
             </Button>
           )}

@@ -12,14 +12,25 @@ interface ChipToggleGroupProps {
   selected: string[]
   onChange: (selected: string[]) => void
   label: string
+  invalid?: boolean
 }
 
-export function ChipToggleGroup({ options, selected, onChange, label }: ChipToggleGroupProps) {
+export function ChipToggleGroup({
+  options,
+  selected,
+  onChange,
+  label,
+  invalid,
+}: ChipToggleGroupProps) {
   const toggle = (id: string) =>
     onChange(selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id])
 
   return (
-    <fieldset aria-label={label} className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0">
+    <fieldset
+      aria-label={label}
+      data-invalid={invalid || undefined}
+      className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0"
+    >
       {options.map((option) => {
         const isSelected = selected.includes(option.id)
         return (
