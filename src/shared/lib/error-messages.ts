@@ -11,6 +11,12 @@ const businessMessages: Record<string, string> = {
   FORBIDDEN: 'Akun Anda tidak punya akses untuk tindakan ini.',
   DUPLICATE:
     'Data ini sudah ada. Beda huruf besar/kecil, spasi, atau tanda baca dianggap sama — pilih yang sudah ada.',
+  FABRIC_CODE_TAKEN: 'Kode bahan sudah dipakai bahan lain. Ganti kode bahannya.',
+  LABEL_REQUIRED: 'Ada isian yang masih kosong.',
+  SERIES_REQUIRED: 'Pilih seri bahan.',
+  SERIES_NOT_IN_FABRIC: 'Seri tidak sesuai dengan bahan.',
+  WORK_ORDER_FABRIC_LOCKED:
+    'Bahan dan seri tidak bisa diganti karena ukuran × warna sudah terpasang.',
   FABRIC_COMBINATION_SAME: 'Bahan kombinasi tidak boleh sama dengan bahan utama.',
   IN_USE: 'Data ini sudah dipakai di transaksi, jadi tidak bisa dihapus. Nonaktifkan saja.',
   NOT_FOUND: 'Data tidak ditemukan. Muat ulang halaman.',

@@ -25,7 +25,7 @@ interface WorkOrderRow {
   created_at: string
   product_id: string
   fabric_id: string
-  fabric_series_id: string
+  fabric_series_id: string | null
   cutter_id: string
   products: { code: string; name: string | null; wage_category: 'S' | 'M' | 'L' | null } | null
   fabric: NamedRef | null
@@ -90,7 +90,7 @@ function shape(row: WorkOrderRow) {
     fabricId: row.fabric_id,
     fabricName: row.fabric?.name ?? '-',
     seriesId: row.fabric_series_id,
-    seriesName: row.series?.name ?? '-',
+    seriesName: row.series?.name ?? null,
     fabricCombinationId: row.fabric_combination_id,
     fabricCombination: row.combination?.name ?? null,
     cutterId: row.cutter_id,
@@ -188,6 +188,7 @@ interface FabricOptionRow {
   id: string
   name: string
   kind: 'motif' | 'plain'
+  code: string | null
   fabric_series: {
     id: string
     name: string
@@ -209,7 +210,7 @@ const formOptions = defineAction({
         .order('code'),
       supabase
         .from('fabrics')
-        .select('id, name, kind, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
+        .select('id, name, kind, code, fabric_series(id, name, is_active, created_at, fabric_colors(id, name, is_active))')
         .eq('is_active', true)
         .order('name'),
       supabase.from('sizes').select('id, name').eq('is_active', true).order('sort_order').order('name'),
@@ -236,17 +237,17 @@ const formOptions = defineAction({
         id: fabric.id,
         name: fabric.name,
         kind: fabric.kind,
-        series: fabric.fabric_series
-          .filter((series) => series.is_active)
-          .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
-          .map((series) => ({
-            id: series.id,
-            name: series.name,
-            colors: series.fabric_colors
-              .filter((color) => color.is_active)
-              .map((color) => ({ id: color.id, name: color.name }))
-              .sort((a, b) => a.name.localeCompare(b.name)),
-          })),
+        code: fabric.code,
+        colors: [
+          ...new Map(
+            fabric.fabric_series
+              .filter((series) => series.is_active)
+              .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name))
+              .flatMap((series) => series.fabric_colors.filter((color) => color.is_active))
+              .map((color) => [keyOf(color.name), { id: color.id, name: color.name }] as const)
+              .reverse(),
+          ).values(),
+        ].sort((a, b) => a.name.localeCompare(b.name)),
       })),
       sizes: unwrap<{ id: string; name: string }[]>(sizes),
       cutters: unwrap<{ id: string; name: string }[]>(cutters),
@@ -281,7 +282,7 @@ const formInput = {
   product: label(40),
   category: z.enum(['S', 'M', 'L']).nullable().default(null),
   fabric: label(60),
-  series: label(40),
+  fabricCode: optionalLabel(20),
   cutter: label(60),
   pattern: optionalLabel(40),
   combination: optionalLabel(60),
@@ -308,7 +309,7 @@ async function resolveMaster(
     product: string
     category: 'S' | 'M' | 'L' | null
     fabric: string
-    series: string
+    fabricCode: string | null
     cutter: string
     pattern: string | null
     combination: string | null
@@ -329,10 +330,19 @@ async function resolveMaster(
     )
   }
   const fabricId = await ensureLabel(supabase, 'fabric', input.fabric)
+  if (input.fabricCode) {
+    const saved = await supabase
+      .from('fabrics')
+      .update({ code: input.fabricCode })
+      .eq('id', fabricId)
+      .is('code', null)
+      .select('id')
+    if (saved.error?.code === '23505') throw new Rejection('FABRIC_CODE_TAKEN', 409)
+    unwrap(saved)
+  }
   return {
     productId,
     fabricId,
-    seriesId: await ensureLabel(supabase, 'series', input.series, fabricId),
     cutterId: await ensureLabel(supabase, 'cutter', input.cutter),
     patternId: input.pattern ? await ensureLabel(supabase, 'pattern', input.pattern) : null,
     combinationId: input.combination ? await ensureLabel(supabase, 'combination', input.combination) : null,
@@ -357,7 +367,7 @@ const create = defineAction({
     const supabase = createUserClient(request)
     const master = await resolveMaster(supabase, input)
     const sizeIds = await ensureAll(supabase, 'size', input.sizes)
-    const colorIds = await ensureAll(supabase, 'color', input.colors, master.seriesId)
+    const colorIds = await ensureAll(supabase, 'color', input.colors, master.fabricId)
     const created = unwrap<{ id: string }>(
       await supabase
         .rpc('create_work_order', {
@@ -375,7 +385,6 @@ const create = defineAction({
           p_additional_info: input.additionalInfo,
           p_confirmed: input.confirmed,
           p_override_reason: input.reason,
-          p_fabric_series_id: master.seriesId,
         })
         .single(),
     )
@@ -396,7 +405,6 @@ const update = defineAction({
           ordered_on: input.orderedOn,
           product_id: master.productId,
           fabric_id: master.fabricId,
-          fabric_series_id: master.seriesId,
           cutter_id: master.cutterId,
           pattern_id: master.patternId,
           fabric_combination_id: master.combinationId,

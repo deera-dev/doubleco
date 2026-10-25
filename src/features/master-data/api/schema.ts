@@ -37,6 +37,7 @@ export const fabricSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   kind: fabricKindSchema,
+  code: z.string().nullable(),
   isActive: z.boolean(),
   series: z.array(fabricSeriesSchema),
 })

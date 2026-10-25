@@ -156,13 +156,21 @@ Rekening lama tidak dihapus, hanya dinonaktifkan (riwayat). Index biasa pada
 `default_pattern_id` (FK → patterns, null, `on delete set null`) — kode pola
 yang otomatis terpilih saat membuat WO produk ini.
 
+**Format kode produk**: `<huruf depan tukang potong>-<kode produk> <kode bahan>`, mis.
+`W-124 VCS` (W = WANTO, 124 = kode produk, VCS = kode bahan). Di form WO cukup
+diisi kode produknya; huruf dan kode bahan diambil dari data. Kode bahan bisa
+diubah per WO, dan bila bahan belum punya kode, kode yang diketik disimpan ke
+bahan tersebut.
+
 **`patterns`** — kode pola: `id`, `code` (unik, mis. `P-133`), `notes`, `is_active`, timestamps.
-**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `kind` (`motif` / `plain` = polos,
+**`fabrics`** — `id`, `name` (unik, mis. `BLACK SWAN`), `code` (kode bahan, unik bila diisi,
+mis. `BLS`), `kind` (`motif` / `plain` = polos,
 biasanya untuk kombinasi; default `motif`), `is_active`, timestamps. Dipakai
 sebagai bahan utama **dan** bahan kombinasi WO.
 **`fabric_series`** — seri bahan: `id`, `fabric_id`, `name` (mis. `SERI 1`), `is_active`;
 unik per bahan. Satu bahan bisa punya beberapa seri, masing-masing dengan
-daftar warna sendiri.
+daftar warna sendiri. Seri hanya untuk merapikan Master Data; di WO semua warna
+bahan digabung (nama sama tampil sekali) dan boleh dipilih dari seri mana pun.
 **`fabric_colors`** — `id`, `series_id`, `fabric_id` (diisi otomatis dari seri), `name`;
 unik per seri (warna yang sama boleh ada di seri lain).
 **`sizes`** — `id`, `name` (unik, mis. `MIDI`), `sort_order`.
@@ -208,7 +216,7 @@ Fungsi `wage_rate_on(category, date)` → tarif yang berlaku pada tanggal itu.
 | product_id             | uuid              | FK → products (kategori wajib terisi)                                        |
 | pattern_id             | uuid              | FK → patterns, null; default = pola bawaan produk                            |
 | fabric_id              | uuid              | FK → fabrics                                                                 |
-| fabric_series_id       | uuid              | FK → fabric_series milik `fabric_id`; warna item harus dari seri ini         |
+| fabric_series_id       | uuid              | null (WO baru); dulu seri WO. Warna item cukup milik `fabric_id`             |
 | fabric_combination_id  | uuid              | FK → fabrics, null; tidak boleh sama dengan `fabric_id`                      |
 | cutter_id              | uuid              | FK → cutters                                                                 |
 | change_status          | change_status     |                                                                              |

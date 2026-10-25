@@ -39,6 +39,7 @@ export const useSaveFabric = () =>
     id: string | null
     name: string
     kind: 'motif' | 'plain'
+    code: string | null
     isActive: boolean
   }>('save_fabric')
 
