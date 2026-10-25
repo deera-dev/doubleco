@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Printer, Users } from 'lucide-react'
+import { Printer } from 'lucide-react'
 import { useSewingCards } from '@/features/sewing-cards/api/queries'
 import { CardDialogs } from '@/features/sewing-cards/components/CardDialogs'
 import { CardRow } from '@/features/sewing-cards/components/CardRow'
@@ -8,12 +8,7 @@ import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { toAppError } from '@/shared/types/errors'
 
-interface WorkOrderCardsProps {
-  workOrderId: string
-  canSplit: boolean
-}
-
-export function WorkOrderCards({ workOrderId, canSplit }: WorkOrderCardsProps) {
+export function WorkOrderCards({ workOrderId }: { workOrderId: string }) {
   const cards = useSewingCards({ status: 'all', search: '', workOrderId })
   const list = cards.data?.cards ?? []
   const openNumbers = list.filter((card) => card.status === 'taken').map((card) => card.number)
@@ -26,7 +21,7 @@ export function WorkOrderCards({ workOrderId, canSplit }: WorkOrderCardsProps) {
           <p className="text-muted-foreground text-sm">
             {list.length > 0
               ? `${list.length} kartu · ${openNumbers.length} masih di penjahit.`
-              : 'Belum ada kartu. Bagi hasil potong jadi kartu jahit untuk membuatnya.'}
+              : 'Belum ada kartu. Isi hasil potong, lalu tekan “Buat & cetak kartu”.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -35,14 +30,6 @@ export function WorkOrderCards({ workOrderId, canSplit }: WorkOrderCardsProps) {
               <Link to="/cetak/kartu-jahit" search={cardPrintSearch(openNumbers)}>
                 <Printer />
                 Cetak {openNumbers.length} kartu
-              </Link>
-            </Button>
-          )}
-          {canSplit && (
-            <Button asChild>
-              <Link to="/potong-bagi/$workOrderId" params={{ workOrderId }}>
-                <Users />
-                Bagi kartu jahit
               </Link>
             </Button>
           )}

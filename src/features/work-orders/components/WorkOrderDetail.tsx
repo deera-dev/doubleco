@@ -168,13 +168,7 @@ export function WorkOrderDetail({ id }: { id: string }) {
             key={workOrder.data.items.map((item) => `${item.id}:${item.cutQuantity}`).join()}
             workOrder={workOrder.data}
           />
-          <WorkOrderCards
-            workOrderId={workOrder.data.id}
-            canSplit={
-              workOrder.data.status !== 'cancelled' &&
-              workOrder.data.totals.cut > workOrder.data.totals.assigned
-            }
-          />
+          <WorkOrderCards workOrderId={workOrder.data.id} />
           <DangerZone workOrder={workOrder.data} />
           <WorkOrderDialogs workOrder={workOrder.data} />
         </>

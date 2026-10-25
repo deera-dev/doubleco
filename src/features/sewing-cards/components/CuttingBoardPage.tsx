@@ -34,9 +34,13 @@ const cardColumns: CsvColumn<SewingCard>[] = [
   { header: 'Tanggal setor', value: (row) => row.submittedOn },
 ]
 
-function BoardRow({ workOrder, to }: { workOrder: BoardWorkOrder; to: 'split' | 'detail' }) {
-  const content = (
-    <>
+function BoardRow({ workOrder, isReady }: { workOrder: BoardWorkOrder; isReady: boolean }) {
+  return (
+    <Link
+      to="/work-order/$id"
+      params={{ id: workOrder.id }}
+      className="surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover"
+    >
       <span className="sheen-primary flex size-11 shrink-0 items-center justify-center rounded-xl font-semibold text-lg text-primary-foreground">
         {workOrder.category ?? '?'}
       </span>
@@ -44,41 +48,25 @@ function BoardRow({ workOrder, to }: { workOrder: BoardWorkOrder; to: 'split' | 
         <span className="block truncate font-medium font-mono text-sm">{workOrder.number}</span>
         <span className="block truncate text-muted-foreground text-xs">
           {formatWorkOrderDate(workOrder.orderedOn)} · potong {workOrder.cutterName}
-          {to === 'split' && workOrder.uncutItems > 0
+          {isReady && workOrder.uncutItems > 0
             ? ` · ${workOrder.uncutItems} ukuran/warna belum dipotong`
             : ''}
         </span>
       </span>
-      {to === 'split' && (
+      {isReady && (
         <span className="shrink-0 text-right">
           <span className="block font-mono font-semibold text-2xl tabular-nums leading-none">
             {workOrder.remaining}
           </span>
-          <span className="text-subtle-foreground text-xs">pcs sisa</span>
+          <span className="text-subtle-foreground text-xs">pcs tanpa kartu</span>
         </span>
       )}
       <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
-    </>
-  )
-  const className =
-    'surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover'
-
-  return to === 'split' ? (
-    <Link
-      to="/potong-bagi/$workOrderId"
-      params={{ workOrderId: workOrder.id }}
-      className={className}
-    >
-      {content}
-    </Link>
-  ) : (
-    <Link to="/work-order/$id" params={{ id: workOrder.id }} className={className}>
-      {content}
     </Link>
   )
 }
 
-function SplitPanel() {
+function ReadyPanel() {
   const board = useCuttingBoard()
 
   if (board.isPending) return <ListSkeleton />
@@ -95,8 +83,8 @@ function SplitPanel() {
     return (
       <EmptyState
         icon={Scissors}
-        title="Tidak ada yang perlu dibagi"
-        description="Semua hasil potong sudah dibagi ke penjahit. WO baru akan muncul di sini setelah hasil potongnya diisi."
+        title="Semua kartu sudah dicetak"
+        description="WO muncul di sini setelah hasil potongnya diisi dan kartunya belum dibuat."
         action={
           <Button asChild>
             <Link to="/work-order">Buka Work Order</Link>
@@ -110,13 +98,18 @@ function SplitPanel() {
     <div className="space-y-6">
       {readyToSplit.length > 0 && (
         <section className="space-y-3">
-          <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-            Siap dibagi ke penjahit
-          </h2>
+          <div className="space-y-1">
+            <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              Siap dicetak
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Buka WO-nya, lalu tekan “Buat & cetak kartu” di bagian Hasil potong.
+            </p>
+          </div>
           <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {readyToSplit.map((workOrder) => (
               <li key={workOrder.id}>
-                <BoardRow workOrder={workOrder} to="split" />
+                <BoardRow workOrder={workOrder} isReady />
               </li>
             ))}
           </ul>
@@ -130,7 +123,7 @@ function SplitPanel() {
           <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {waitingForCut.map((workOrder) => (
               <li key={workOrder.id}>
-                <BoardRow workOrder={workOrder} to="detail" />
+                <BoardRow workOrder={workOrder} isReady={false} />
               </li>
             ))}
           </ul>
@@ -197,7 +190,7 @@ function CardsPanel() {
           description={
             search
               ? 'Tidak ada kartu yang cocok dengan pencarian.'
-              : 'Kartu muncul di sini setelah hasil potong dibagi ke penjahit.'
+              : 'Kartu muncul di sini setelah dibuat dari halaman WO.'
           }
         />
       ) : (
@@ -269,8 +262,8 @@ export function CuttingBoardPage() {
     <div className="space-y-6 pb-24">
       <PageHeader
         eyebrow="Produksi"
-        title="Potong & Bagi"
-        description="Bagi hasil potong jadi kartu jahit 6×10 ber-QR, cetak, dan pantau kartu yang masih di penjahit."
+        title="Kartu Jahit"
+        description="Kartu jahit 6×10 ber-QR: satu hasil potong (ukuran × warna) satu kartu. Pantau kartu yang masih di penjahit."
       />
       <SegmentedControl
         label="Bagian"
@@ -278,12 +271,12 @@ export function CuttingBoardPage() {
         onChange={setTab}
         className="stagger-1 w-fit max-w-full animate-rise"
         options={[
-          { value: 'split', label: 'Bagi kartu jahit', count: board.data?.readyToSplit.length },
-          { value: 'cards', label: 'Kartu jahit', count: cards.data?.summary.taken },
+          { value: 'ready', label: 'Siap dicetak', count: board.data?.readyToSplit.length },
+          { value: 'cards', label: 'Daftar kartu', count: cards.data?.summary.taken },
         ]}
       />
       <div key={tab} className="stagger-2 animate-rise">
-        {tab === 'split' ? <SplitPanel /> : <CardsPanel />}
+        {tab === 'ready' ? <ReadyPanel /> : <CardsPanel />}
       </div>
     </div>
   )

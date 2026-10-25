@@ -134,9 +134,9 @@ export function SewingCardPrint({ numbers }: { numbers: string[] }) {
       <style>{PAGE_STYLE}</style>
       <div className="chrome sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 print:hidden">
         <Button asChild variant="ghost" size="sm">
-          <Link to="/potong-bagi">
+          <Link to="/kartu-jahit">
             <ArrowLeft />
-            Potong & Bagi
+            Kartu Jahit
           </Link>
         </Button>
         <p className="hidden text-muted-foreground text-sm md:block">
