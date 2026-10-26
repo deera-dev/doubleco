@@ -3,7 +3,7 @@ import { FileDown, Printer } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components/ui/button'
-import { buildPdf, isTouchDevice, shareOrDownload } from '@/shared/lib/print-pdf'
+import { buildPdf, isTouchDevice, printPdf, shareOrDownload } from '@/shared/lib/print-pdf'
 
 interface PrintToolbarProps {
   back: ReactNode
@@ -39,49 +39,23 @@ export function PrintToolbar({
   onPrinted,
   showCalibrationLink = true,
 }: PrintToolbarProps) {
-  const [isBuilding, setIsBuilding] = useState(false)
-  const preferPdf = isTouchDevice()
+  const [building, setBuilding] = useState<'print' | 'pdf' | null>(null)
+  // Phones cannot print a PDF from inside a page; there it goes to the printer app instead.
+  const isPhone = isTouchDevice()
 
-  const makePdf = async () => {
-    setIsBuilding(true)
+  const run = async (kind: 'print' | 'pdf') => {
+    setBuilding(kind)
     try {
       const file = await buildPdf({ sheets: printSheets(), widthMm, heightMm, offsets, fileName })
       onPrinted?.()
-      await shareOrDownload(file)
+      if (kind === 'print' && !isPhone) await printPdf(file)
+      else await shareOrDownload(file)
     } catch {
-      toast.error('PDF gagal dibuat. Coba lagi.')
+      toast.error(kind === 'print' ? 'Gagal membuka cetak. Coba lagi.' : 'PDF gagal dibuat.')
     } finally {
-      setIsBuilding(false)
+      setBuilding(null)
     }
   }
-
-  const printNow = () => {
-    onPrinted?.()
-    window.print()
-  }
-
-  const pdfButton = (
-    <Button
-      type="button"
-      variant={preferPdf ? 'default' : 'outline'}
-      onClick={makePdf}
-      disabled={!isReady || isBuilding}
-    >
-      <FileDown />
-      {isBuilding ? 'Membuat PDF…' : 'PDF'}
-    </Button>
-  )
-  const printButton = (
-    <Button
-      type="button"
-      variant={preferPdf ? 'outline' : 'default'}
-      onClick={printNow}
-      disabled={!isReady}
-    >
-      <Printer />
-      Cetak
-    </Button>
-  )
 
   return (
     <div className="chrome sticky top-0 z-10 space-y-2 border-b px-4 py-3 print:hidden">
@@ -91,36 +65,45 @@ export function PrintToolbar({
           {summary ? `${summary} · ` : ''}kertas {paper} · skala 100% · tanpa margin
         </p>
         <div className="flex gap-2">
-          {preferPdf ? (
-            <>
-              {printButton}
-              {pdfButton}
-            </>
-          ) : (
-            <>
-              {pdfButton}
-              {printButton}
-            </>
+          {!isPhone && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => run('pdf')}
+              disabled={!isReady || building !== null}
+            >
+              <FileDown />
+              {building === 'pdf' ? 'Membuat PDF…' : 'Simpan PDF'}
+            </Button>
           )}
+          <Button
+            type="button"
+            onClick={() => run('print')}
+            disabled={!isReady || building !== null}
+          >
+            <Printer />
+            {building === 'print' ? 'Menyiapkan…' : 'Cetak'}
+          </Button>
         </div>
       </div>
-      {(preferPdf || showCalibrationLink) && (
-        <p className="text-muted-foreground text-xs">
-          {preferPdf &&
-            `Dari HP: tekan PDF, pilih aplikasi printer, lalu atur kertas ${paper} dan skala 100% (jangan "sesuaikan halaman"). `}
-          {showCalibrationLink && (
-            <>
-              Hasil bergeser?{' '}
-              <Link
-                to="/cetak/kalibrasi"
-                className="font-medium text-link underline-offset-4 hover:underline"
-              >
-                Kalibrasi cetak
-              </Link>
-            </>
-          )}
-        </p>
-      )}
+      <p className="text-muted-foreground text-xs">
+        {isPhone
+          ? `Cetak membuka daftar aplikasi: pilih aplikasi printer (mis. Epson Smart Panel, Canon PRINT, HP Smart, atau Mopria). `
+          : ''}
+        Di dialog cetak pilih ukuran kertas {paper} dan skala 100% / ukuran asli (jangan "sesuaikan
+        halaman").{' '}
+        {showCalibrationLink && (
+          <>
+            Hasil bergeser?{' '}
+            <Link
+              to="/cetak/kalibrasi"
+              className="font-medium text-link underline-offset-4 hover:underline"
+            >
+              Kalibrasi cetak
+            </Link>
+          </>
+        )}
+      </p>
     </div>
   )
 }
