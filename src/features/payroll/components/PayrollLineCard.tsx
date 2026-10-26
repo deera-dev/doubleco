@@ -1,7 +1,7 @@
-import { ChevronDown, CircleCheck, Pencil, TriangleAlert, X } from 'lucide-react'
+import { ChevronDown, CircleCheck, Pencil, TriangleAlert, Undo2, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useMarkPaid, useRemoveAddition } from '@/features/payroll/api/mutations'
+import { useMarkPaid, useRemoveAddition, useUnmarkPaid } from '@/features/payroll/api/mutations'
 import type { PayrollLine } from '@/features/payroll/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
@@ -63,6 +63,7 @@ interface PayrollLineCardProps {
 export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLineCardProps) {
   const [isOpen, setIsOpen] = useState(false)
   const markPaid = useMarkPaid()
+  const unmarkPaid = useUnmarkPaid()
   const removeAddition = useRemoveAddition()
   const isNegative = line.transferAmount < 0
 
@@ -163,6 +164,25 @@ export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLine
               <span className="flex items-center gap-1 text-sm text-success">
                 <CircleCheck className="size-4" />
                 Dibayar {line.paidAt ? paidAtFormat.format(new Date(line.paidAt)) : ''}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  disabled={unmarkPaid.isPending}
+                  onClick={() =>
+                    unmarkPaid.mutate(
+                      { lineId: line.id, reason: 'Tanda dibayar dibatalkan' },
+                      {
+                        onSuccess: () => toast.success(`Tanda dibayar ${line.name} dibatalkan`),
+                        onError: (error) => toast.error(describeError(error)),
+                      },
+                    )
+                  }
+                >
+                  <Undo2 />
+                  Batalkan
+                </Button>
               </span>
             ) : (
               <Button

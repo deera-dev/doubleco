@@ -114,6 +114,8 @@ const ledger = defineAction({
             !isPayrollRepayment &&
             entry.import_batch_id === null &&
             period?.status !== 'locked',
+          // Anything can be deleted (test data, wrong input) once its payroll week is open.
+          isDeletable: period?.status !== 'locked',
         }
       }),
     }

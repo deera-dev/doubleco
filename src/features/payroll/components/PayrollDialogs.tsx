@@ -332,8 +332,8 @@ export function UnlockDialog({ payOn, onClose }: { payOn: string; onClose: () =>
         <DialogHeader>
           <DialogTitle>Buka kunci gajian?</DialogTitle>
           <DialogDescription>
-            Kartu kembali ke status disetor dan cicilan kasbon dari gajian ini dihapus, supaya rekap
-            bisa diperbaiki. Hanya bisa selama belum ada yang ditandai dibayar.
+            Kartu kembali ke status disetor, cicilan kasbon dari gajian ini dihapus, dan tanda
+            dibayar dibatalkan, supaya rekap, kasbon, dan kartu bisa diperbaiki atau dihapus.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

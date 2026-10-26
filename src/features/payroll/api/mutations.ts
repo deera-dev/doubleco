@@ -58,6 +58,11 @@ export const useMarkPaid = () =>
     callAction('payroll', 'mark_paid', savedIdSchema, input),
   )
 
+export const useUnmarkPaid = () =>
+  usePayrollAction((input: { lineId: string; reason: string }) =>
+    callAction('payroll', 'unmark_paid', savedIdSchema, input),
+  )
+
 export const useDecideDeduction = () =>
   usePayrollAction((input: { id: string; decision: 'deduct' | 'waive'; notes: string | null }) =>
     callAction('payroll', 'decide_deduction', savedIdSchema, input),

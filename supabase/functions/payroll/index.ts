@@ -356,6 +356,15 @@ const markPaid = defineAction({
   },
 })
 
+const unmarkPaid = defineAction({
+  input: z.object({ lineId: uuid, reason: z.string().trim().min(1).max(200) }),
+  run: async ({ lineId, reason }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('unmark_payroll_line_paid', { p_payroll_line_id: lineId, p_reason: reason }))
+    return { id: lineId }
+  },
+})
+
 const decideDeduction = defineAction({
   input: z.object({
     id: uuid,
@@ -375,6 +384,157 @@ const decideDeduction = defineAction({
   },
 })
 
+/** The Saturday closing the Monday–Saturday week of a date (a Sunday belongs to the next week). */
+function saturdayOf(isoDate: string): string {
+  const day = new Date(`${isoDate}T00:00:00Z`).getUTCDay()
+  return addDays(isoDate, (6 - day + 7) % 7)
+}
+
+interface HistoryLineRow {
+  tailor_id: string
+  gross_wage: number
+  advance_repayment: number
+  transfer_amount: number
+  status: 'draft' | 'paid'
+  payroll_periods: { pay_on: string; status: 'open' | 'locked' } | null
+}
+
+interface HistoryEntryRow {
+  tailor_id: string
+  entry_type: 'opening_balance' | 'advance' | 'repayment' | 'write_off'
+  amount: number
+  entry_on: string
+  payroll_lines: { payroll_periods: { pay_on: string } | null } | null
+}
+
+interface HistoryTailorRow {
+  id: string
+  code: string
+  name: string
+  tailor_payment_accounts: Account[]
+}
+
+/**
+ * Buku per penjahit, satu baris per Sabtu: kasbon baru, upah, dan cicilan minggu itu, plus sisa
+ * kasbon setelahnya. Like the old per-tailor Excel sheets.
+ */
+const tailorHistory = defineAction({
+  input: z.object({
+    tailorId: uuid.nullable().default(null),
+    from: z.string().date(),
+    to: z.string().date(),
+  }),
+  run: async ({ tailorId, from, to }, request) => {
+    const supabase = createUserClient(request)
+    let lineQuery = supabase
+      .from('payroll_lines')
+      .select('tailor_id, gross_wage, advance_repayment, transfer_amount, status, payroll_periods!inner(pay_on, status)')
+      .gte('payroll_periods.pay_on', from)
+      .lte('payroll_periods.pay_on', to)
+    let entryQuery = supabase
+      .from('cash_advance_entries')
+      .select('tailor_id, entry_type, amount, entry_on, payroll_lines(payroll_periods(pay_on))')
+    if (tailorId) {
+      lineQuery = lineQuery.eq('tailor_id', tailorId)
+      entryQuery = entryQuery.eq('tailor_id', tailorId)
+    }
+    const [lines, entries] = await Promise.all([lineQuery, entryQuery])
+    const lineRows = unwrap<HistoryLineRow[]>(lines)
+    const entryRows = unwrap<HistoryEntryRow[]>(entries)
+
+    type Week = {
+      payOn: string
+      advance: number
+      wage: number
+      repayment: number
+      writeOff: number
+      transfer: number | null
+    }
+    const books = new Map<string, { opening: number; weeks: Map<string, Week> }>()
+    const bookOf = (id: string) => {
+      let book = books.get(id)
+      if (!book) {
+        book = { opening: 0, weeks: new Map() }
+        books.set(id, book)
+      }
+      return book
+    }
+    const weekOf = (id: string, payOn: string) => {
+      const book = bookOf(id)
+      let week = book.weeks.get(payOn)
+      if (!week) {
+        week = { payOn, advance: 0, wage: 0, repayment: 0, writeOff: 0, transfer: null }
+        book.weeks.set(payOn, week)
+      }
+      return week
+    }
+
+    for (const line of lineRows) {
+      const payOn = line.payroll_periods?.pay_on
+      if (!payOn) continue
+      const week = weekOf(line.tailor_id, payOn)
+      week.wage += Number(line.gross_wage)
+      week.transfer = (week.transfer ?? 0) + Number(line.transfer_amount)
+      // An open week has no repayment entry yet; show the planned cicilan.
+      if (line.payroll_periods?.status !== 'locked') week.repayment += Number(line.advance_repayment)
+    }
+    for (const entry of entryRows) {
+      const payOn = entry.payroll_lines?.payroll_periods?.pay_on ?? saturdayOf(entry.entry_on)
+      const amount = Number(entry.amount)
+      const delta = entry.entry_type === 'opening_balance' || entry.entry_type === 'advance' ? amount : -amount
+      if (payOn < from) {
+        bookOf(entry.tailor_id).opening += delta
+        continue
+      }
+      if (payOn > to) continue
+      const week = weekOf(entry.tailor_id, payOn)
+      if (entry.entry_type === 'advance' || entry.entry_type === 'opening_balance') week.advance += amount
+      else if (entry.entry_type === 'repayment') week.repayment += amount
+      else week.writeOff += amount
+    }
+
+    const ids = [...books.keys()]
+    const tailors =
+      ids.length === 0
+        ? []
+        : unwrap<HistoryTailorRow[]>(
+            await supabase
+              .from('tailors')
+              .select('id, code, name, tailor_payment_accounts(provider, account_number, account_holder, is_active)')
+              .in('id', ids),
+          )
+
+    return {
+      from,
+      to,
+      tailors: tailors
+        .map((tailor) => {
+          const book = bookOf(tailor.id)
+          const account = tailor.tailor_payment_accounts.find((candidate) => candidate.is_active)
+          let balance = book.opening
+          const weeks = [...book.weeks.values()]
+            .sort((a, b) => a.payOn.localeCompare(b.payOn))
+            .map((week) => {
+              balance += week.advance - week.repayment - week.writeOff
+              return { ...week, balance }
+            })
+          return {
+            id: tailor.id,
+            code: tailor.code,
+            name: tailor.name,
+            account: account
+              ? { provider: account.provider, number: account.account_number, holder: account.account_holder }
+              : null,
+            openingBalance: book.opening,
+            weeks,
+          }
+        })
+        .filter((tailor) => tailor.weeks.length > 0)
+        .sort((a, b) => a.code.localeCompare(b.code, 'id', { numeric: true })),
+    }
+  },
+})
+
 serveActions({
   overview,
   tailor_options: tailorOptions,
@@ -384,5 +544,7 @@ serveActions({
   lock,
   unlock,
   mark_paid: markPaid,
+  unmark_paid: unmarkPaid,
+  tailor_history: tailorHistory,
   decide_deduction: decideDeduction,
 })

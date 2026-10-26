@@ -82,9 +82,8 @@ interface SubmitFormProps {
 
 function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
   const submitCard = useSubmitCard()
-  const lastTailorId = useScanUiStore((state) => state.lastTailorId)
-  const setLastTailorId = useScanUiStore((state) => state.setLastTailorId)
-  const initialTailor = tailors.find((tailor) => tailor.id === (card.tailorId ?? lastTailorId))
+  // Every card starts blank (or with its own tailor): the previous scan's tailor is usually wrong.
+  const initialTailor = tailors.find((tailor) => tailor.id === card.tailorId)
   const [tailorText, setTailorText] = useState(initialTailor ? tailorLabel(initialTailor) : '')
   const [submittedOn, setSubmittedOn] = useState(today)
   const [isIncomplete, setIsIncomplete] = useState(false)
@@ -109,7 +108,6 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
       {
         onSuccess: () => {
           signal('saved')
-          setLastTailorId(tailor.id)
           setIsConfirming(false)
           toast.success(`${card.number} disetor · ${tailor.name}`)
           onDone()

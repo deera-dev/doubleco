@@ -34,3 +34,10 @@ export function formatPayDay(isoDate: string): string {
 export function formatWeek(startsOn: string, payOn: string): string {
   return `${shortDate.format(toDate(startsOn))} – ${shortDate.format(toDate(payOn))}`
 }
+
+/** The Saturday that closes the Monday–Saturday week of a date (the date itself on a Saturday). */
+export function saturdayOf(isoDate: string): string {
+  const date = toDate(isoDate)
+  date.setUTCDate(date.getUTCDate() + ((6 - date.getUTCDay() + 7) % 7))
+  return date.toISOString().slice(0, 10)
+}
