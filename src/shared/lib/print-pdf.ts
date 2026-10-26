@@ -73,3 +73,34 @@ export async function shareOrDownload(file: File) {
 export function isTouchDevice(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 }
+
+/**
+ * Sends the PDF itself to the print dialog. A PDF prints at its own page size, and the browser adds
+ * no title, URL or date to it the way it does when printing a web page.
+ */
+export function printPdf(file: File): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const frame = document.createElement('iframe')
+    // Kept in the layout (not display: none) so the PDF viewer actually loads.
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0'
+    frame.src = url
+    frame.onload = () => {
+      // The PDF viewer needs a moment after load before it can print.
+      window.setTimeout(() => {
+        try {
+          frame.contentWindow?.focus()
+          frame.contentWindow?.print()
+          resolve()
+        } catch (error) {
+          reject(error)
+        }
+      }, 400)
+      window.setTimeout(() => {
+        frame.remove()
+        URL.revokeObjectURL(url)
+      }, 120_000)
+    }
+    document.body.append(frame)
+  })
+}
