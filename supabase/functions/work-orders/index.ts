@@ -73,7 +73,7 @@ function shape(row: WorkOrderRow) {
         submittedQuantity: liveCards
           .filter((card) => card.status === 'submitted' || card.status === 'paid')
           .reduce((sum, card) => sum + card.quantity, 0),
-        cardCount: item.sewing_cards.length,
+        cardCount: liveCards.length,
       }
     })
     .sort((a, b) => a.sizeOrder - b.sizeOrder || (a.colorName ?? '').localeCompare(b.colorName ?? ''))
