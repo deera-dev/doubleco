@@ -23,6 +23,7 @@ import {
   parseProductCode,
   previewProductCode,
 } from '@/features/work-orders/lib/product-code'
+import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { ChipToggleGroup } from '@/shared/components/ChipToggleGroup'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { LabelChipPicker } from '@/shared/components/LabelChipPicker'
@@ -57,17 +58,17 @@ const NEW_HINT = 'Belum ada di Master Data — otomatis ditambahkan saat WO disi
 /** Form order, so the summary reads top to bottom like the page. */
 const FIELD_LABELS: Partial<Record<keyof WorkOrderFormInput, string>> = {
   cutter: 'Tukang potong',
-  productNumber: 'Kode produk',
-  category: 'Kategori upah',
-  number: 'Nomor WO',
-  orderedOn: 'Tanggal WO',
-  pattern: 'Kode pola',
   fabric: 'Bahan',
+  productNumber: 'Nomor produk',
   fabricCode: 'Kode bahan',
+  category: 'Kategori upah',
+  pattern: 'Kode pola',
   combination: 'Kombinasi',
   sizes: 'Ukuran',
   changeNotes: 'Perubahannya',
   additionalInfo: 'Catatan',
+  number: 'Nomor WO',
+  orderedOn: 'Tanggal WO',
 }
 
 /** Server rejections that belong to one field: shown under that field instead of at the bottom. */
@@ -149,7 +150,9 @@ function needsCategory(options: FormOptions, product: string): boolean {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="surface space-y-4 rounded-3xl p-5 sm:p-6">
+    // A card blurs its backdrop, which traps the suggestion list inside it: the card being typed in
+    // is lifted above the cards after it.
+    <section className="surface space-y-4 rounded-3xl p-5 focus-within:z-10 sm:p-6">
       <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
         {title}
       </h2>
@@ -181,15 +184,16 @@ function useSuggestedNumber(form: WorkOrderForm, isCreating: boolean) {
   }, [suggested, form])
 }
 
-function ProductFields({ form, options, isLocked }: FieldsProps) {
+/** Kode produk = cutter initial – product number + fabric code, built right where it is typed. */
+function ProductCodeBuilder({ form, options, isLocked }: FieldsProps) {
   const cutter = form.watch('cutter')
   const productNumber = form.watch('productNumber')
   const fabricCode = form.watch('fabricCode')
-  const category = form.watch('category')
+  const fabric = form.watch('fabric')
   const product = composeProductCode(cutter, productNumber, fabricCode)
   const match = findByLabel(options.products, product, (candidate) => candidate.code)
-  const sibling = match ?? siblingProduct(options, productNumber)
-  const showCategory = product !== '' && needsCategory(options, product)
+  const initial = cutterInitial(cutter)
+  const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
   const numberOptions = [
     ...new Map(
       options.products.flatMap((candidate) => {
@@ -208,6 +212,102 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
       .join(', '),
   }))
 
+  return (
+    <div
+      className={cn(
+        'space-y-3 rounded-2xl border p-4',
+        product ? 'border-brand-400/40 bg-brand-500/10' : 'border-dashed',
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-medium text-sm">Kode produk</p>
+        <p className="truncate font-mono font-semibold text-lg tracking-tight">
+          {previewProductCode(cutter, productNumber, fabricCode)}
+        </p>
+      </div>
+      <div className="flex items-start gap-2">
+        <div className="w-14 shrink-0 space-y-1">
+          <div
+            title="Huruf dari tukang potong"
+            className="flex h-12 items-center justify-center rounded-xl border border-border-strong bg-background/60 font-mono font-semibold text-lg"
+          >
+            {initial || <span className="text-subtle-foreground">?</span>}
+          </div>
+          <p className="text-center text-subtle-foreground text-xs leading-tight">huruf</p>
+        </div>
+        <span className="pt-3 font-mono text-muted-foreground">–</span>
+        <FormField
+          control={form.control}
+          name="productNumber"
+          render={({ field }) => (
+            <FormItem className="min-w-0 flex-1 gap-1">
+              <FormControl>
+                <Combobox
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  disabled={isLocked}
+                  inputMode="numeric"
+                  placeholder="124"
+                  aria-label="Nomor produk"
+                  className="font-mono"
+                  options={numberOptions}
+                />
+              </FormControl>
+              <p className="text-center text-subtle-foreground text-xs leading-tight">
+                nomor produk
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="fabricCode"
+          render={({ field }) => (
+            <FormItem className="w-24 shrink-0 gap-1">
+              <FormControl>
+                <Input
+                  {...field}
+                  disabled={isLocked}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  placeholder="VCS"
+                  aria-label="Kode bahan"
+                  className="h-12 text-center font-mono uppercase placeholder:normal-case"
+                />
+              </FormControl>
+              <p className="text-center text-subtle-foreground text-xs leading-tight">kode bahan</p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {product === ''
+          ? 'Cukup ketik nomor produk. Huruf diambil dari tukang potong, kode bahan dari bahan.'
+          : match
+            ? match.category
+              ? `Produk sudah ada · kategori ${match.category}`
+              : 'Produk sudah ada · kategori belum diisi'
+            : 'Produk baru · ditambahkan ke Master Data saat WO disimpan'}
+      </p>
+      <FabricCodeHint fabric={fabricMatch} code={fabricCode} />
+    </div>
+  )
+}
+
+function CategoryField({ form, options }: Omit<FieldsProps, 'isLocked'>) {
+  const cutter = form.watch('cutter')
+  const productNumber = form.watch('productNumber')
+  const fabricCode = form.watch('fabricCode')
+  const category = form.watch('category')
+  const product = composeProductCode(cutter, productNumber, fabricCode)
+  const match = findByLabel(options.products, product, (candidate) => candidate.code)
+  const sibling = match ?? siblingProduct(options, productNumber)
+
   useEffect(() => {
     if (!sibling) return
     if (sibling.category && form.getValues('category') === '' && sibling.id !== match?.id) {
@@ -219,9 +319,180 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
     }
   }, [sibling, match, options.patterns, form])
 
+  if (product === '' || !needsCategory(options, product)) return null
+
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <FormField
+      control={form.control}
+      name="category"
+      render={({ fieldState }) => (
+        <FormItem className="animate-rise">
+          <FormLabel>Kategori upah {match ? 'produk ini' : 'produk baru'}</FormLabel>
+          <ChipToggleGroup
+            invalid={fieldState.invalid}
+            label="Kategori upah"
+            options={['S', 'M', 'L'].map((value) => ({ id: value, label: value }))}
+            selected={category === '' ? [] : [category]}
+            onChange={(selected) => {
+              const value = selected.at(-1)
+              form.setValue(
+                'category',
+                value === 'S' || value === 'M' || value === 'L' ? value : '',
+                { shouldValidate: true },
+              )
+            }}
+          />
+          <FormDescription>
+            {sibling && sibling.id !== match?.id && sibling.category
+              ? `Diambil dari ${sibling.code}. Bisa diganti.`
+              : 'Disimpan ke Master Data → Produk. Wajib dipilih.'}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+}
+
+/** Number and date fill themselves in; they stay folded unless someone wants to change them. */
+function RecordFields({ form }: { form: WorkOrderForm }) {
+  const number = form.watch('number')
+  const orderedOn = form.watch('orderedOn')
+  const hasError = Boolean(form.formState.errors.number || form.formState.errors.orderedOn)
+  const [isOpen, setIsOpen] = useState(false)
+  const isShown = isOpen || hasError
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-dashed px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 text-sm">
+          <p className="text-muted-foreground text-xs">Nomor & tanggal WO · otomatis</p>
+          <p className="truncate">
+            <span className="font-mono">{number || 'dibuat setelah kode produk terisi'}</span>
+            {' · '}
+            {orderedOn ? formatWorkOrderDate(orderedOn) : '-'}
+          </p>
+        </div>
+        {!hasError && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen((open) => !open)}
+            aria-expanded={isShown}
+          >
+            {isShown ? 'Tutup' : 'Ubah'}
+          </Button>
+        )}
+      </div>
+      {isShown && (
+        <div className="grid animate-rise gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nomor WO</FormLabel>
+                <FormControl>
+                  <Input className="h-12 font-mono uppercase" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="orderedOn"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tanggal WO</FormLabel>
+                <FormControl>
+                  <Input type="date" className="h-12" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FabricCodeHint({
+  fabric,
+  code,
+}: {
+  fabric: FormOptions['fabrics'][number] | undefined
+  code: string
+}) {
+  if (labelKey(code) === '') return null
+  if (!fabric?.code) {
+    return (
+      <p className="text-brand-200 text-xs">
+        Kode bahan {code.toUpperCase()} disimpan untuk {fabric ? fabric.name : 'bahan baru ini'} di
+        Master Data.
+      </p>
+    )
+  }
+  if (labelKey(fabric.code) !== labelKey(code)) {
+    return (
+      <p className="text-muted-foreground text-xs">
+        Kode bahan {fabric.name} di Master Data: {fabric.code}. Yang ini hanya untuk produk ini.
+      </p>
+    )
+  }
+  return null
+}
+
+interface FieldsProps {
+  form: WorkOrderForm
+  options: FormOptions
+  isLocked: boolean
+}
+
+function FormFields({
+  form,
+  options,
+  workOrder,
+}: {
+  form: WorkOrderForm
+  options: FormOptions
+  workOrder: WorkOrder | null
+}) {
+  const fabric = form.watch('fabric')
+  const changeStatus = form.watch('changeStatus')
+  const sizes = form.watch('sizes')
+  const isLocked = workOrder?.hasCards ?? false
+  const isFabricLocked = workOrder !== null
+  const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
+    [...options.fabrics]
+      .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
+      .map((candidate) => ({
+        label: candidate.name,
+        hint: [
+          candidate.kind === 'motif' ? 'motif' : 'polos',
+          candidate.code ? `kode ${candidate.code}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      }))
+
+  const onFabricChange = (value: string) => {
+    if (labelKey(value) === labelKey(fabric)) {
+      form.setValue('fabric', value)
+      return
+    }
+    const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
+    form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
+    if (match?.code && !form.getFieldState('fabricCode').isDirty) {
+      form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
+    }
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Section title="Produk">
         <FormField
           control={form.control}
           name="cutter"
@@ -250,10 +521,35 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
         />
         <FormField
           control={form.control}
-          name="productNumber"
+          name="fabric"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Kode produk</FormLabel>
+              <FormLabel>Bahan</FormLabel>
+              <FormControl>
+                <Combobox
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={onFabricChange}
+                  onBlur={field.onBlur}
+                  disabled={isFabricLocked}
+                  placeholder="Mis. BLACK SWAN"
+                  options={fabricOptionsFor('motif')}
+                  newHint={NEW_HINT}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <ProductCodeBuilder form={form} options={options} isLocked={isLocked} />
+        <CategoryField form={form} options={options} />
+        <FormField
+          control={form.control}
+          name="pattern"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kode pola (opsional)</FormLabel>
               <FormControl>
                 <Combobox
                   ref={field.ref}
@@ -261,271 +557,43 @@ function ProductFields({ form, options, isLocked }: FieldsProps) {
                   value={field.value}
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
-                  disabled={isLocked}
-                  inputMode="numeric"
-                  placeholder="Mis. 124"
+                  placeholder="Mis. P-133"
                   className="font-mono"
-                  options={numberOptions}
+                  options={options.patterns.map((pattern) => ({ label: pattern.code }))}
+                  newHint={NEW_HINT}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      </div>
-      <div
-        className={cn(
-          'flex flex-col gap-1 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3',
-          product ? 'border-brand-400/40 bg-brand-500/10' : 'border-dashed',
-        )}
-      >
-        <div className="min-w-0">
-          <p className="text-muted-foreground text-xs">Kode produk lengkap</p>
-          <p className="truncate font-mono font-semibold text-xl tracking-tight">
-            {previewProductCode(cutter, productNumber, fabricCode)}
-          </p>
-        </div>
-        <p className="text-muted-foreground text-xs sm:shrink-0 sm:text-right">
-          {product === ''
-            ? 'Huruf dari tukang potong, kode bahan dari bahan'
-            : match
-              ? match.category
-                ? `Sudah ada · kategori ${match.category}`
-                : 'Sudah ada · kategori belum diisi'
-              : 'Produk baru · ditambahkan saat disimpan'}
-        </p>
-      </div>
-      {showCategory && (
+      </Section>
+
+      <Section title={workOrder ? 'Kombinasi' : 'Kombinasi & ukuran'}>
         <FormField
           control={form.control}
-          name="category"
-          render={({ fieldState }) => (
-            <FormItem className="animate-rise">
-              <FormLabel>Kategori upah {match ? 'produk ini' : 'produk baru'}</FormLabel>
-              <ChipToggleGroup
-                invalid={fieldState.invalid}
-                label="Kategori upah"
-                options={['S', 'M', 'L'].map((value) => ({ id: value, label: value }))}
-                selected={category === '' ? [] : [category]}
-                onChange={(selected) => {
-                  const value = selected.at(-1)
-                  form.setValue(
-                    'category',
-                    value === 'S' || value === 'M' || value === 'L' ? value : '',
-                    { shouldValidate: true },
-                  )
-                }}
-              />
-              <FormDescription>
-                {sibling && sibling.id !== match?.id && sibling.category
-                  ? `Diambil dari ${sibling.code}. Bisa diganti.`
-                  : 'Disimpan ke Master Data → Produk. Wajib dipilih.'}
-              </FormDescription>
+          name="combination"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kombinasi · bahan polos (opsional)</FormLabel>
+              <FormControl>
+                <Combobox
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  placeholder="Mis. ORB"
+                  options={fabricOptionsFor('plain').filter(
+                    (option) => labelKey(option.label) !== labelKey(fabric),
+                  )}
+                  newHint={NEW_HINT}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      )}
-    </>
-  )
-}
-
-function FabricCodeHint({
-  fabric,
-  code,
-}: {
-  fabric: FormOptions['fabrics'][number] | undefined
-  code: string
-}) {
-  if (labelKey(code) === '') return null
-  if (!fabric?.code) {
-    return (
-      <FormDescription className="text-brand-200">
-        Disimpan sebagai kode bahan {fabric ? fabric.name : 'baru'} di Master Data.
-      </FormDescription>
-    )
-  }
-  if (labelKey(fabric.code) !== labelKey(code)) {
-    return (
-      <FormDescription>
-        Kode bahan {fabric.name} di Master Data: {fabric.code}. Yang ini hanya untuk produk ini.
-      </FormDescription>
-    )
-  }
-  return null
-}
-
-interface FieldsProps {
-  form: WorkOrderForm
-  options: FormOptions
-  isLocked: boolean
-}
-
-function FormFields({
-  form,
-  options,
-  workOrder,
-}: {
-  form: WorkOrderForm
-  options: FormOptions
-  workOrder: WorkOrder | null
-}) {
-  const fabric = form.watch('fabric')
-  const changeStatus = form.watch('changeStatus')
-  const sizes = form.watch('sizes')
-  const isLocked = workOrder?.hasCards ?? false
-  const isFabricLocked = workOrder !== null
-  const fabricMatch = findByLabel(options.fabrics, fabric, (candidate) => candidate.name)
-  const fabricOptionsFor = (preferred: 'motif' | 'plain') =>
-    [...options.fabrics]
-      .sort((a, b) => Number(a.kind !== preferred) - Number(b.kind !== preferred))
-      .map((candidate) => ({
-        label: candidate.name,
-        hint: `${candidate.kind === 'motif' ? 'motif' : 'polos'} · ${candidate.colors.length} warna`,
-      }))
-
-  const onFabricChange = (value: string) => {
-    if (labelKey(value) === labelKey(fabric)) {
-      form.setValue('fabric', value)
-      return
-    }
-    const match = findByLabel(options.fabrics, value, (candidate) => candidate.name)
-    form.setValue('fabric', value, { shouldValidate: form.formState.isSubmitted })
-    if (match?.code && !form.getFieldState('fabricCode').isDirty) {
-      form.setValue('fabricCode', match.code, { shouldValidate: form.formState.isSubmitted })
-    }
-  }
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Section title="Produk & potong">
-        <ProductFields form={form} options={options} isLocked={isLocked} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="number"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nomor WO</FormLabel>
-                <FormControl>
-                  <Input className="h-12 font-mono uppercase" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="orderedOn"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tanggal WO</FormLabel>
-                <FormControl>
-                  <Input type="date" className="h-12" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="pattern"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Kode pola (opsional)</FormLabel>
-                <FormControl>
-                  <Combobox
-                    ref={field.ref}
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="Mis. P-133"
-                    className="font-mono"
-                    options={options.patterns.map((pattern) => ({ label: pattern.code }))}
-                    newHint={NEW_HINT}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-      </Section>
-
-      <Section title="Bahan">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="fabric"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bahan</FormLabel>
-                <FormControl>
-                  <Combobox
-                    ref={field.ref}
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={onFabricChange}
-                    onBlur={field.onBlur}
-                    disabled={isFabricLocked}
-                    placeholder="Mis. BLACK SWAN"
-                    options={fabricOptionsFor('motif')}
-                    newHint={NEW_HINT}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="fabricCode"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Kode bahan</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    disabled={isLocked}
-                    autoCapitalize="characters"
-                    autoComplete="off"
-                    placeholder="Mis. BLS"
-                    className="h-12 font-mono uppercase placeholder:normal-case"
-                  />
-                </FormControl>
-                <FabricCodeHint fabric={fabricMatch} code={field.value} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="combination"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Kombinasi · bahan polos (opsional)</FormLabel>
-                <FormControl>
-                  <Combobox
-                    ref={field.ref}
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="Mis. ORB"
-                    options={fabricOptionsFor('plain').filter(
-                      (option) => labelKey(option.label) !== labelKey(fabric),
-                    )}
-                    newHint={NEW_HINT}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
         {!workOrder && (
           <>
             <FormField
@@ -597,6 +665,7 @@ function FormFields({
             </FormItem>
           )}
         />
+        <RecordFields form={form} />
       </Section>
     </div>
   )
