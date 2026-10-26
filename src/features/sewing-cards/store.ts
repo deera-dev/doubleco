@@ -8,6 +8,7 @@ export type CardDialog =
   | { kind: 'none' }
   | { kind: 'edit'; card: SewingCard }
   | { kind: 'cancel'; card: SewingCard }
+  | { kind: 'unsubmit'; card: SewingCard }
 
 interface SewingCardsUiState {
   tab: CuttingTab

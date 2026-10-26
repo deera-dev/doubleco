@@ -17,6 +17,8 @@ function refreshProduction() {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: sewingCardKeys.all }),
     queryClient.invalidateQueries({ queryKey: workOrderKeys.all }),
+    // A corrected or cancelled setoran changes this week's gajian.
+    queryClient.invalidateQueries({ queryKey: ['payroll'] }),
   ])
 }
 

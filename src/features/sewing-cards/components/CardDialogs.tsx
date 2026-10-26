@@ -1,6 +1,11 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useCancelCard, useUpdateCard } from '@/features/sewing-cards/api/mutations'
+import {
+  useCancelCard,
+  useUnsubmitCard,
+  useUpdateCard,
+} from '@/features/sewing-cards/api/mutations'
 import { useSplitOptions } from '@/features/sewing-cards/api/queries'
 import type { SewingCard } from '@/features/sewing-cards/api/schema'
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
@@ -59,11 +64,15 @@ function EditCardDialog({ card }: { card: SewingCard }) {
           <DialogDescription>
             {card.productCode} · {itemLabel(card.sizeName, card.colorName)}. Nomor kartu dan QR
             tetap sama.
+            {card.status === 'submitted' &&
+              ' Sudah disetor: kalau salah penjahit, pilih yang benar, upahnya ikut pindah di gajian minggu ini.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="card-tailor">Penjahit (opsional)</Label>
+            <Label htmlFor="card-tailor">
+              {card.status === 'submitted' ? 'Penjahit yang setor' : 'Penjahit (opsional)'}
+            </Label>
             <NativeSelect
               id="card-tailor"
               value={tailorId}
@@ -112,15 +121,27 @@ function EditCardDialog({ card }: { card: SewingCard }) {
           )}
         </div>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            size="lg"
-            className="text-destructive hover:text-destructive sm:mr-auto"
-            onClick={() => openDialog({ kind: 'cancel', card })}
-          >
-            Batalkan kartu
-          </Button>
+          <div className="flex flex-wrap gap-1 sm:mr-auto">
+            {card.status === 'submitted' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                onClick={() => openDialog({ kind: 'unsubmit', card })}
+              >
+                Batalkan setoran
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="text-destructive hover:text-destructive"
+              onClick={() => openDialog({ kind: 'cancel', card })}
+            >
+              Batalkan kartu
+            </Button>
+          </div>
           <Button type="button" variant="ghost" size="lg" onClick={closeDialog}>
             Tutup
           </Button>
@@ -162,7 +183,8 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
           <DialogDescription>
             {card.quantity} pcs {itemLabel(card.sizeName, card.colorName)}{' '}
             {card.tailorName ? `milik ${card.tailorName} ` : ''}kembali menjadi sisa yang bisa
-            dibagi. Kartu fisiknya jangan dipakai lagi.
+            dibagi{card.status === 'submitted' ? ', dan upahnya keluar dari gajian minggu ini' : ''}
+            . Kartu fisiknya jangan dipakai lagi.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -198,9 +220,97 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
   )
 }
 
+function PaidCardDialog({ card }: { card: SewingCard }) {
+  const closeDialog = useSewingCardsUiStore((state) => state.closeDialog)
+  return (
+    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{card.number} sudah dibayar</DialogTitle>
+          <DialogDescription>
+            Kartu ini masuk gajian yang sudah dikunci. Buka kunci gajian minggu itu dulu, lalu
+            kartunya bisa diubah, dibatalkan setorannya, atau dibatalkan.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="ghost" size="lg" onClick={closeDialog}>
+            Tutup
+          </Button>
+          <Button asChild size="lg">
+            <Link to="/gajian" onClick={closeDialog}>
+              Ke Gajian
+            </Link>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function UnsubmitCardDialog({ card }: { card: SewingCard }) {
+  const closeDialog = useSewingCardsUiStore((state) => state.closeDialog)
+  const unsubmit = useUnsubmitCard()
+  const [reason, setReason] = useState('')
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Batalkan setoran {card.number}?</DialogTitle>
+          <DialogDescription>
+            Kartu kembali ke status di penjahit{card.tailorName ? ` (${card.tailorName})` : ''} dan
+            upahnya keluar dari gajian minggu ini. Pakai kalau kartu ter-scan padahal belum disetor.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="card-unsubmit-reason">Alasan</Label>
+          <Textarea
+            id="card-unsubmit-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Mis. salah scan"
+          />
+          {unsubmit.error && (
+            <p role="alert" className="text-destructive text-sm">
+              {describeError(unsubmit.error)}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" size="lg" onClick={closeDialog}>
+            Kembali
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            disabled={unsubmit.isPending || reason.trim() === ''}
+            onClick={() =>
+              unsubmit.mutate(
+                { number: card.number, reason: reason.trim() },
+                {
+                  onSuccess: () => {
+                    toast.success(`Setoran ${card.number} dibatalkan`)
+                    closeDialog()
+                  },
+                },
+              )
+            }
+          >
+            {unsubmit.isPending ? 'Memproses…' : 'Batalkan setoran'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function CardDialogs() {
   const dialog = useSewingCardsUiStore((state) => state.dialog)
+  if (dialog.kind === 'edit' && dialog.card.status === 'paid')
+    return <PaidCardDialog key={dialog.card.id} card={dialog.card} />
   if (dialog.kind === 'edit') return <EditCardDialog key={dialog.card.id} card={dialog.card} />
+  if (dialog.kind === 'unsubmit')
+    return <UnsubmitCardDialog key={dialog.card.id} card={dialog.card} />
   if (dialog.kind === 'cancel') return <CancelCardDialog key={dialog.card.id} card={dialog.card} />
   return null
 }
