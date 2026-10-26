@@ -137,12 +137,13 @@ export function PayrollLineCard({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="size-8"
+                  size="sm"
+                  className="h-8 px-2"
                   aria-label={`Ubah cicilan ${line.name}`}
                   onClick={onEditRepayment}
                 >
                   <Pencil className="size-3.5" />
+                  Ubah
                 </Button>
               )
             }

@@ -146,9 +146,6 @@ export function WorkOrdersPage() {
           onChange={setStatus}
           options={[
             { value: 'active', label: 'Berjalan', count: summary?.active },
-            { value: 'draft', label: 'Draft', count: summary?.draft },
-            { value: 'cutting', label: 'Dipotong', count: summary?.cutting },
-            { value: 'sewing', label: 'Dijahit', count: summary?.sewing },
             { value: 'done', label: 'Selesai', count: summary?.done },
             { value: 'cancelled', label: 'Batal', count: summary?.cancelled },
             { value: 'all', label: 'Semua', count: summary?.all },

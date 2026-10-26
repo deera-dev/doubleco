@@ -46,6 +46,43 @@ type Dialog =
   | { kind: 'lock' }
   | { kind: 'unlock' }
 
+/** The three things that happen every Saturday, with where this week stands. */
+function Steps({ overview }: { overview: PayrollOverview }) {
+  const isLocked = overview.status === 'locked'
+  const allPaid = isLocked && overview.totals.paid === overview.totals.tailors
+  const current = !isLocked ? 0 : allPaid ? 3 : 2
+  const steps = [
+    { title: 'Cek rekap', text: 'Atur cicilan kasbon, putuskan potongan' },
+    { title: 'Kunci gajian', text: 'Angka dibekukan untuk transfer' },
+    { title: 'Transfer', text: 'Kirim, lalu tandai dibayar' },
+  ]
+  return (
+    <ol className="grid grid-cols-3 gap-2">
+      {steps.map((step, index) => (
+        <li
+          key={step.title}
+          className={cn(
+            'rounded-2xl border px-3 py-2.5',
+            index === current
+              ? 'border-brand-400/50 bg-brand-500/10'
+              : index < current
+                ? 'border-success/30 text-muted-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
+          <p className="font-semibold text-sm">
+            <span className={cn('mr-1.5 font-mono', index < current && 'text-success')}>
+              {index < current ? '✓' : index + 1}
+            </span>
+            {step.title}
+          </p>
+          <p className="hidden text-muted-foreground text-xs sm:block">{step.text}</p>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function Summary({ overview }: { overview: PayrollOverview }) {
   const stats = [
     { label: 'Total transfer', value: formatRupiah(overview.totals.transfer), emphasis: true },
@@ -145,6 +182,7 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
         </p>
       ) : data ? (
         <>
+          {!data.isFuture && data.lines.length > 0 && <Steps overview={data} />}
           <Summary overview={data} />
           {!isLocked && <DeductionsPanel deductions={data.pendingDeductions} />}
 

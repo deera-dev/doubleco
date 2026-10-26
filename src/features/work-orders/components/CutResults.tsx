@@ -84,7 +84,10 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
   }
 
   return (
-    <section className="surface stagger-2 animate-rise space-y-4 rounded-3xl p-5 sm:p-6">
+    <section
+      id="hasil-potong"
+      className="surface stagger-2 animate-rise scroll-mt-24 space-y-4 rounded-3xl p-5 sm:p-6"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold">Hasil potong</h2>
@@ -92,10 +95,10 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
             Isi jumlah potongan per ukuran dan warna. Total {workOrder.totals.cut} potong.
           </p>
         </div>
-        {!isClosed && (
+        {!isClosed && workOrder.items.length > 0 && (
           <Button type="button" variant="outline" size="sm" onClick={() => openDialog('add-items')}>
             <Plus />
-            Ukuran / warna
+            Tambah ukuran / warna
           </Button>
         )}
       </div>
@@ -106,8 +109,14 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
           <p className="text-muted-foreground">
             {isClosed
               ? 'WO ini tidak punya rincian ukuran dan warna.'
-              : 'Tekan “Ukuran / warna” untuk menambah warna, lalu isi hasil potongnya.'}
+              : 'Pilih warna yang dipotong, lalu isi jumlah potongnya di sini.'}
           </p>
+          {!isClosed && (
+            <Button type="button" className="mt-3" onClick={() => openDialog('add-items')}>
+              <Plus />
+              Pilih warna
+            </Button>
+          )}
         </div>
       )}
 
