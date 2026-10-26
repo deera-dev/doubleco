@@ -1,9 +1,26 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import type * as React from 'react'
+import { useState } from 'react'
+import { useBackToClose } from '@/shared/hooks/use-back-to-close'
 import { cn } from '@/shared/lib/utils'
 
-const Dialog = DialogPrimitive.Root
+/** Radix dialog whose open state also lives in history, so the phone's back button closes it. */
+function Dialog({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const [innerOpen, setInnerOpen] = useState(defaultOpen ?? false)
+  const isOpen = open ?? innerOpen
+  const change = (next: boolean) => {
+    if (open === undefined) setInnerOpen(next)
+    onOpenChange?.(next)
+  }
+  useBackToClose(isOpen, () => change(false))
+  return <DialogPrimitive.Root open={isOpen} onOpenChange={change} {...props} />
+}
 const DialogTrigger = DialogPrimitive.Trigger
 const DialogClose = DialogPrimitive.Close
 

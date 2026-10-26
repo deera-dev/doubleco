@@ -1,6 +1,7 @@
 import {
   Banknote,
   ClipboardList,
+  FileSpreadsheet,
   HandCoins,
   House,
   type LucideIcon,
@@ -25,6 +26,7 @@ export interface NavigationItem {
     | '/kartu-jahit'
     | '/gajian'
     | '/kasbon'
+    | '/laporan'
     | '/cetak/kalibrasi'
 }
 
@@ -81,6 +83,14 @@ export const cashAdvanceItem: NavigationItem = {
   to: '/kasbon',
 }
 
+export const reportsItem: NavigationItem = {
+  title: 'Laporan',
+  shortTitle: 'Laporan',
+  description: 'Rekap setoran, THP, rekap penjahit',
+  icon: FileSpreadsheet,
+  to: '/laporan',
+}
+
 export const employeesItem: NavigationItem = {
   title: 'Karyawan',
   shortTitle: 'Karyawan',
@@ -108,7 +118,7 @@ export const calibrationItem: NavigationItem = {
 export const navigationSections: NavigationSection[] = [
   { title: 'Utama', items: [homeItem, scanItem] },
   { title: 'Produksi', items: [workOrderItem, cuttingItem] },
-  { title: 'Keuangan', items: [payrollItem, cashAdvanceItem] },
+  { title: 'Keuangan', items: [payrollItem, cashAdvanceItem, reportsItem] },
   { title: 'Data', items: [employeesItem, masterDataItem, calibrationItem] },
 ]
 
@@ -117,6 +127,7 @@ export const moduleItems: NavigationItem[] = [
   cuttingItem,
   payrollItem,
   cashAdvanceItem,
+  reportsItem,
   employeesItem,
   masterDataItem,
 ]

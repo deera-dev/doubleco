@@ -1,5 +1,14 @@
-import { useNavigate } from '@tanstack/react-router'
-import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen, Search } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import {
+  Banknote,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Lock,
+  LockOpen,
+  Printer,
+  Search,
+} from 'lucide-react'
 import { useState } from 'react'
 import { usePayrollOverview } from '@/features/payroll/api/queries'
 import type { PayrollLine, PayrollOverview } from '@/features/payroll/api/schema'
@@ -268,19 +277,25 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
 
           {!data.isFuture && (
             <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
+              {data.lines.length > 0 && (
+                <Button asChild variant="outline" size="lg">
+                  <Link to="/cetak/rekap-setoran" search={{ sabtu: data.payOn }}>
+                    <Printer />
+                    Cetak rekap
+                  </Link>
+                </Button>
+              )}
               {isLocked ? (
                 <>
-                  {data.totals.paid === 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="lg"
-                      onClick={() => setDialog({ kind: 'unlock' })}
-                    >
-                      <LockOpen />
-                      Buka kunci
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="lg"
+                    onClick={() => setDialog({ kind: 'unlock' })}
+                  >
+                    <LockOpen />
+                    Buka kunci
+                  </Button>
                   <Button
                     type="button"
                     size="lg"

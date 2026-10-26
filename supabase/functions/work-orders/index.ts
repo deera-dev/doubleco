@@ -454,6 +454,83 @@ const printData = defineAction({
   },
 })
 
+interface ThpCardRow {
+  number: string
+  quantity: number
+  taken_on: string
+  submitted_on: string | null
+  status: string
+  submitted_incomplete: boolean
+  remaining_notes: string | null
+  tailors: { code: string; name: string } | null
+  work_order_items: { sizes: { name: string; sort_order: number } | null } | null
+  inspections: { round: number; ok_quantity: number; defective_quantity: number; notes: string | null }[]
+}
+
+/** THP (tanda hasil produksi): one sheet per size listing who took which card, for signing off. */
+const thpData = defineAction({
+  input: z.object({ id: uuid }),
+  run: async ({ id }, request) => {
+    const supabase = createUserClient(request)
+    const [row, cards] = await Promise.all([
+      supabase.from('work_orders').select(workOrderSelect).eq('id', id).maybeSingle(),
+      supabase
+        .from('sewing_cards')
+        .select(
+          `number, quantity, taken_on, submitted_on, status, submitted_incomplete, remaining_notes,
+          tailors(code, name), work_order_items!inner(work_order_id, sizes(name, sort_order)),
+          inspections(round, ok_quantity, defective_quantity, notes)`,
+        )
+        .eq('work_order_items.work_order_id', id)
+        .neq('status', 'cancelled')
+        .order('number'),
+    ])
+    const workOrder = unwrap<WorkOrderRow | null>(row)
+    if (!workOrder) throw new Rejection('NOT_FOUND', 404)
+    const shaped = shape(workOrder)
+
+    const sizes = new Map<string, { name: string; order: number; rows: unknown[] }>()
+    for (const card of unwrap<ThpCardRow[]>(cards)) {
+      const name = card.work_order_items?.sizes?.name ?? '-'
+      const size = sizes.get(name) ?? { name, order: card.work_order_items?.sizes?.sort_order ?? 0, rows: [] }
+      sizes.set(name, size)
+      const isSubmitted = card.status === 'submitted' || card.status === 'paid'
+      const checks = [...card.inspections].sort((a, b) => a.round - b.round)
+      const notes = [
+        card.submitted_incomplete && card.remaining_notes ? `Kurang: ${card.remaining_notes}` : null,
+        ...checks.map((check) => check.notes),
+      ].filter(Boolean)
+      size.rows.push({
+        cardNumber: card.number,
+        tailorName: card.tailors?.name ?? null,
+        tailorCode: card.tailors?.code ?? null,
+        quantity: card.quantity,
+        takenOn: card.taken_on,
+        submittedOn: isSubmitted ? card.submitted_on : null,
+        receivedQuantity: isSubmitted ? card.quantity : null,
+        okQuantity: checks.length > 0 ? checks.reduce((sum, check) => sum + check.ok_quantity, 0) : null,
+        defectiveQuantity:
+          checks.length > 0 ? checks.reduce((sum, check) => sum + check.defective_quantity, 0) : null,
+        notes: notes.length > 0 ? notes.join('; ') : null,
+      })
+    }
+
+    return {
+      workOrder: {
+        number: shaped.number,
+        productCode: shaped.productCode,
+        orderedOn: shaped.orderedOn,
+        cutterName: shaped.cutterName,
+        fabricName: shaped.fabricName,
+        fabricCombination: shaped.fabricCombination,
+      },
+      sizes: [...sizes.values()]
+        .sort((a, b) => a.order - b.order)
+        .map((size) => ({ name: size.name, rows: size.rows })),
+    }
+  },
+})
+
 const photoUploadUrl = defineAction({
   input: z.object({ id: uuid, contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']) }),
   run: async ({ id, contentType }, request) => {
@@ -510,6 +587,7 @@ serveActions({
   delete: remove,
   force_delete: forceDelete,
   print: printData,
+  thp: thpData,
   photo_upload_url: photoUploadUrl,
   set_photo: setPhoto,
   remove_photo: removePhoto,

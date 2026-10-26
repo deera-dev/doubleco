@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, HandCoins, Pencil, Plus, Trash2, Undo2 } from 'lucide-react'
+import { ArrowLeft, HandCoins, LockOpen, Pencil, Plus, Printer, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useDeleteEntry } from '@/features/cash-advances/api/mutations'
@@ -120,6 +120,12 @@ export function TailorLedgerPage({ tailorId }: { tailorId: string }) {
         actions={
           tailor && (
             <div className="flex flex-wrap gap-2">
+              <Button asChild variant="ghost">
+                <Link to="/cetak/rekap-penjahit" search={{ penjahit: tailor.tailorId }}>
+                  <Printer />
+                  Rekap mingguan
+                </Link>
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -204,8 +210,8 @@ export function TailorLedgerPage({ tailorId }: { tailorId: string }) {
                       {meta.sign > 0 ? '+' : '−'}
                       {formatRupiah(entry.amount)}
                     </span>
-                    {entry.isEditable ? (
-                      <span className="flex shrink-0">
+                    <span className="flex shrink-0">
+                      {entry.isEditable && (
                         <Button
                           type="button"
                           variant="ghost"
@@ -217,6 +223,8 @@ export function TailorLedgerPage({ tailorId }: { tailorId: string }) {
                         >
                           <Pencil />
                         </Button>
+                      )}
+                      {entry.isDeletable ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -226,10 +234,22 @@ export function TailorLedgerPage({ tailorId }: { tailorId: string }) {
                         >
                           <Trash2 />
                         </Button>
-                      </span>
-                    ) : (
-                      <span className="w-2 shrink-0" />
-                    )}
+                      ) : (
+                        entry.payOn && (
+                          // Locked with a payroll week: reopen that week first, then it can go.
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            title={`Buka kunci gajian Sabtu ${formatWorkOrderDate(entry.payOn)} untuk menghapus`}
+                          >
+                            <Link to="/gajian" search={{ sabtu: entry.payOn }}>
+                              <LockOpen />
+                            </Link>
+                          </Button>
+                        )
+                      )}
+                    </span>
                   </li>
                 )
               })}

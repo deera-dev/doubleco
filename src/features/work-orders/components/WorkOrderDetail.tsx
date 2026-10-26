@@ -66,6 +66,14 @@ function Summary({ workOrder }: { workOrder: WorkOrder }) {
               Cetak kartu WO
             </a>
           </Button>
+          {workOrder.hasCards && (
+            <Button asChild variant="outline">
+              <Link to="/cetak/thp/$id" params={{ id: workOrder.id }}>
+                <Printer />
+                Cetak THP
+              </Link>
+            </Button>
+          )}
           {workOrder.status !== 'cancelled' && (
             <Button asChild>
               <Link to="/work-order/$id/ubah" params={{ id: workOrder.id }}>

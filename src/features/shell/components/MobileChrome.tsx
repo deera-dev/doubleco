@@ -14,10 +14,12 @@ import {
   scanItem,
   workOrderItem,
 } from '@/features/shell/navigation'
+import { useBackToClose } from '@/shared/hooks/use-back-to-close'
 import { cn } from '@/shared/lib/utils'
 
 export function MobileTopBar({ me }: { me: Me }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  useBackToClose(isMenuOpen, () => setIsMenuOpen(false))
   const { leave, isPending } = useSignOutAndLeave()
 
   return (
@@ -91,6 +93,7 @@ const moreItemClass =
 
 export function BottomDock() {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
+  useBackToClose(isMoreOpen, () => setIsMoreOpen(false))
   const moreItems = navigationSections
     .flatMap((section) => section.items)
     .filter((item) => ![homeItem, scanItem, workOrderItem, payrollItem].includes(item))

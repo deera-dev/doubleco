@@ -67,6 +67,9 @@ const businessMessages: Record<string, string> = {
   DEDUCTION_ALREADY_APPLIED: 'Potongan ini sudah masuk gajian yang dikunci.',
   CARD_ALREADY_INSPECTED: 'Kartu sudah diperiksa, setorannya tidak bisa dibatalkan.',
   PAYROLL_LOCKED: 'Gajian minggu itu sudah dikunci.',
+  PAYROLL_LINE_NOT_PAID: 'Baris gajian ini belum ditandai dibayar.',
+  ENTRY_IN_LOCKED_PAYROLL:
+    'Catatan ini bagian dari gajian yang sudah dikunci. Buka kunci gajian Sabtu itu dulu, lalu hapus.',
   SUBMITTED_BEFORE_TAKEN: 'Tanggal setor tidak boleh sebelum tanggal ambil.',
   REMAINING_NOTES_REQUIRED: 'Tulis sisa pekerjaan yang belum selesai.',
   COLOR_NOT_IN_FABRIC: 'Warna tidak sesuai dengan bahan WO.',
