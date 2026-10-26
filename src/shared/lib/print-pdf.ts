@@ -60,6 +60,11 @@ export async function shareOrDownload(file: File) {
       if (error instanceof DOMException && error.name === 'AbortError') return
     }
   }
+  downloadFile(file)
+}
+
+/** Saves the file straight to Downloads, never through the share sheet. */
+export function downloadFile(file: File) {
   const url = URL.createObjectURL(file)
   const link = document.createElement('a')
   link.href = url
