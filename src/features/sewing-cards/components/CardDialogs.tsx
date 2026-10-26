@@ -33,11 +33,9 @@ function EditCardDialog({ card }: { card: SewingCard }) {
   const [tailorId, setTailorId] = useState(card.tailorId ?? '')
   const [quantity, setQuantity] = useState(String(card.quantity))
   const [reason, setReason] = useState('')
-  const item = options.data?.items.find((candidate) => candidate.id === card.workOrderItemId)
-  const maxQuantity = (item?.remaining ?? 0) + card.quantity
   const parsedQuantity = Number(quantity)
-  const isQuantityValid =
-    Number.isInteger(parsedQuantity) && parsedQuantity > 0 && parsedQuantity <= maxQuantity
+  // The card is the bundle: changing its pcs changes the WO's cut result with it.
+  const isQuantityValid = Number.isInteger(parsedQuantity) && parsedQuantity > 0
   const isChanged = tailorId !== (card.tailorId ?? '') || parsedQuantity !== card.quantity
 
   const save = () =>
@@ -101,9 +99,9 @@ function EditCardDialog({ card }: { card: SewingCard }) {
               onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ''))}
               aria-invalid={!isQuantityValid}
             />
-            {options.data && (
-              <p className="text-muted-foreground text-xs">Maksimal {maxQuantity} pcs.</p>
-            )}
+            <p className="text-muted-foreground text-xs">
+              Isi iketan sebenarnya. Hasil potong WO ikut menyesuaikan.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="card-reason">Alasan perubahan (opsional)</Label>
@@ -169,7 +167,7 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
       { number: card.number, reason: reason.trim() },
       {
         onSuccess: () => {
-          toast.success(`${card.number} dibatalkan. ${card.quantity} pcs kembali bisa dibagi.`)
+          toast.success(`${card.number} dibatalkan`)
           closeDialog()
         },
       },
@@ -181,10 +179,10 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
         <DialogHeader>
           <DialogTitle>Batalkan {card.number}?</DialogTitle>
           <DialogDescription>
-            {card.quantity} pcs {itemLabel(card.sizeName, card.colorName)}{' '}
-            {card.tailorName ? `milik ${card.tailorName} ` : ''}kembali menjadi sisa yang bisa
-            dibagi{card.status === 'submitted' ? ', dan upahnya keluar dari gajian minggu ini' : ''}
-            . Kartu fisiknya jangan dipakai lagi.
+            Iketan {card.quantity} pcs {itemLabel(card.sizeName, card.colorName)}{' '}
+            {card.tailorName ? `milik ${card.tailorName} ` : ''}keluar dari hasil potong WO
+            {card.status === 'submitted' ? ' dan upahnya keluar dari gajian minggu ini' : ''}. Kartu
+            fisiknya jangan dipakai lagi.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
