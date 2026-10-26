@@ -23,7 +23,8 @@ export function CardRow({
 }: CardRowProps) {
   const openDialog = useSewingCardsUiStore((state) => state.openDialog)
   const status = cardStatusMeta[card.status]
-  const isOpen = card.status === 'taken'
+  // Taken and handed-in cards can be corrected; paid ones need their payroll reopened first.
+  const isCorrectable = card.status !== 'cancelled'
 
   return (
     <div
@@ -87,28 +88,28 @@ export function CardRow({
             </Link>
           </Button>
         )}
-        {isOpen && (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Ubah ${card.number}`}
-              onClick={() => openDialog({ kind: 'edit', card })}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Batalkan ${card.number}`}
-              className="hidden text-muted-foreground hover:text-destructive sm:inline-flex"
-              onClick={() => openDialog({ kind: 'cancel', card })}
-            >
-              <Ban />
-            </Button>
-          </>
+        {isCorrectable && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Ubah ${card.number}`}
+            onClick={() => openDialog({ kind: 'edit', card })}
+          >
+            <Pencil />
+          </Button>
+        )}
+        {card.status === 'taken' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Batalkan ${card.number}`}
+            className="hidden text-muted-foreground hover:text-destructive sm:inline-flex"
+            onClick={() => openDialog({ kind: 'cancel', card })}
+          >
+            <Ban />
+          </Button>
         )}
       </span>
     </div>

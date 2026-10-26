@@ -55,7 +55,10 @@ function SizeRow({
     <li className="space-y-3 rounded-2xl border bg-background/40 p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="font-semibold">{size}</p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-sm">
+            {bundlesOf(draft).length} iketan · {pieces} pcs
+          </span>
           {done && done.cards > 0 && (
             <span className="text-muted-foreground text-xs">
               sudah {done.cards} kartu · {done.pieces} pcs
@@ -128,12 +131,7 @@ function SizeRow({
           Iketan
         </Button>
       </form>
-      <p className="flex justify-between text-muted-foreground text-xs">
-        <span>Bisa sekaligus dengan spasi, mis. 12 9 11</span>
-        <span className="font-mono font-semibold text-foreground">
-          {bundlesOf(draft).length} iketan · {pieces} pcs
-        </span>
-      </p>
+      <p className="text-muted-foreground text-xs">Bisa sekaligus dengan spasi, mis. 12 9 11</p>
     </li>
   )
 }

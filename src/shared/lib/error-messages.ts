@@ -55,7 +55,7 @@ const businessMessages: Record<string, string> = {
   CARDS_REQUIRED: 'Tambahkan minimal satu kartu.',
   WORK_ORDER_CANCELLED: 'WO ini sudah dibatalkan.',
   WAGE_RATE_MISSING: 'Tarif upah untuk kategori ini belum diisi di Master Data.',
-  CARD_NOT_EDITABLE: 'Kartu yang sudah disetor tidak bisa diubah.',
+  CARD_NOT_EDITABLE: 'Kartu ini sudah dibatalkan dan tidak bisa diubah.',
   CARD_CANNOT_BE_CANCELLED: 'Hanya kartu yang masih di penjahit yang bisa dibatalkan.',
   CARD_NOT_FOUND: 'Nomor kartu tidak ditemukan.',
   CARD_ALREADY_SUBMITTED: 'Kartu ini sudah disetor.',
@@ -65,8 +65,9 @@ const businessMessages: Record<string, string> = {
   INSPECTION_EXCEEDS_QUANTITY: 'Jumlah pemeriksaan melebihi sisa yang belum diperiksa.',
   INSPECTION_NOT_FOUND: 'Belum ada pemeriksaan untuk kartu ini.',
   DEDUCTION_ALREADY_APPLIED: 'Potongan ini sudah masuk gajian yang dikunci.',
-  CARD_ALREADY_INSPECTED: 'Kartu sudah diperiksa, setorannya tidak bisa dibatalkan.',
-  PAYROLL_LOCKED: 'Gajian minggu itu sudah dikunci.',
+  CARD_ALREADY_INSPECTED:
+    'Kartu sudah diperiksa. Hapus dulu hasil pemeriksaannya (Scan → Periksa), lalu ubah atau batalkan.',
+  PAYROLL_LOCKED: 'Gajian minggu itu sudah dikunci. Buka kunci gajiannya dulu, lalu ubah.',
   PAYROLL_LINE_NOT_PAID: 'Baris gajian ini belum ditandai dibayar.',
   ENTRY_IN_LOCKED_PAYROLL:
     'Catatan ini bagian dari gajian yang sudah dikunci. Buka kunci gajian Sabtu itu dulu, lalu hapus.',
