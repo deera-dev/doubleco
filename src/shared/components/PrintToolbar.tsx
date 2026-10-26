@@ -3,7 +3,13 @@ import { FileDown, Printer } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components/ui/button'
-import { buildPdf, isTouchDevice, printPdf, shareOrDownload } from '@/shared/lib/print-pdf'
+import {
+  buildPdf,
+  downloadFile,
+  isTouchDevice,
+  printPdf,
+  shareOrDownload,
+} from '@/shared/lib/print-pdf'
 
 interface PrintToolbarProps {
   back: ReactNode
@@ -48,8 +54,9 @@ export function PrintToolbar({
     try {
       const file = await buildPdf({ sheets: printSheets(), widthMm, heightMm, offsets, fileName })
       onPrinted?.()
-      if (kind === 'print' && !isPhone) await printPdf(file)
-      else await shareOrDownload(file)
+      if (kind === 'pdf') downloadFile(file)
+      else if (isPhone) await shareOrDownload(file)
+      else await printPdf(file)
     } catch {
       toast.error(kind === 'print' ? 'Gagal membuka cetak. Coba lagi.' : 'PDF gagal dibuat.')
     } finally {
@@ -65,17 +72,15 @@ export function PrintToolbar({
           {summary ? `${summary} · ` : ''}kertas {paper} · skala 100% · tanpa margin
         </p>
         <div className="flex gap-2">
-          {!isPhone && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => run('pdf')}
-              disabled={!isReady || building !== null}
-            >
-              <FileDown />
-              {building === 'pdf' ? 'Membuat PDF…' : 'Simpan PDF'}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => run('pdf')}
+            disabled={!isReady || building !== null}
+          >
+            <FileDown />
+            {building === 'pdf' ? 'Membuat PDF…' : 'Simpan PDF'}
+          </Button>
           <Button
             type="button"
             onClick={() => run('print')}

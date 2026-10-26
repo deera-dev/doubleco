@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { type ComponentProps, type KeyboardEvent, useId, useState } from 'react'
+import { type ComponentProps, type KeyboardEvent, useId, useRef, useState } from 'react'
 import { Input } from '@/shared/components/ui/input'
 import { findByLabel, normalizeLabel, suggestLabels } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
@@ -24,9 +24,11 @@ export function Combobox({
   className,
   onBlur,
   disabled,
+  ref,
   ...props
 }: ComboboxProps) {
   const listId = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const labels = options.map((option) => option.label)
@@ -39,6 +41,11 @@ export function Combobox({
     onValueChange(label)
     setIsOpen(false)
     setActiveIndex(-1)
+    // On a phone, picking a suggestion is the end of typing: close the keyboard. Wait a frame so
+    // the blur handler sees the chosen value, not the half-typed one.
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      window.requestAnimationFrame(() => inputRef.current?.blur())
+    }
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -61,6 +68,12 @@ export function Combobox({
   return (
     <div className="relative">
       <Input
+        ref={(element) => {
+          inputRef.current = element
+          // Forms (react-hook-form) pass their own ref to focus the field on errors.
+          if (typeof ref === 'function') ref(element)
+          else if (ref) ref.current = element
+        }}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}

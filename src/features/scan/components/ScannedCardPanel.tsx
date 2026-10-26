@@ -11,7 +11,6 @@ import { cardStatusMeta } from '@/features/sewing-cards/lib/status'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { Button } from '@/shared/components/ui/button'
-import { Combobox } from '@/shared/components/ui/combobox'
 import {
   Dialog,
   DialogContent,
@@ -22,26 +21,12 @@ import {
 } from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
-import { labelKey } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
 import { confirmationWarnings } from '@/shared/lib/warnings'
-
-function tailorLabel(tailor: ScanTailor): string {
-  return `${tailor.code} · ${tailor.name}`
-}
-
-/** Matches what was written on the card: the code alone, or "code · name". */
-function resolveTailor(tailors: ScanTailor[], text: string): ScanTailor | undefined {
-  const key = labelKey(text)
-  if (key === '') return undefined
-  return (
-    tailors.find((tailor) => labelKey(tailorLabel(tailor)) === key) ??
-    tailors.find((tailor) => labelKey(tailor.code) === key)
-  )
-}
 
 function CardSummary({ card }: { card: ScannedCard }) {
   const status = cardStatusMeta[card.status]
@@ -83,13 +68,12 @@ interface SubmitFormProps {
 function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
   const submitCard = useSubmitCard()
   // Every card starts blank (or with its own tailor): the previous scan's tailor is usually wrong.
-  const initialTailor = tailors.find((tailor) => tailor.id === card.tailorId)
-  const [tailorText, setTailorText] = useState(initialTailor ? tailorLabel(initialTailor) : '')
+  const [tailorId, setTailorId] = useState(card.tailorId ?? '')
   const [submittedOn, setSubmittedOn] = useState(today)
   const [isIncomplete, setIsIncomplete] = useState(false)
   const [notes, setNotes] = useState('')
   const [isConfirming, setIsConfirming] = useState(false)
-  const tailor = resolveTailor(tailors, tailorText)
+  const tailor = tailors.find((candidate) => candidate.id === tailorId)
   const warnings = confirmationWarnings(submitCard.error)
   const canSubmit = tailor !== undefined && (!isIncomplete || notes.trim() !== '')
 
@@ -131,23 +115,27 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="scan-tailor">Penjahit yang setor</Label>
-          <Combobox
+          {/* The full list, in code order: the phone shows it as a scrollable picker. */}
+          <NativeSelect
             id="scan-tailor"
-            value={tailorText}
-            onValueChange={setTailorText}
-            placeholder="Kode atau nama, mis. 29"
-            options={tailors.map((candidate) => ({ label: tailorLabel(candidate) }))}
-            aria-invalid={tailorText.trim() !== '' && !tailor}
-          />
-          {tailorText.trim() !== '' && !tailor ? (
-            <p className="text-destructive text-xs">Penjahit tidak ditemukan.</p>
-          ) : (
-            <p className="text-muted-foreground text-xs">
-              {card.tailorId
-                ? 'Sudah tercatat di kartu. Ganti jika yang setor orang lain.'
-                : 'Sesuai nama dan kode yang ditulis di kartu.'}
-            </p>
-          )}
+            className="h-12"
+            value={tailorId}
+            onChange={(event) => setTailorId(event.target.value)}
+          >
+            <option value="" disabled>
+              Pilih penjahit ({tailors.length})
+            </option>
+            {tailors.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.code} · {candidate.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-muted-foreground text-xs">
+            {card.tailorId
+              ? 'Sudah tercatat di kartu. Ganti jika yang setor orang lain.'
+              : 'Sesuai nama dan kode yang ditulis di kartu.'}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="scan-date">Tanggal setor</Label>
