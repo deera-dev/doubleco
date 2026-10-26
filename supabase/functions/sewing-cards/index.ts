@@ -351,9 +351,10 @@ const list = defineAction({
       if (searchFilter) next = next.or(searchFilter)
       return next
     }
+    // Cancelled cards are left out of "all": they only clutter the lists.
     // deno-lint-ignore no-explicit-any
     const byStatus = (query: any, value: typeof input.status) =>
-      value === 'all' ? query : query.eq('status', value)
+      value === 'all' ? query.neq('status', 'cancelled') : query.eq('status', value)
     const count = async (value: typeof input.status) => {
       const { count: total, error } = await byStatus(
         filtered(supabase.from('sewing_cards').select('id, work_order_items!inner(id)', { count: 'exact', head: true })),
