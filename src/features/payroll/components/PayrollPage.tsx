@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen, Plus } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen } from 'lucide-react'
 import { useState } from 'react'
 import { usePayrollOverview } from '@/features/payroll/api/queries'
 import type { PayrollLine, PayrollOverview } from '@/features/payroll/api/schema'
@@ -206,11 +206,24 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                     line={line}
                     isLocked={isLocked}
                     onEditRepayment={() => setDialog({ kind: 'repayment', line })}
-                    onAddAddition={() => setDialog({ kind: 'addition', line })}
                   />
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* THR and bonuses come once or twice a year, so they stay out of the weekly flow. */}
+          {!data.isFuture && !isLocked && (
+            <p className="text-center text-muted-foreground text-sm">
+              Ada THR atau bonus minggu ini?{' '}
+              <button
+                type="button"
+                className="font-medium text-brand-200 underline-offset-4 hover:underline"
+                onClick={() => setDialog({ kind: 'addition', line: null })}
+              >
+                Tambahkan
+              </button>
+            </p>
           )}
 
           {!data.isFuture && (
@@ -241,15 +254,6 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                 </>
               ) : (
                 <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="lg"
-                    onClick={() => setDialog({ kind: 'addition', line: null })}
-                  >
-                    <Plus />
-                    THR / bonus
-                  </Button>
                   <Button
                     type="button"
                     size="lg"
