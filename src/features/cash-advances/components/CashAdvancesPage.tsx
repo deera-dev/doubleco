@@ -6,6 +6,7 @@ import { EntryDialog, type EntryEditor } from '@/features/cash-advances/componen
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination, paginate, usePageFor } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -17,11 +18,14 @@ import { toAppError } from '@/shared/types/errors'
 
 type Filter = 'owing' | 'all'
 
+const PAGE_SIZE = 20
+
 export function CashAdvancesPage() {
   const overview = useCashAdvanceOverview()
   const [filter, setFilter] = useState<Filter>('owing')
   const [search, setSearch] = useState('')
   const [editor, setEditor] = useState<EntryEditor | null>(null)
+  const [page, setPage] = usePageFor(`${filter}|${search}`)
   const tailors = overview.data?.tailors ?? []
   const owing = tailors.filter((tailor) => tailor.balance > 0)
   const needle = labelKey(search)
@@ -103,7 +107,7 @@ export function CashAdvancesPage() {
         />
       ) : (
         <ul className="stagger-3 grid animate-rise grid-cols-1 gap-2 lg:grid-cols-2">
-          {visible.map((tailor) => (
+          {paginate(visible, page, PAGE_SIZE).map((tailor) => (
             <li key={tailor.tailorId}>
               <Link
                 to="/kasbon/$tailorId"
@@ -136,6 +140,9 @@ export function CashAdvancesPage() {
             </li>
           ))}
         </ul>
+      )}
+      {overview.data && (
+        <Pagination page={page} pageSize={PAGE_SIZE} total={visible.length} onChange={setPage} />
       )}
 
       {editor && overview.data && (

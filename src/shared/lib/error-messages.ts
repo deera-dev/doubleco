@@ -71,6 +71,8 @@ const businessMessages: Record<string, string> = {
   REMAINING_NOTES_REQUIRED: 'Tulis sisa pekerjaan yang belum selesai.',
   COLOR_NOT_IN_FABRIC: 'Warna tidak sesuai dengan bahan WO.',
   REASON_REQUIRED: 'Alasan wajib diisi.',
+  WORK_ORDER_HAS_PAID_CARDS:
+    'Ada kartu dari WO ini yang sudah masuk gajian yang dikunci, jadi WO tidak bisa dihapus.',
   CONFIRMATION_REQUIRED: 'Ada data serupa yang perlu dikonfirmasi.',
   UNKNOWN_ACTION: 'Versi aplikasi tidak cocok dengan server. Muat ulang halaman.',
 }

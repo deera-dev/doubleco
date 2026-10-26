@@ -9,7 +9,7 @@ import { describeError } from '@/shared/lib/error-messages'
 import { toAppError } from '@/shared/types/errors'
 
 export function WorkOrderCards({ workOrderId }: { workOrderId: string }) {
-  const cards = useSewingCards({ status: 'all', search: '', workOrderId })
+  const cards = useSewingCards({ status: 'all', search: '', workOrderId, pageSize: 200 })
   const list = cards.data?.cards ?? []
   const openNumbers = list.filter((card) => card.status === 'taken').map((card) => card.number)
 

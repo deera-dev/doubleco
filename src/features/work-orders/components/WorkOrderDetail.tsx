@@ -1,9 +1,9 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, ArrowRight, Ban, Pencil, Plus, Printer, ScanLine } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ArrowLeft, ArrowRight, Ban, Pencil, Plus, Printer, ScanLine, Trash2 } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { WorkOrderCards } from '@/features/sewing-cards/components/WorkOrderCards'
-import { useDeleteWorkOrder } from '@/features/work-orders/api/mutations'
+import { useDeleteWorkOrder, useForceDeleteWorkOrder } from '@/features/work-orders/api/mutations'
 import { useWorkOrder } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { CutResults } from '@/features/work-orders/components/CutResults'
@@ -14,6 +14,17 @@ import { useWorkOrdersUiStore } from '@/features/work-orders/store'
 import { ConfirmDeleteButton } from '@/shared/components/ConfirmDeleteButton'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { Button } from '@/shared/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
 import { cn } from '@/shared/lib/utils'
 import { toAppError } from '@/shared/types/errors'
@@ -198,12 +209,87 @@ function Details({ workOrder }: { workOrder: WorkOrder }) {
   )
 }
 
+function ForceDeleteDialog({ workOrder, onClose }: { workOrder: WorkOrder; onClose: () => void }) {
+  const navigate = useNavigate()
+  const forceDelete = useForceDeleteWorkOrder()
+  const [reason, setReason] = useState('')
+  const [confirmText, setConfirmText] = useState('')
+  const cardCount = workOrder.items.reduce((sum, item) => sum + item.cardCount, 0)
+  const canDelete = reason.trim() !== '' && confirmText.trim().toUpperCase() === 'HAPUS'
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sheet-above-keyboard">
+        <DialogHeader>
+          <DialogTitle>Hapus paksa {workOrder.number}?</DialogTitle>
+          <DialogDescription>
+            WO ini dihapus permanen bersama {cardCount} kartu jahit, hasil pemeriksaan, dan usulan
+            potongannya. Kartu yang sudah disetor tapi belum dibayar ikut keluar dari gajian. Tidak
+            bisa dibatalkan.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="force-reason">Alasan</Label>
+            <Textarea
+              id="force-reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Mis. WO dobel, salah input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="force-confirm">Ketik HAPUS untuk memastikan</Label>
+            <Input
+              id="force-confirm"
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="h-12 font-mono uppercase"
+            />
+          </div>
+          {forceDelete.error && (
+            <p role="alert" className="text-destructive text-sm">
+              {describeError(forceDelete.error)}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" size="lg" onClick={onClose}>
+            Batal
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="lg"
+            disabled={!canDelete || forceDelete.isPending}
+            onClick={() =>
+              forceDelete.mutate(
+                { id: workOrder.id, reason: reason.trim() },
+                {
+                  onSuccess: () => {
+                    toast.success(`${workOrder.number} dihapus`)
+                    navigate({ to: '/work-order' })
+                  },
+                },
+              )
+            }
+          >
+            <Trash2 />
+            {forceDelete.isPending ? 'Menghapus…' : 'Hapus paksa'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function DangerZone({ workOrder }: { workOrder: WorkOrder }) {
   const navigate = useNavigate()
   const openDialog = useWorkOrdersUiStore((state) => state.openDialog)
   const deleteWorkOrder = useDeleteWorkOrder()
-
-  if (workOrder.status === 'cancelled' && workOrder.hasCards) return null
+  const [isForcing, setIsForcing] = useState(false)
 
   return (
     <section className="stagger-3 flex animate-rise flex-wrap justify-end gap-2">
@@ -213,6 +299,19 @@ function DangerZone({ workOrder }: { workOrder: WorkOrder }) {
           Batalkan WO
         </Button>
       )}
+      {workOrder.hasCards && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          className="text-destructive hover:text-destructive"
+          onClick={() => setIsForcing(true)}
+        >
+          <Trash2 />
+          Hapus paksa
+        </Button>
+      )}
+      {isForcing && <ForceDeleteDialog workOrder={workOrder} onClose={() => setIsForcing(false)} />}
       {!workOrder.hasCards && (
         <ConfirmDeleteButton
           label="Hapus WO"

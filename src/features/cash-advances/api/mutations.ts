@@ -18,11 +18,12 @@ function useLedgerAction<Input extends object>(action: string) {
   return useMutation<{ id: string }, AppError, Input>({
     mutationFn: (input) => callAction('cash-advances', action, savedIdSchema, input),
     // Kasbon feeds the Saturday payroll, so its numbers go stale too.
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: () => {
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: cashAdvanceKeys.all }),
         queryClient.invalidateQueries({ queryKey: ['payroll'] }),
-      ]),
+      ])
+    },
   })
 }
 

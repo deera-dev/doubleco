@@ -1,16 +1,23 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, ClipboardList, Download, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { useWorkOrders } from '@/features/work-orders/api/queries'
+import {
+  fetchWorkOrders,
+  useWorkOrderFormOptions,
+  useWorkOrders,
+} from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { formatWorkOrderDate, workOrderStatusMeta } from '@/features/work-orders/lib/status'
 import { useWorkOrdersUiStore } from '@/features/work-orders/store'
 import { EmptyState } from '@/shared/components/EmptyState'
+import { FilterBar } from '@/shared/components/FilterBar'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value'
 import { type CsvColumn, downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
@@ -101,11 +108,23 @@ export function WorkOrdersPage() {
   const search = useWorkOrdersUiStore((state) => state.search)
   const setStatus = useWorkOrdersUiStore((state) => state.setStatus)
   const setSearch = useWorkOrdersUiStore((state) => state.setSearch)
-  const workOrders = useWorkOrders({ status, search })
+  const fabricId = useWorkOrdersUiStore((state) => state.fabricId)
+  const cutterId = useWorkOrdersUiStore((state) => state.cutterId)
+  const category = useWorkOrdersUiStore((state) => state.category)
+  const page = useWorkOrdersUiStore((state) => state.page)
+  const setFilters = useWorkOrdersUiStore((state) => state.setFilters)
+  const setPage = useWorkOrdersUiStore((state) => state.setPage)
+  const options = useWorkOrderFormOptions()
+  const debouncedSearch = useDebouncedValue(search)
+  const filters = { status, search: debouncedSearch, fabricId, cutterId, category, page }
+  const workOrders = useWorkOrders(filters)
   const summary = workOrders.data?.summary
+  const isFiltered =
+    debouncedSearch !== '' || fabricId !== null || cutterId !== null || category !== null
 
-  const exportList = () => {
-    const rows = workOrders.data?.workOrders ?? []
+  const exportList = async () => {
+    const all = await fetchWorkOrders({ ...filters, page: 1, pageSize: 1000 }).catch(() => null)
+    const rows = all?.workOrders ?? []
     if (rows.length === 0) {
       toast('Tidak ada data untuk diexport')
       return
@@ -157,11 +176,48 @@ export function WorkOrdersPage() {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari nomor, produk, bahan"
+            placeholder="Cari nomor WO / kode produk"
             aria-label="Cari WO"
             className="h-11 pl-10"
           />
         </div>
+      </div>
+
+      <div className="stagger-1 animate-rise">
+        <FilterBar
+          filters={[
+            {
+              key: 'fabric',
+              label: 'Bahan',
+              value: fabricId,
+              options: (options.data?.fabrics ?? []).map((fabric) => ({
+                value: fabric.id,
+                label: fabric.name,
+              })),
+              onChange: (value) => setFilters({ fabricId: value }),
+            },
+            {
+              key: 'cutter',
+              label: 'Tukang potong',
+              value: cutterId,
+              options: (options.data?.cutters ?? []).map((cutter) => ({
+                value: cutter.id,
+                label: cutter.name,
+              })),
+              onChange: (value) => setFilters({ cutterId: value }),
+            },
+            {
+              key: 'category',
+              label: 'Kategori',
+              value: category,
+              options: ['S', 'M', 'L'].map((value) => ({ value, label: value })),
+              onChange: (value) =>
+                setFilters({
+                  category: value === 'S' || value === 'M' || value === 'L' ? value : null,
+                }),
+            },
+          ]}
+        />
       </div>
 
       {workOrders.isPending ? (
@@ -173,14 +229,14 @@ export function WorkOrdersPage() {
       ) : workOrders.data.workOrders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={search ? 'Tidak ditemukan' : 'Belum ada WO di daftar ini'}
+          title={isFiltered ? 'Tidak ditemukan' : 'Belum ada WO di daftar ini'}
           description={
-            search
-              ? `Tidak ada WO yang cocok dengan "${search}".`
+            isFiltered
+              ? 'Tidak ada WO yang cocok dengan pencarian atau filter ini.'
               : 'Buat WO dari produk dan bahan di Master Data, lalu cetak kartunya untuk tukang potong.'
           }
           action={
-            !search && (
+            !isFiltered && (
               <Button asChild>
                 <Link to="/work-order/baru">
                   <Plus />
@@ -198,6 +254,14 @@ export function WorkOrdersPage() {
             </li>
           ))}
         </ul>
+      )}
+      {workOrders.data && (
+        <Pagination
+          page={workOrders.data.page}
+          pageSize={workOrders.data.pageSize}
+          total={workOrders.data.total}
+          onChange={setPage}
+        />
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { Download, Plus } from 'lucide-react'
+import { Download, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -28,8 +28,10 @@ import {
 import { ProductDialog } from '@/features/master-data/components/ProductDialog'
 import { WageRateDialog } from '@/features/master-data/components/WageRateDialog'
 import { type MasterDataTab, useMasterDataUiStore } from '@/features/master-data/store'
+import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination, paginate, usePageFor } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -37,6 +39,7 @@ import { Label } from '@/shared/components/ui/label'
 import { downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
+import { labelKey } from '@/shared/lib/labels'
 import { toAppError } from '@/shared/types/errors'
 
 const addLabels: Record<MasterDataTab, string> = {
@@ -319,12 +322,62 @@ function Editors({ data }: { data: MasterData }) {
   }
 }
 
+const searchPlaceholders: Record<string, string> = {
+  products: 'Cari kode / nama produk',
+  patterns: 'Cari kode pola',
+  fabrics: 'Cari bahan, kode, atau warna',
+}
+
+const PAGE_SIZE = { products: 30, patterns: 30, fabrics: 18 } as const
+
+/** Filters the active tab by the search box and cuts it to one page; other tabs pass through. */
+function searchTab(data: MasterData, tab: string, search: string, page: number) {
+  const needle = labelKey(search)
+  const matches = (...values: (string | null | undefined)[]) =>
+    needle === '' || values.some((value) => value && labelKey(value).includes(needle))
+  if (tab === 'products') {
+    const items = data.products.filter((product) => matches(product.code, product.name))
+    return {
+      data: { ...data, products: paginate(items, page, PAGE_SIZE.products) },
+      total: items.length,
+      pageSize: PAGE_SIZE.products,
+    }
+  }
+  if (tab === 'patterns') {
+    const items = data.patterns.filter((pattern) => matches(pattern.code, pattern.notes))
+    return {
+      data: { ...data, patterns: paginate(items, page, PAGE_SIZE.patterns) },
+      total: items.length,
+      pageSize: PAGE_SIZE.patterns,
+    }
+  }
+  if (tab === 'fabrics') {
+    const items = data.fabrics.filter((fabric) =>
+      matches(
+        fabric.name,
+        fabric.code,
+        ...fabric.series.flatMap((series) => series.colors.map((color) => color.name)),
+      ),
+    )
+    return {
+      data: { ...data, fabrics: paginate(items, page, PAGE_SIZE.fabrics) },
+      total: items.length,
+      pageSize: PAGE_SIZE.fabrics,
+    }
+  }
+  return null
+}
+
 export function MasterDataPage() {
   const tab = useMasterDataUiStore((state) => state.tab)
   const setTab = useMasterDataUiStore((state) => state.setTab)
   const openEditor = useMasterDataUiStore((state) => state.openEditor)
   const masterData = useMasterData()
   const data = masterData.data
+  const [search, setSearch] = useState('')
+  const [page, setPage] = usePageFor(`${tab}|${search}`)
+  const isSearchable = tab === 'products' || tab === 'patterns' || tab === 'fabrics'
+  const view = data ? searchTab(data, tab, search, page) : null
 
   const add = () => {
     switch (tab) {
@@ -380,6 +433,20 @@ export function MasterDataPage() {
         ]}
       />
 
+      {isSearchable && (
+        <div className="relative sm:max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={searchPlaceholders[tab]}
+            aria-label="Cari master data"
+            className="h-11 pl-10"
+          />
+        </div>
+      )}
+
       {masterData.isPending ? (
         <ListSkeleton />
       ) : masterData.isError ? (
@@ -387,12 +454,30 @@ export function MasterDataPage() {
           {describeError(toAppError(masterData.error))}
         </p>
       ) : (
-        <div key={tab} className="stagger-2 animate-rise">
-          {tab === 'products' && <ProductsPanel data={masterData.data} />}
-          {tab === 'patterns' && <PatternsPanel data={masterData.data} />}
-          {tab === 'fabrics' && <FabricsPanel data={masterData.data} />}
-          {tab === 'sizes' && <SizesPanel data={masterData.data} />}
-          {tab === 'wages' && <WageRatesPanel data={masterData.data} />}
+        <div key={tab} className="stagger-2 animate-rise space-y-4">
+          {view && view.total === 0 && search.trim() !== '' ? (
+            <EmptyState
+              icon={Search}
+              title="Tidak ditemukan"
+              description={`Tidak ada yang cocok dengan "${search.trim()}".`}
+            />
+          ) : (
+            <>
+              {tab === 'products' && <ProductsPanel data={view?.data ?? masterData.data} />}
+              {tab === 'patterns' && <PatternsPanel data={view?.data ?? masterData.data} />}
+              {tab === 'fabrics' && <FabricsPanel data={view?.data ?? masterData.data} />}
+              {tab === 'sizes' && <SizesPanel data={masterData.data} />}
+              {tab === 'wages' && <WageRatesPanel data={masterData.data} />}
+            </>
+          )}
+          {view && isSearchable && (
+            <Pagination
+              page={page}
+              pageSize={view.pageSize}
+              total={view.total}
+              onChange={setPage}
+            />
+          )}
         </div>
       )}
 

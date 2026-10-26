@@ -17,7 +17,9 @@ export type RemovableKind =
 function useMasterDataAction<Input extends object>(action: string) {
   return useMutation<{ id: string }, AppError, Input>({
     mutationFn: (input) => callAction('master-data', action, savedIdSchema, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: masterDataKeys.overview }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: masterDataKeys.overview })
+    },
   })
 }
 

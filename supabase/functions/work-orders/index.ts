@@ -135,45 +135,70 @@ async function removePhotoObject(path: string | null) {
   if (error) console.error(error)
 }
 
+const PAGE_SIZE = 20
+
 const list = defineAction({
   input: z.object({
     status: z.enum([...statusValues, 'active', 'all']).default('active'),
     search: z.string().trim().max(60).default(''),
+    fabricId: uuid.nullable().default(null),
+    cutterId: uuid.nullable().default(null),
+    category: z.enum(['S', 'M', 'L']).nullable().default(null),
+    page: z.number().int().min(1).default(1),
+    pageSize: z.number().int().min(1).max(1000).default(PAGE_SIZE),
   }),
-  run: async ({ status, search }, request) => {
+  run: async ({ status, search, fabricId, cutterId, category, page, pageSize }, request) => {
     const supabase = createUserClient(request)
-    const rows = unwrap<WorkOrderRow[]>(
-      await supabase
-        .from('work_orders')
-        .select(workOrderSelect)
+    const productIds = category
+      ? unwrap<{ id: string }[]>(
+          await supabase.from('products').select('id').eq('wage_category', category),
+        ).map((product) => product.id)
+      : null
+
+    // Every filter except the status tab, so each tab can show its own count.
+    // deno-lint-ignore no-explicit-any
+    const filtered = (query: any) => {
+      let next = query
+      if (search) next = next.ilike('number', `%${search}%`)
+      if (fabricId) next = next.eq('fabric_id', fabricId)
+      if (cutterId) next = next.eq('cutter_id', cutterId)
+      if (productIds) next = next.in('product_id', productIds.length > 0 ? productIds : [crypto.randomUUID()])
+      return next
+    }
+    // deno-lint-ignore no-explicit-any
+    const byStatus = (query: any, value: typeof status) =>
+      value === 'all'
+        ? query
+        : value === 'active'
+          ? query.not('status', 'in', '(done,cancelled)')
+          : query.eq('status', value)
+    const count = async (value: typeof status) => {
+      const { count: total, error } = await byStatus(
+        filtered(supabase.from('work_orders').select('id', { count: 'exact', head: true })),
+        value,
+      )
+      if (error) throw new Rejection('UNKNOWN', 500)
+      return total ?? 0
+    }
+
+    const from = (page - 1) * pageSize
+    const [rows, ...counts] = await Promise.all([
+      byStatus(filtered(supabase.from('work_orders').select(workOrderSelect, { count: 'exact' })), status)
         .order('ordered_on', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(300),
-    )
-    const all = rows.map(shape)
-    const needle = search.toLowerCase()
-    const matchesStatus = (workOrder: ReturnType<typeof shape>) =>
-      status === 'all' ||
-      (status === 'active' ? !['done', 'cancelled'].includes(workOrder.status) : workOrder.status === status)
-
+        .range(from, from + pageSize - 1),
+      count('active'),
+      count('done'),
+      count('cancelled'),
+      count('all'),
+    ])
+    const [active, done, cancelled, all] = counts
     return {
-      summary: {
-        active: all.filter((workOrder) => !['done', 'cancelled'].includes(workOrder.status)).length,
-        draft: all.filter((workOrder) => workOrder.status === 'draft').length,
-        cutting: all.filter((workOrder) => workOrder.status === 'cutting').length,
-        sewing: all.filter((workOrder) => workOrder.status === 'sewing').length,
-        done: all.filter((workOrder) => workOrder.status === 'done').length,
-        cancelled: all.filter((workOrder) => workOrder.status === 'cancelled').length,
-        all: all.length,
-      },
-      workOrders: all.filter(matchesStatus).filter(
-        (workOrder) =>
-          needle === '' ||
-          workOrder.number.toLowerCase().includes(needle) ||
-          workOrder.productCode.toLowerCase().includes(needle) ||
-          workOrder.fabricName.toLowerCase().includes(needle) ||
-          workOrder.cutterName.toLowerCase().includes(needle),
-      ),
+      summary: { active, done, cancelled, all },
+      total: rows.count ?? 0,
+      page,
+      pageSize,
+      workOrders: unwrap<WorkOrderRow[]>(rows).map(shape),
     }
   },
 })
@@ -394,6 +419,19 @@ const remove = defineAction({
   },
 })
 
+const forceDelete = defineAction({
+  input: z.object({ id: uuid, reason: z.string().trim().min(1).max(200) }),
+  run: async ({ id, reason }, request) => {
+    const supabase = createUserClient(request)
+    const current = unwrap<{ sample_photo_public_id: string | null } | null>(
+      await supabase.from('work_orders').select('sample_photo_public_id').eq('id', id).maybeSingle(),
+    )
+    unwrap(await supabase.rpc('force_delete_work_order', { p_work_order_id: id, p_reason: reason }))
+    await removePhotoObject(current?.sample_photo_public_id ?? null)
+    return { id }
+  },
+})
+
 const printData = defineAction({
   input: z.object({ id: uuid }),
   run: async ({ id }, request) => {
@@ -470,6 +508,7 @@ serveActions({
   record_cut: recordCut,
   cancel,
   delete: remove,
+  force_delete: forceDelete,
   print: printData,
   photo_upload_url: photoUploadUrl,
   set_photo: setPhoto,

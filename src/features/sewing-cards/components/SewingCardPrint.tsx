@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import markSvg from '@/assets/maryam-mark.svg?raw'
 import { useRecordPrint } from '@/features/sewing-cards/api/mutations'
@@ -8,6 +8,7 @@ import { useCardPrint } from '@/features/sewing-cards/api/queries'
 import type { PrintData, SewingCard } from '@/features/sewing-cards/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { MaryamLogo } from '@/shared/components/MaryamLogo'
+import { PrintToolbar } from '@/shared/components/PrintToolbar'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { qrDataUri } from '@/shared/lib/qr'
@@ -35,7 +36,7 @@ function Row({
       <span className="w-[15mm] shrink-0 font-semibold text-print-muted uppercase print-text-2xs">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red uppercase print-text-md leading-tight">
+      <span className="min-w-0 flex-1 truncate font-extrabold text-print-red uppercase print-text-value leading-tight">
         {children}
       </span>
     </div>
@@ -60,6 +61,7 @@ interface CardSheetProps {
 function CardSheet({ card, qr, offsets }: CardSheetProps) {
   return (
     <article
+      data-print-sheet
       className="kj-card-sheet relative flex flex-col overflow-hidden bg-print-paper p-[4mm] text-print-ink"
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
@@ -126,29 +128,27 @@ export function SewingCardPrint({ numbers }: { numbers: string[] }) {
   const recordPrint = useRecordPrint()
   const isReady = print.data !== undefined && printed.length > 0 && qr.data !== undefined
 
-  const printNow = () => {
-    recordPrint.mutate({ numbers: printed })
-    window.print()
-  }
-
   return (
     <div className="min-h-dvh print:min-h-0">
       <style>{PAGE_STYLE}</style>
-      <div className="chrome sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 print:hidden">
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/kartu-jahit">
-            <ArrowLeft />
-            Kartu Jahit
-          </Link>
-        </Button>
-        <p className="hidden text-muted-foreground text-sm md:block">
-          {printed.length} kartu · kertas 60 × 100 mm · skala 100% · tanpa margin
-        </p>
-        <Button type="button" onClick={printNow} disabled={!isReady}>
-          <Printer />
-          Cetak {printed.length > 1 ? `${printed.length} kartu` : ''}
-        </Button>
-      </div>
+      <PrintToolbar
+        back={
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/kartu-jahit">
+              <ArrowLeft />
+              Kartu Jahit
+            </Link>
+          </Button>
+        }
+        paper="60 × 100 mm"
+        summary={`${printed.length} kartu`}
+        widthMm={60}
+        heightMm={100}
+        offsets={print.data?.offsets ?? { top: 0, left: 0 }}
+        fileName={`kartu-jahit-${printed[0] ?? 'cetak'}${printed.length > 1 ? `-dst` : ''}.pdf`}
+        isReady={isReady}
+        onPrinted={() => recordPrint.mutate({ numbers: printed })}
+      />
 
       {numbers.length === 0 ? (
         <p className="p-6 text-center text-muted-foreground text-sm">

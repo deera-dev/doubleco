@@ -16,6 +16,9 @@ export interface CardListFilters {
   workOrderId: string | null
   submittedOn?: string | null
   needsInspection?: boolean
+  tailorId?: string | null
+  page?: number
+  pageSize?: number
 }
 
 export const sewingCardKeys = {
@@ -35,10 +38,14 @@ export function useCuttingBoard() {
   })
 }
 
+export function fetchSewingCards(filters: CardListFilters) {
+  return callAction('sewing-cards', 'list', cardListSchema, filters)
+}
+
 export function useSewingCards(filters: CardListFilters) {
   return useQuery({
     queryKey: sewingCardKeys.list(filters),
-    queryFn: () => callAction('sewing-cards', 'list', cardListSchema, filters),
+    queryFn: () => fetchSewingCards(filters),
     placeholderData: keepPreviousData,
   })
 }
