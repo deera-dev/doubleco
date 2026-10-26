@@ -5,6 +5,7 @@ import { cardPrintSearch, cardStatusMeta } from '@/features/sewing-cards/lib/sta
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
+import { itemLabel } from '@/shared/lib/item-label'
 import { cn } from '@/shared/lib/utils'
 
 interface CardRowProps {
@@ -67,9 +68,7 @@ export function CardRow({
           </span>
         </span>
         <span className="line-clamp-2 text-muted-foreground text-xs">
-          <span className="text-foreground">
-            {card.sizeName} · {card.colorName}
-          </span>
+          <span className="text-foreground">{itemLabel(card.sizeName, card.colorName)}</span>
           {showWorkOrder ? ` · ${card.productCode}` : ''} ·{' '}
           <span className="font-mono">{card.number}</span> · {formatWorkOrderDate(card.takenOn)}
         </span>

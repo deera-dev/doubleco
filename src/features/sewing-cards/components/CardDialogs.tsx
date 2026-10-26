@@ -18,6 +18,7 @@ import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
+import { itemLabel } from '@/shared/lib/item-label'
 
 function EditCardDialog({ card }: { card: SewingCard }) {
   const closeDialog = useSewingCardsUiStore((state) => state.closeDialog)
@@ -56,7 +57,8 @@ function EditCardDialog({ card }: { card: SewingCard }) {
         <DialogHeader>
           <DialogTitle>Ubah {card.number}</DialogTitle>
           <DialogDescription>
-            {card.productCode} · {card.sizeName} · {card.colorName}. Nomor kartu dan QR tetap sama.
+            {card.productCode} · {itemLabel(card.sizeName, card.colorName)}. Nomor kartu dan QR
+            tetap sama.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -158,7 +160,7 @@ function CancelCardDialog({ card }: { card: SewingCard }) {
         <DialogHeader>
           <DialogTitle>Batalkan {card.number}?</DialogTitle>
           <DialogDescription>
-            {card.quantity} pcs {card.sizeName} · {card.colorName}{' '}
+            {card.quantity} pcs {itemLabel(card.sizeName, card.colorName)}{' '}
             {card.tailorName ? `milik ${card.tailorName} ` : ''}kembali menjadi sisa yang bisa
             dibagi. Kartu fisiknya jangan dipakai lagi.
           </DialogDescription>

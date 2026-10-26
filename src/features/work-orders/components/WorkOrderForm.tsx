@@ -617,7 +617,7 @@ function FormFields({
               )}
             />
             <p className="rounded-2xl border border-dashed px-4 py-3 text-muted-foreground text-sm">
-              Warna dipilih setelah WO dibuat, di halaman WO → Hasil potong → Ukuran / warna.
+              Setelah dipotong, jumlah iketan per ukuran diisi di halaman WO → Hasil potong.
             </p>
           </>
         )}

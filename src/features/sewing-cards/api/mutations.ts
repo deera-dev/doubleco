@@ -88,3 +88,12 @@ export const useIssueForWorkOrder = () =>
   useCardAction((input: { workOrderId: string; takenOn: string }) =>
     callAction('sewing-cards', 'issue_for_work_order', issuedSchema, input),
   )
+
+export const useRecordBundles = () =>
+  useCardAction(
+    (input: {
+      workOrderId: string
+      takenOn: string
+      bundles: { size: string; quantity: number }[]
+    }) => callAction('sewing-cards', 'record_bundles', issuedSchema, input),
+  )

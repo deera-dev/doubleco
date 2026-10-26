@@ -24,7 +24,7 @@ export const sewingCardSchema = z.object({
   tailorName: z.string().nullable(),
   workOrderItemId: id,
   sizeName: z.string(),
-  colorName: z.string(),
+  colorName: z.string().nullable(),
   workOrderId: id,
   workOrderNumber: z.string(),
   productCode: z.string(),
@@ -66,7 +66,7 @@ export const boardSchema = z.object({
 export const splitItemSchema = z.object({
   id,
   sizeName: z.string(),
-  colorName: z.string(),
+  colorName: z.string().nullable(),
   cut: z.number().nullable(),
   assigned: z.number(),
   remaining: z.number().nullable(),

@@ -78,7 +78,7 @@ function BoardRow({ workOrder, isReady }: { workOrder: BoardWorkOrder; isReady: 
           <span className="block truncate text-muted-foreground text-xs">
             {formatWorkOrderDate(workOrder.orderedOn)} · potong {workOrder.cutterName}
             {isReady && workOrder.uncutItems > 0
-              ? ` · ${workOrder.uncutItems} ukuran/warna belum dipotong`
+              ? ` · ${workOrder.uncutItems} baris belum dipotong`
               : ''}
           </span>
         </span>
@@ -138,8 +138,7 @@ function ReadyPanel() {
               Siap dicetak
             </h2>
             <p className="text-muted-foreground text-sm">
-              Satu hasil potong (ukuran × warna) jadi satu kartu. Kartu langsung dibuka untuk
-              dicetak.
+              Hasil potong lama yang belum jadi kartu. Kartu langsung dibuka untuk dicetak.
             </p>
           </div>
           <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
@@ -299,7 +298,7 @@ export function CuttingBoardPage() {
       <PageHeader
         eyebrow="Produksi"
         title="Kartu Jahit"
-        description="Kartu jahit 6×10 ber-QR: satu hasil potong (ukuran × warna) satu kartu. Pantau kartu yang masih di penjahit."
+        description="Kartu jahit 6×10 ber-QR: satu iketan satu kartu. Pantau kartu yang masih di penjahit."
       />
       <SegmentedControl
         label="Bagian"

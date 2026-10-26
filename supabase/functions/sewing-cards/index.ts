@@ -67,7 +67,7 @@ function shapeCard(row: CardRow) {
     tailorName: row.tailors?.name ?? null,
     workOrderItemId: row.work_order_items?.id ?? '',
     sizeName: row.work_order_items?.sizes?.name ?? '-',
-    colorName: row.work_order_items?.fabric_colors?.name ?? '-',
+    colorName: row.work_order_items?.fabric_colors?.name ?? null,
     workOrderId: workOrder?.id ?? '',
     workOrderNumber: workOrder?.number ?? '-',
     productCode: workOrder?.products?.code ?? '-',
@@ -107,13 +107,13 @@ function itemsOf(row: BoardRow) {
         id: item.id,
         sizeName: item.sizes?.name ?? '-',
         sizeOrder: item.sizes?.sort_order ?? 0,
-        colorName: item.fabric_colors?.name ?? '-',
+        colorName: item.fabric_colors?.name ?? null,
         cut: item.cut_quantity,
         assigned,
         remaining: item.cut_quantity === null ? null : item.cut_quantity - assigned,
       }
     })
-    .sort((a, b) => a.sizeOrder - b.sizeOrder || a.colorName.localeCompare(b.colorName))
+    .sort((a, b) => a.sizeOrder - b.sizeOrder || (a.colorName ?? '').localeCompare(b.colorName ?? ''))
 }
 
 const boardSelect = `
@@ -258,6 +258,29 @@ const issue = defineAction({
       if (error instanceof Rejection) throw await describeTailors(supabase, error)
       throw error
     }
+  },
+})
+
+/** Hasil potong in iketan: each bundle (size + pieces) becomes one card, issued right away. */
+const recordBundles = defineAction({
+  input: z.object({
+    workOrderId: uuid,
+    takenOn: z.string().date(),
+    bundles: z
+      .array(z.object({ size: z.string().trim().min(1).max(30), quantity: z.number().int().positive().max(10_000) }))
+      .min(1)
+      .max(200),
+  }),
+  run: async ({ workOrderId, takenOn, bundles }, request) => {
+    const supabase = createUserClient(request)
+    const created = unwrap<{ number: string }[]>(
+      await supabase.rpc('record_bundles', {
+        p_work_order_id: workOrderId,
+        p_bundles: bundles,
+        p_taken_on: takenOn,
+      }),
+    )
+    return { numbers: created.map((card) => card.number) }
   },
 })
 
@@ -533,6 +556,7 @@ serveActions({
   split_options: splitOptions,
   issue,
   issue_for_work_order: issueForWorkOrder,
+  record_bundles: recordBundles,
   list,
   update,
   cancel,

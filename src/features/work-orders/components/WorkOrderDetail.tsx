@@ -87,54 +87,67 @@ function NextStep({ workOrder }: { workOrder: WorkOrder }) {
   )
   const withTailor = items.some((item) => item.assignedQuantity > item.submittedQuantity)
 
+  const usesColors = items.some((item) => item.colorId !== null)
+
   const step =
-    items.length === 0
+    !usesColors && !items.some((item) => (item.cutQuantity ?? 0) > 0)
       ? {
-          title: 'Pilih warna yang dipotong',
-          text: 'Kartu WO sudah bisa dicetak untuk tukang potong. Setelah dipotong, pilih warnanya lalu isi jumlah potongnya.',
+          title: 'Isi hasil potong',
+          text: 'Kartu WO sudah bisa dicetak untuk tukang potong. Setelah dipotong, isi jumlah iketan per ukuran: satu iketan jadi satu kartu jahit.',
           action: (
-            <Button type="button" onClick={() => openDialog('add-items')}>
-              <Plus />
-              Pilih warna
+            <Button type="button" onClick={goToCutResults}>
+              <ArrowRight />
+              Isi sekarang
             </Button>
           ),
         }
-      : cardable.length > 0
+      : items.length === 0
         ? {
-            title: `Buat & cetak ${cardable.length} kartu jahit`,
-            text: 'Satu hasil potong (ukuran × warna) jadi satu kartu. Tombolnya ada di bagian Hasil potong.',
+            title: 'Pilih warna yang dipotong',
+            text: 'Kartu WO sudah bisa dicetak untuk tukang potong. Setelah dipotong, pilih warnanya lalu isi jumlah potongnya.',
             action: (
-              <Button type="button" onClick={goToCutResults}>
-                <ArrowRight />
-                Ke hasil potong
+              <Button type="button" onClick={() => openDialog('add-items')}>
+                <Plus />
+                Pilih warna
               </Button>
             ),
           }
-        : uncut.length > 0
+        : cardable.length > 0
           ? {
-              title: 'Isi hasil potong',
-              text: `${uncut.length} ukuran/warna belum diisi jumlah potongnya.`,
+              title: `Buat & cetak ${cardable.length} kartu jahit`,
+              text: 'Satu hasil potong (ukuran × warna) jadi satu kartu. Tombolnya ada di bagian Hasil potong.',
               action: (
                 <Button type="button" onClick={goToCutResults}>
                   <ArrowRight />
-                  Isi sekarang
+                  Ke hasil potong
                 </Button>
               ),
             }
-          : withTailor
+          : uncut.length > 0
             ? {
-                title: 'Kartu ada di penjahit',
-                text: 'Scan kartunya saat disetor. Kartu yang disetor otomatis masuk gajian Sabtu.',
+                title: 'Isi hasil potong',
+                text: `${uncut.length} ukuran/warna belum diisi jumlah potongnya.`,
                 action: (
-                  <Button asChild>
-                    <Link to="/scan">
-                      <ScanLine />
-                      Buka Scan
-                    </Link>
+                  <Button type="button" onClick={goToCutResults}>
+                    <ArrowRight />
+                    Isi sekarang
                   </Button>
                 ),
               }
-            : null
+            : withTailor
+              ? {
+                  title: 'Kartu ada di penjahit',
+                  text: 'Scan kartunya saat disetor. Kartu yang disetor otomatis masuk gajian Sabtu.',
+                  action: (
+                    <Button asChild>
+                      <Link to="/scan">
+                        <ScanLine />
+                        Buka Scan
+                      </Link>
+                    </Button>
+                  ),
+                }
+              : null
   if (!step) return null
 
   return (

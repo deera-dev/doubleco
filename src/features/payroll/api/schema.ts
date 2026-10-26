@@ -30,7 +30,7 @@ export const payrollLineSchema = z.object({
       incomplete: z.boolean(),
       productCode: z.string(),
       sizeName: z.string(),
-      colorName: z.string(),
+      colorName: z.string().nullable(),
     }),
   ),
   additions: z.array(
