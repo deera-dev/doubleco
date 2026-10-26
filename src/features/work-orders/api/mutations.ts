@@ -25,7 +25,9 @@ export interface WorkOrderPayload {
 function useWorkOrderAction<Input extends object, Output>(run: (input: Input) => Promise<Output>) {
   return useMutation<Output, AppError, Input>({
     mutationFn: run,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: workOrderKeys.all }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.all })
+    },
   })
 }
 
@@ -88,3 +90,12 @@ export const useRemoveWorkOrderPhoto = () =>
   useWorkOrderAction((input: { id: string }) =>
     callAction('work-orders', 'remove_photo', savedIdSchema, input),
   )
+
+/** Deletes the WO with its cards, so every list (cards, payroll) refreshes, not only WOs. */
+export const useForceDeleteWorkOrder = () =>
+  useMutation<{ id: string }, AppError, { id: string; reason: string }>({
+    mutationFn: (input) => callAction('work-orders', 'force_delete', savedIdSchema, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries()
+    },
+  })

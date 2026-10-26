@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useRecordBundles } from '@/features/sewing-cards/api/mutations'
 import { cardPrintSearch } from '@/features/sewing-cards/lib/status'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
+import { parseBundles } from '@/features/work-orders/lib/bundles'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
@@ -12,20 +13,17 @@ import { todayIsoDate } from '@/shared/lib/format'
 import { labelKey, normalizeLabel } from '@/shared/lib/labels'
 
 interface SizeDraft {
-  count: string
-  perBundle: string
-  /** Bundle index → pieces, for the odd bundle that holds a different amount. */
-  overrides: Record<number, string>
+  /** What is being typed: one or more quantities separated by spaces. */
+  text: string
+  bundles: number[]
 }
 
-const MAX_BUNDLES_PER_SIZE = 50
-const emptyDraft: SizeDraft = { count: '', perBundle: '', overrides: {} }
-const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 4)
+const MAX_BUNDLES_PER_SIZE = 100
+const emptyDraft: SizeDraft = { text: '', bundles: [] }
 
+/** Added bundles plus whatever is still in the box, so nothing typed is lost on save. */
 function bundlesOf(draft: SizeDraft): number[] {
-  const count = Math.min(Number(draft.count || 0), MAX_BUNDLES_PER_SIZE)
-  const perBundle = Number(draft.perBundle || 0)
-  return Array.from({ length: count }, (_, index) => Number(draft.overrides[index] ?? perBundle))
+  return [...draft.bundles, ...parseBundles(draft.text)]
 }
 
 function SizeRow({
@@ -41,15 +39,24 @@ function SizeRow({
   onRemove?: () => void
   done: { pieces: number; cards: number } | undefined
 }) {
-  const bundles = bundlesOf(draft)
-  const pieces = bundles.reduce((sum, value) => sum + value, 0)
+  const typed = parseBundles(draft.text)
+  const pieces = bundlesOf(draft).reduce((sum, value) => sum + value, 0)
+
+  const add = (event?: FormEvent) => {
+    event?.preventDefault()
+    if (typed.length === 0) return
+    onChange({
+      text: '',
+      bundles: [...draft.bundles, ...typed].slice(0, MAX_BUNDLES_PER_SIZE),
+    })
+  }
 
   return (
     <li className="space-y-3 rounded-2xl border bg-background/40 p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="font-semibold">{size}</p>
         <div className="flex items-center gap-1">
-          {done && (
+          {done && done.cards > 0 && (
             <span className="text-muted-foreground text-xs">
               sudah {done.cards} kartu · {done.pieces} pcs
             </span>
@@ -68,65 +75,65 @@ function SizeRow({
           )}
         </div>
       </div>
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          <span className="block text-muted-foreground text-xs">Jumlah iketan</span>
-          <Input
-            inputMode="numeric"
-            value={draft.count}
-            onChange={(event) =>
-              onChange({ ...draft, count: digitsOnly(event.target.value), overrides: {} })
-            }
-            placeholder="0"
-            aria-label={`Jumlah iketan ${size}`}
-            className="h-12 text-center font-mono text-lg"
-          />
-        </div>
-        <span className="pb-3 font-mono text-muted-foreground">×</span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <span className="block text-muted-foreground text-xs">Isi per iketan</span>
-          <Input
-            inputMode="numeric"
-            value={draft.perBundle}
-            onChange={(event) =>
-              onChange({ ...draft, perBundle: digitsOnly(event.target.value), overrides: {} })
-            }
-            placeholder="0"
-            aria-label={`Isi per iketan ${size}`}
-            className="h-12 text-center font-mono text-lg"
-          />
-        </div>
-        <span className="pb-3 font-mono text-muted-foreground">=</span>
-        <span className="w-16 shrink-0 pb-3 text-right font-mono font-semibold tabular-nums">
-          {pieces} pcs
-        </span>
-      </div>
-      {bundles.length > 0 && Number(draft.perBundle || 0) > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-muted-foreground text-xs">
-            Isi tiap iketan · ubah jika ada yang berbeda
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {bundles.map((value, index) => (
-              <Input
-                // Bundles are positional: the index is their identity.
-                // biome-ignore lint/suspicious/noArrayIndexKey: see above
-                key={index}
-                inputMode="numeric"
-                value={draft.overrides[index] ?? String(value)}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    overrides: { ...draft.overrides, [index]: digitsOnly(event.target.value) },
-                  })
+
+      {draft.bundles.length > 0 && (
+        <ol className="flex flex-wrap gap-2">
+          {draft.bundles.map((value, index) => (
+            <li
+              // Bundles are positional: the index is their identity.
+              // biome-ignore lint/suspicious/noArrayIndexKey: see above
+              key={index}
+              className="flex h-10 items-center gap-1 rounded-xl border border-border-strong bg-background/60 pr-1 pl-3"
+            >
+              <span className="text-subtle-foreground text-xs">{index + 1}.</span>
+              <span className="font-mono font-semibold tabular-nums">{value}</span>
+              <button
+                type="button"
+                aria-label={`Hapus iketan ${index + 1} ${size}`}
+                onClick={() =>
+                  onChange({ ...draft, bundles: draft.bundles.filter((_, at) => at !== index) })
                 }
-                aria-label={`Iketan ${index + 1} ${size}`}
-                className="h-10 w-16 text-center font-mono"
-              />
-            ))}
-          </div>
-        </div>
+                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-hover hover:text-destructive"
+              >
+                <X className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ol>
       )}
+
+      <form onSubmit={add} noValidate className="flex gap-2">
+        <Input
+          inputMode="numeric"
+          enterKeyHint="done"
+          value={draft.text}
+          onChange={(event) =>
+            onChange({ ...draft, text: event.target.value.replace(/[^0-9 ,]/g, '') })
+          }
+          placeholder={
+            draft.bundles.length === 0
+              ? 'Isi iketan 1, mis. 12'
+              : `Isi iketan ${draft.bundles.length + 1}`
+          }
+          aria-label={`Isi iketan ${size}`}
+          className="h-12 font-mono text-lg placeholder:font-sans placeholder:text-base"
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          className="h-12 shrink-0"
+          disabled={typed.length === 0}
+        >
+          <Plus />
+          Iketan
+        </Button>
+      </form>
+      <p className="flex justify-between text-muted-foreground text-xs">
+        <span>Bisa sekaligus dengan spasi, mis. 12 9 11</span>
+        <span className="font-mono font-semibold text-foreground">
+          {bundlesOf(draft).length} iketan · {pieces} pcs
+        </span>
+      </p>
     </li>
   )
 }

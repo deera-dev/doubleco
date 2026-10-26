@@ -5,6 +5,7 @@ import {
   House,
   type LucideIcon,
   Package,
+  Ruler,
   ScanLine,
   Scissors,
   Users,
@@ -24,6 +25,7 @@ export interface NavigationItem {
     | '/kartu-jahit'
     | '/gajian'
     | '/kasbon'
+    | '/cetak/kalibrasi'
 }
 
 export interface NavigationSection {
@@ -95,11 +97,19 @@ export const masterDataItem: NavigationItem = {
   to: '/master-data',
 }
 
+export const calibrationItem: NavigationItem = {
+  title: 'Kalibrasi Cetak',
+  shortTitle: 'Kalibrasi',
+  description: 'Atur geser cetak printer',
+  icon: Ruler,
+  to: '/cetak/kalibrasi',
+}
+
 export const navigationSections: NavigationSection[] = [
   { title: 'Utama', items: [homeItem, scanItem] },
   { title: 'Produksi', items: [workOrderItem, cuttingItem] },
   { title: 'Keuangan', items: [payrollItem, cashAdvanceItem] },
-  { title: 'Data', items: [employeesItem, masterDataItem] },
+  { title: 'Data', items: [employeesItem, masterDataItem, calibrationItem] },
 ]
 
 export const moduleItems: NavigationItem[] = [

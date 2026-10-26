@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen, Search } from 'lucide-react'
 import { useState } from 'react'
 import { usePayrollOverview } from '@/features/payroll/api/queries'
 import type { PayrollLine, PayrollOverview } from '@/features/payroll/api/schema'
@@ -15,12 +15,17 @@ import { formatPayDay, formatWeek, shiftWeeks } from '@/features/payroll/lib/dat
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination, paginate } from '@/shared/components/Pagination'
 import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import { type CsvColumn, downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
+import { labelKey } from '@/shared/lib/labels'
 import { cn } from '@/shared/lib/utils'
 import { toAppError } from '@/shared/types/errors'
+
+const PAGE_SIZE = 10
 
 const transferColumns: CsvColumn<PayrollLine>[] = [
   { header: 'Kode', value: (row) => row.code },
@@ -113,7 +118,14 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
   const navigate = useNavigate()
   const overview = usePayrollOverview(payOn)
   const [dialog, setDialog] = useState<Dialog>({ kind: 'none' })
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const data = overview.data
+  const needle = labelKey(search)
+  const lines = (data?.lines ?? []).filter(
+    (line) =>
+      needle === '' || labelKey(line.code) === needle || labelKey(line.name).includes(needle),
+  )
   const isLocked = data?.status === 'locked'
   const close = () => setDialog({ kind: 'none' })
   const go = (weeks: number) =>
@@ -199,17 +211,45 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
               description="Kartu yang di-scan setor sampai hari Sabtu otomatis masuk ke sini."
             />
           ) : (
-            <ul className="stagger-2 grid animate-rise grid-cols-1 gap-3 xl:grid-cols-2">
-              {data.lines.map((line) => (
-                <li key={line.id}>
-                  <PayrollLineCard
-                    line={line}
-                    isLocked={isLocked}
-                    onEditRepayment={() => setDialog({ kind: 'repayment', line })}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              <div className="relative sm:max-w-sm">
+                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value)
+                    setPage(1)
+                  }}
+                  placeholder="Cari kode / nama penjahit"
+                  aria-label="Cari penjahit"
+                  className="h-11 pl-10"
+                />
+              </div>
+              {lines.length === 0 ? (
+                <p className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground text-sm">
+                  Tidak ada penjahit yang cocok.
+                </p>
+              ) : (
+                <ul className="stagger-2 grid animate-rise grid-cols-1 gap-3 xl:grid-cols-2">
+                  {paginate(lines, page, PAGE_SIZE).map((line) => (
+                    <li key={line.id}>
+                      <PayrollLineCard
+                        line={line}
+                        isLocked={isLocked}
+                        onEditRepayment={() => setDialog({ kind: 'repayment', line })}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Pagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={lines.length}
+                onChange={setPage}
+              />
+            </div>
           )}
 
           {/* THR and bonuses come once or twice a year, so they stay out of the weekly flow. */}

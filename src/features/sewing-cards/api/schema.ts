@@ -41,6 +41,9 @@ export const cardListSchema = z.object({
     cancelled: z.number(),
     all: z.number(),
   }),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
   cards: z.array(sewingCardSchema),
 })
 

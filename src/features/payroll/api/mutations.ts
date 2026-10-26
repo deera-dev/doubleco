@@ -11,12 +11,13 @@ function usePayrollAction<Input extends object, Output>(run: (input: Input) => P
   return useMutation<Output, AppError, Input>({
     mutationFn: run,
     // Locking pays cards and books kasbon repayments, so those screens refresh too.
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: () => {
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: payrollKeys.all }),
         queryClient.invalidateQueries({ queryKey: sewingCardKeys.all }),
         queryClient.invalidateQueries({ queryKey: ['cash-advances'] }),
-      ]),
+      ])
+    },
   })
 }
 

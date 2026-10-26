@@ -2,7 +2,12 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Download, Printer, Scissors, Search, Shirt } from 'lucide-react'
 import { toast } from 'sonner'
 import { useIssueForWorkOrder } from '@/features/sewing-cards/api/mutations'
-import { useCuttingBoard, useSewingCards } from '@/features/sewing-cards/api/queries'
+import {
+  fetchSewingCards,
+  useCuttingBoard,
+  useScanOptions,
+  useSewingCards,
+} from '@/features/sewing-cards/api/queries'
 import type { BoardWorkOrder, SewingCard } from '@/features/sewing-cards/api/schema'
 import { CardDialogs } from '@/features/sewing-cards/components/CardDialogs'
 import { CardRow } from '@/features/sewing-cards/components/CardRow'
@@ -10,11 +15,14 @@ import { cardPrintSearch, cardStatusMeta } from '@/features/sewing-cards/lib/sta
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { EmptyState } from '@/shared/components/EmptyState'
+import { FilterBar } from '@/shared/components/FilterBar'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value'
 import { type CsvColumn, downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
@@ -176,13 +184,25 @@ function CardsPanel() {
   const selected = useSewingCardsUiStore((state) => state.selected)
   const toggleSelected = useSewingCardsUiStore((state) => state.toggleSelected)
   const setSelected = useSewingCardsUiStore((state) => state.setSelected)
-  const cards = useSewingCards({ status, search, workOrderId: null })
+  const tailorId = useSewingCardsUiStore((state) => state.tailorId)
+  const setTailorId = useSewingCardsUiStore((state) => state.setTailorId)
+  const page = useSewingCardsUiStore((state) => state.page)
+  const setPage = useSewingCardsUiStore((state) => state.setPage)
+  const tailors = useScanOptions()
+  const debouncedSearch = useDebouncedValue(search)
+  const cards = useSewingCards({
+    status,
+    search: debouncedSearch,
+    workOrderId: null,
+    tailorId,
+    page,
+  })
   const visible = cards.data?.cards ?? []
   const printable = visible.filter((card) => card.status !== 'cancelled')
-  const selectedVisible = selected.filter((number) =>
-    printable.some((card) => card.number === number),
-  )
-  const allSelected = printable.length > 0 && selectedVisible.length === printable.length
+  // The selection survives paging, so cards from several pages print together.
+  const selectedVisible = selected
+  const allSelected =
+    printable.length > 0 && printable.every((card) => selected.includes(card.number))
 
   return (
     <div className="space-y-4">
@@ -205,11 +225,26 @@ function CardsPanel() {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari kode / nama / nomor"
+            placeholder="Cari nomor kartu, penjahit, WO"
             aria-label="Cari kartu jahit"
             className="h-11 pl-10"
           />
         </div>
+
+        <FilterBar
+          filters={[
+            {
+              key: 'tailor',
+              label: 'Penjahit',
+              value: tailorId,
+              options: (tailors.data?.tailors ?? []).map((tailor) => ({
+                value: tailor.id,
+                label: `${tailor.code} · ${tailor.name}`,
+              })),
+              onChange: setTailorId,
+            },
+          ]}
+        />
       </div>
 
       {cards.isPending ? (
@@ -235,16 +270,32 @@ function CardsPanel() {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setSelected(allSelected ? [] : printable.map((card) => card.number))}
+              onClick={() =>
+                setSelected(
+                  allSelected
+                    ? selected.filter((number) => !printable.some((card) => card.number === number))
+                    : [...new Set([...selected, ...printable.map((card) => card.number)])],
+                )
+              }
               disabled={printable.length === 0}
             >
-              {allSelected ? 'Batal pilih semua' : `Pilih semua (${printable.length})`}
+              {allSelected ? 'Batal pilih halaman ini' : `Pilih halaman ini (${printable.length})`}
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => downloadCsv(`kartu-jahit-${todayIsoDate()}.csv`, visible, cardColumns)}
+              onClick={async () => {
+                const all = await fetchSewingCards({
+                  status,
+                  search: debouncedSearch,
+                  workOrderId: null,
+                  tailorId,
+                  page: 1,
+                  pageSize: 500,
+                }).catch(() => null)
+                downloadCsv(`kartu-jahit-${todayIsoDate()}.csv`, all?.cards ?? visible, cardColumns)
+              }}
             >
               <Download />
               Export
@@ -263,6 +314,12 @@ function CardsPanel() {
               </li>
             ))}
           </ul>
+          <Pagination
+            page={cards.data?.page ?? 1}
+            pageSize={cards.data?.pageSize ?? 20}
+            total={cards.data?.total ?? 0}
+            onChange={setPage}
+          />
         </>
       )}
 

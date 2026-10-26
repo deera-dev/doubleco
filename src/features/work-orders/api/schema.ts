@@ -49,13 +49,13 @@ export const workOrderSchema = z.object({
 export const workOrderListSchema = z.object({
   summary: z.object({
     active: z.number(),
-    draft: z.number(),
-    cutting: z.number(),
-    sewing: z.number(),
     done: z.number(),
     cancelled: z.number(),
     all: z.number(),
   }),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
   workOrders: z.array(workOrderSchema),
 })
 

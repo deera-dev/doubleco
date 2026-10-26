@@ -21,7 +21,12 @@ function refreshProduction() {
 }
 
 function useCardAction<Input extends object, Output>(run: (input: Input) => Promise<Output>) {
-  return useMutation<Output, AppError, Input>({ mutationFn: run, onSuccess: refreshProduction })
+  return useMutation<Output, AppError, Input>({
+    mutationFn: run,
+    onSuccess: () => {
+      void refreshProduction()
+    },
+  })
 }
 
 export const useIssueCards = () =>

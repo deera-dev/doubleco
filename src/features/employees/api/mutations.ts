@@ -15,8 +15,9 @@ export interface SaveTailorInput {
   confirmed: boolean
 }
 
+// Fire and forget: the button finishes when the save does, the list catches up behind it.
 function invalidateEmployees() {
-  return queryClient.invalidateQueries({ queryKey: employeeKeys.all })
+  void queryClient.invalidateQueries({ queryKey: employeeKeys.all })
 }
 
 function useEmployeeAction<Input extends object, Output>(run: (input: Input) => Promise<Output>) {

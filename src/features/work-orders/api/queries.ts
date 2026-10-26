@@ -11,18 +11,30 @@ import { callAction } from '@/shared/lib/bff-action'
 
 export const workOrderKeys = {
   all: ['work-orders'] as const,
-  list: (filters: { status: WorkOrderStatusFilter; search: string }) =>
-    [...workOrderKeys.all, 'list', filters] as const,
+  list: (filters: WorkOrderListFilters) => [...workOrderKeys.all, 'list', filters] as const,
   detail: (id: string) => [...workOrderKeys.all, 'detail', id] as const,
   options: ['work-orders', 'form-options'] as const,
   suggestion: (product: string) => ['work-orders', 'suggestion', product] as const,
   print: (id: string) => [...workOrderKeys.all, 'print', id] as const,
 }
 
-export function useWorkOrders(filters: { status: WorkOrderStatusFilter; search: string }) {
+export interface WorkOrderListFilters {
+  status: WorkOrderStatusFilter
+  search: string
+  fabricId: string | null
+  cutterId: string | null
+  category: 'S' | 'M' | 'L' | null
+  page: number
+}
+
+export function fetchWorkOrders(filters: WorkOrderListFilters & { pageSize?: number }) {
+  return callAction('work-orders', 'list', workOrderListSchema, filters)
+}
+
+export function useWorkOrders(filters: WorkOrderListFilters) {
   return useQuery({
     queryKey: workOrderKeys.list(filters),
-    queryFn: () => callAction('work-orders', 'list', workOrderListSchema, filters),
+    queryFn: () => fetchWorkOrders(filters),
     placeholderData: keepPreviousData,
   })
 }

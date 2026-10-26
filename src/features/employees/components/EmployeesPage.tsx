@@ -10,6 +10,7 @@ import { useEmployeesUiStore } from '@/features/employees/store'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination, paginate, usePageFor } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -17,6 +18,8 @@ import { type CsvColumn, downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
 import { toAppError } from '@/shared/types/errors'
+
+const PAGE_SIZE = 20
 
 const statusLabels: Record<Employee['status'], string> = {
   active: 'Aktif',
@@ -61,6 +64,7 @@ export function EmployeesPage() {
   const openEditor = useEmployeesUiStore((state) => state.openEditor)
   const employees = useEmployees({ status, type, search })
   const summary = employees.data?.summary
+  const [page, setPage] = usePageFor(`${status}|${type}|${search}`)
 
   const exportList = () => {
     const rows = employees.data?.employees ?? []
@@ -182,12 +186,20 @@ export function EmployeesPage() {
         />
       ) : (
         <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
-          {employees.data.employees.map((employee) => (
+          {paginate(employees.data.employees, page, PAGE_SIZE).map((employee) => (
             <li key={employee.id}>
               <EmployeeRow employee={employee} onSelect={() => select(employee)} />
             </li>
           ))}
         </ul>
+      )}
+      {employees.data && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={employees.data.employees.length}
+          onChange={setPage}
+        />
       )}
 
       <Editors />

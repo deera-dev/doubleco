@@ -10,6 +10,7 @@ import { CardDialogs } from '@/features/sewing-cards/components/CardDialogs'
 import { CardRow } from '@/features/sewing-cards/components/CardRow'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { Pagination } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -56,15 +57,17 @@ function ManualEntry({ onSubmit }: { onSubmit: (value: string) => void }) {
 }
 
 function CardQueue({ today, mode }: { today: string; mode: 'submit' | 'inspect' }) {
+  const [page, setPage] = useState(1)
   const cards = useSewingCards({
     status: 'all',
     search: '',
     workOrderId: null,
     submittedOn: mode === 'submit' ? today : null,
     needsInspection: mode === 'inspect',
+    page,
   })
   const list = cards.data?.cards ?? []
-  const pieces = list.reduce((sum, card) => sum + card.quantity, 0)
+  const total = cards.data?.total ?? 0
 
   return (
     <section className="space-y-3">
@@ -74,8 +77,7 @@ function CardQueue({ today, mode }: { today: string; mode: 'submit' | 'inspect' 
         </h2>
         {list.length > 0 && (
           <p className="text-muted-foreground text-sm">
-            <span className="font-mono font-semibold text-foreground">{list.length}</span> kartu ·{' '}
-            <span className="font-mono font-semibold text-foreground">{pieces}</span> pcs
+            <span className="font-mono font-semibold text-foreground">{total}</span> kartu
           </p>
         )}
       </div>
@@ -99,6 +101,14 @@ function CardQueue({ today, mode }: { today: string; mode: 'submit' | 'inspect' 
             </li>
           ))}
         </ul>
+      )}
+      {cards.data && (
+        <Pagination
+          page={cards.data.page}
+          pageSize={cards.data.pageSize}
+          total={cards.data.total}
+          onChange={setPage}
+        />
       )}
       <CardDialogs />
     </section>

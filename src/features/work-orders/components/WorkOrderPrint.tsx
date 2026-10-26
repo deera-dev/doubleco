@@ -1,10 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useWorkOrderPrint } from '@/features/work-orders/api/queries'
 import type { PrintData } from '@/features/work-orders/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { MaryamLogo } from '@/shared/components/MaryamLogo'
+import { PrintToolbar } from '@/shared/components/PrintToolbar'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatIsoDate, todayIsoDate } from '@/shared/lib/format'
@@ -73,6 +74,7 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
 
   return (
     <article
+      data-print-sheet
       className="wo-card-sheet relative flex flex-col gap-[3mm] overflow-hidden bg-print-paper p-[6mm] text-print-ink"
       style={{ transform: `translate(${offsets.left}mm, ${offsets.top}mm)` }}
     >
@@ -168,21 +170,22 @@ export function WorkOrderPrint({ id }: { id: string }) {
   return (
     <div className="min-h-dvh print:min-h-0">
       <style>{PAGE_STYLE}</style>
-      <div className="chrome sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 print:hidden">
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/work-order/$id" params={{ id }}>
-            <ArrowLeft />
-            Kembali ke WO
-          </Link>
-        </Button>
-        <p className="hidden text-muted-foreground text-sm md:block">
-          Kertas 120 × 160 mm · skala 100% · tanpa margin
-        </p>
-        <Button type="button" onClick={() => window.print()} disabled={!isReady}>
-          <Printer />
-          Cetak
-        </Button>
-      </div>
+      <PrintToolbar
+        back={
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/work-order/$id" params={{ id }}>
+              <ArrowLeft />
+              Kembali ke WO
+            </Link>
+          </Button>
+        }
+        paper="120 × 160 mm"
+        widthMm={120}
+        heightMm={160}
+        offsets={print.data?.offsets ?? { top: 0, left: 0 }}
+        fileName={`kartu-wo-${print.data?.workOrder.number ?? 'cetak'}.pdf`}
+        isReady={isReady}
+      />
       <div className="flex justify-center p-6 print:p-0">
         {print.isPending ? (
           <div className="wo-card-sheet animate-pulse rounded-lg bg-surface-hover" />

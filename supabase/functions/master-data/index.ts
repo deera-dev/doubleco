@@ -316,6 +316,43 @@ const remove = defineAction({
   },
 })
 
+const documentTypes = ['sewing_card', 'work_order_card', 'thp', 'transfer_list'] as const
+
+const printSettings = defineAction({
+  input: z.object({}),
+  run: async (_input, request) => {
+    const supabase = createUserClient(request)
+    const rows = unwrap<{ document_type: string; offset_top_mm: number; offset_left_mm: number }[]>(
+      await supabase.from('print_settings').select('document_type, offset_top_mm, offset_left_mm'),
+    )
+    return {
+      settings: rows.map((row) => ({
+        documentType: row.document_type,
+        top: Number(row.offset_top_mm),
+        left: Number(row.offset_left_mm),
+      })),
+    }
+  },
+})
+
+const offsetMm = z.number().min(-20).max(20).transform((value) => Math.round(value * 10) / 10)
+
+const savePrintSetting = defineAction({
+  input: z.object({ documentType: z.enum(documentTypes), top: offsetMm, left: offsetMm }),
+  run: async ({ documentType, top, left }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(
+      await supabase
+        .from('print_settings')
+        .update({ offset_top_mm: top, offset_left_mm: left, updated_at: new Date().toISOString() })
+        .eq('document_type', documentType)
+        .select('document_type')
+        .single(),
+    )
+    return { documentType }
+  },
+})
+
 serveActions({
   overview,
   save_product: saveProduct,
@@ -326,4 +363,6 @@ serveActions({
   save_pattern: savePattern,
   add_wage_rate: addWageRate,
   remove,
+  print_settings: printSettings,
+  save_print_setting: savePrintSetting,
 })

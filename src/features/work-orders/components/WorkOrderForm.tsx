@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ImagePlus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { type FieldErrors, type UseFormReturn, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import {
   useCreateWorkOrder,
   useUpdateWorkOrder,
+  useUploadWorkOrderPhoto,
   type WorkOrderPayload,
 } from '@/features/work-orders/api/mutations'
 import { useNumberSuggestion, useWorkOrderFormOptions } from '@/features/work-orders/api/queries'
@@ -445,6 +446,81 @@ function FabricCodeHint({
   return null
 }
 
+/** Optional sample photo picked on the new-WO form; uploaded right after the WO is created. */
+function PhotoPicker({
+  file,
+  onChange,
+}: {
+  file: File | null
+  onChange: (file: File | null) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  return (
+    <div className="space-y-2">
+      <p className="font-medium text-sm">Foto sampel (opsional)</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(event) => {
+          onChange(event.target.files?.[0] ?? null)
+          event.target.value = ''
+        }}
+      />
+      {preview ? (
+        <div className="flex items-center gap-3 rounded-2xl border bg-background/40 p-3">
+          <img
+            src={preview}
+            alt="Pratinjau foto sampel"
+            className="size-20 rounded-xl object-cover"
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
+              <ImagePlus />
+              Ganti
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+              <X />
+              Hapus
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 w-full"
+          onClick={() => inputRef.current?.click()}
+        >
+          <ImagePlus />
+          Pilih atau foto sampel
+        </Button>
+      )}
+      <p className="text-muted-foreground text-xs">
+        Ikut tercetak di kartu WO. Bisa juga ditambah nanti.
+      </p>
+    </div>
+  )
+}
+
 interface FieldsProps {
   form: WorkOrderForm
   options: FormOptions
@@ -455,10 +531,14 @@ function FormFields({
   form,
   options,
   workOrder,
+  photo,
+  onPhotoChange,
 }: {
   form: WorkOrderForm
   options: FormOptions
   workOrder: WorkOrder | null
+  photo: File | null
+  onPhotoChange: (file: File | null) => void
 }) {
   const fabric = form.watch('fabric')
   const changeStatus = form.watch('changeStatus')
@@ -652,6 +732,7 @@ function FormFields({
       </Section>
 
       <Section title="Info lanjutan">
+        {!workOrder && <PhotoPicker file={photo} onChange={onPhotoChange} />}
         <FormField
           control={form.control}
           name="additionalInfo"
@@ -676,6 +757,8 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
   const options = useWorkOrderFormOptions()
   const createWorkOrder = useCreateWorkOrder()
   const updateWorkOrder = useUpdateWorkOrder()
+  const uploadPhoto = useUploadWorkOrderPhoto()
+  const [photo, setPhoto] = useState<File | null>(null)
   const [pending, setPending] = useState<WorkOrderFormValues | null>(null)
   const [focusRequest, setFocusRequest] = useState(0)
   const formRef = useRef<HTMLFormElement>(null)
@@ -695,7 +778,7 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
   }, [focusRequest])
   const focusError = () => setFocusRequest((count) => count + 1)
 
-  const isSaving = createWorkOrder.isPending || updateWorkOrder.isPending
+  const isSaving = createWorkOrder.isPending || updateWorkOrder.isPending || uploadPhoto.isPending
   const saveError = createWorkOrder.error ?? updateWorkOrder.error
   const warnings = confirmationWarnings(createWorkOrder.error)
   const fieldError = saveError?.kind === 'business' ? FIELD_ERRORS[saveError.code] : undefined
@@ -727,8 +810,13 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
     createWorkOrder.mutate(
       { ...toPayload(values, null), sizes: values.sizes, confirmed },
       {
-        onSuccess: ({ id }) => {
+        onSuccess: async ({ id }) => {
           toast.success(`${values.number.toUpperCase()} dibuat`)
+          if (photo) {
+            await uploadPhoto
+              .mutateAsync({ id, file: photo })
+              .catch(() => toast.error('Foto gagal diunggah. Unggah ulang di halaman WO.'))
+          }
           navigate({ to: '/work-order/$id', params: { id } })
         },
         onError: (error) => {
@@ -814,7 +902,13 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
             noValidate
             className="stagger-1 animate-rise space-y-4"
           >
-            <FormFields form={form} options={options.data} workOrder={workOrder} />
+            <FormFields
+              form={form}
+              options={options.data}
+              workOrder={workOrder}
+              photo={photo}
+              onPhotoChange={setPhoto}
+            />
             {saveError && !warnings && !fieldError && (
               <p role="alert" className="text-destructive text-sm">
                 {describeError(saveError)}

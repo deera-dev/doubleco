@@ -309,43 +309,78 @@ const list = defineAction({
     status: z.enum([...cardStatuses, 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
+    tailorId: uuid.nullable().default(null),
     submittedOn: z.string().date().nullable().default(null),
     needsInspection: z.boolean().default(false),
+    page: z.number().int().min(1).default(1),
+    pageSize: z.number().int().min(1).max(500).default(20),
   }),
-  run: async ({ status, search, workOrderId, submittedOn, needsInspection }, request) => {
+  run: async (input, request) => {
     const supabase = createUserClient(request)
-    let query = supabase
-      .from('sewing_cards')
-      .select(cardSelect)
-      .order('taken_on', { ascending: false })
-      .order('number', { ascending: false })
-      .limit(500)
-    if (workOrderId) query = query.eq('work_order_items.work_order_id', workOrderId)
-    if (submittedOn) query = query.eq('submitted_on', submittedOn)
-    if (needsInspection) {
-      query = query.in('status', ['submitted', 'paid']).in('inspection_status', ['pending', 'in_repair'])
+    // Search reaches card numbers, tailors (code or name) and WO numbers in one filter.
+    const needle = input.search.replace(/[,()%*]/g, ' ').trim()
+    let searchFilter: string | null = null
+    if (needle) {
+      const [tailors, workOrders] = await Promise.all([
+        supabase.from('tailors').select('id').or(`code.eq.${needle},name.ilike.%${needle}%`).limit(50),
+        supabase.from('work_orders').select('work_order_items(id)').ilike('number', `%${needle}%`).limit(50),
+      ])
+      const tailorIds = unwrap<{ id: string }[]>(tailors).map((tailor) => tailor.id)
+      const itemIds = unwrap<{ work_order_items: { id: string }[] }[]>(workOrders).flatMap((workOrder) =>
+        workOrder.work_order_items.map((item) => item.id),
+      )
+      searchFilter = [
+        `number.ilike.%${needle}%`,
+        tailorIds.length > 0 ? `tailor_id.in.(${tailorIds.join(',')})` : null,
+        itemIds.length > 0 ? `work_order_item_id.in.(${itemIds.join(',')})` : null,
+      ]
+        .filter(Boolean)
+        .join(',')
     }
-    const all = unwrap<CardRow[]>(await query).map(shapeCard)
-    const needle = search.toLowerCase()
+
+    // Every filter except the status tab, so each tab can show its own count.
+    // deno-lint-ignore no-explicit-any
+    const filtered = (query: any) => {
+      let next = query
+      if (input.workOrderId) next = next.eq('work_order_items.work_order_id', input.workOrderId)
+      if (input.tailorId) next = next.eq('tailor_id', input.tailorId)
+      if (input.submittedOn) next = next.eq('submitted_on', input.submittedOn)
+      if (input.needsInspection) {
+        next = next.in('status', ['submitted', 'paid']).in('inspection_status', ['pending', 'in_repair'])
+      }
+      if (searchFilter) next = next.or(searchFilter)
+      return next
+    }
+    // deno-lint-ignore no-explicit-any
+    const byStatus = (query: any, value: typeof input.status) =>
+      value === 'all' ? query : query.eq('status', value)
+    const count = async (value: typeof input.status) => {
+      const { count: total, error } = await byStatus(
+        filtered(supabase.from('sewing_cards').select('id, work_order_items!inner(id)', { count: 'exact', head: true })),
+        value,
+      )
+      if (error) throw new Rejection('UNKNOWN', 500)
+      return total ?? 0
+    }
+
+    const from = (input.page - 1) * input.pageSize
+    const [rows, taken, submitted, paid, cancelled, all] = await Promise.all([
+      byStatus(filtered(supabase.from('sewing_cards').select(cardSelect, { count: 'exact' })), input.status)
+        .order('taken_on', { ascending: false })
+        .order('number', { ascending: false })
+        .range(from, from + input.pageSize - 1),
+      count('taken'),
+      count('submitted'),
+      count('paid'),
+      count('cancelled'),
+      count('all'),
+    ])
     return {
-      summary: {
-        taken: all.filter((card) => card.status === 'taken').length,
-        submitted: all.filter((card) => card.status === 'submitted').length,
-        paid: all.filter((card) => card.status === 'paid').length,
-        cancelled: all.filter((card) => card.status === 'cancelled').length,
-        all: all.length,
-      },
-      cards: all
-        .filter((card) => status === 'all' || card.status === status)
-        .filter(
-          (card) =>
-            needle === '' ||
-            card.number.toLowerCase().includes(needle) ||
-            card.tailorCode?.toLowerCase() === needle ||
-            card.tailorName?.toLowerCase().includes(needle) ||
-            card.workOrderNumber.toLowerCase().includes(needle) ||
-            card.productCode.toLowerCase().includes(needle),
-        ),
+      summary: { taken, submitted, paid, cancelled, all },
+      total: rows.count ?? 0,
+      page: input.page,
+      pageSize: input.pageSize,
+      cards: unwrap<CardRow[]>(rows).map(shapeCard),
     }
   },
 })
