@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen, Plus } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, Download, Lock, LockOpen } from 'lucide-react'
 import { useState } from 'react'
 import { usePayrollOverview } from '@/features/payroll/api/queries'
 import type { PayrollLine, PayrollOverview } from '@/features/payroll/api/schema'
@@ -45,6 +45,43 @@ type Dialog =
   | { kind: 'addition'; line: PayrollLine | null }
   | { kind: 'lock' }
   | { kind: 'unlock' }
+
+/** The three things that happen every Saturday, with where this week stands. */
+function Steps({ overview }: { overview: PayrollOverview }) {
+  const isLocked = overview.status === 'locked'
+  const allPaid = isLocked && overview.totals.paid === overview.totals.tailors
+  const current = !isLocked ? 0 : allPaid ? 3 : 2
+  const steps = [
+    { title: 'Cek rekap', text: 'Atur cicilan kasbon, putuskan potongan' },
+    { title: 'Kunci gajian', text: 'Angka dibekukan untuk transfer' },
+    { title: 'Transfer', text: 'Kirim, lalu tandai dibayar' },
+  ]
+  return (
+    <ol className="grid grid-cols-3 gap-2">
+      {steps.map((step, index) => (
+        <li
+          key={step.title}
+          className={cn(
+            'rounded-2xl border px-3 py-2.5',
+            index === current
+              ? 'border-brand-400/50 bg-brand-500/10'
+              : index < current
+                ? 'border-success/30 text-muted-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
+          <p className="font-semibold text-sm">
+            <span className={cn('mr-1.5 font-mono', index < current && 'text-success')}>
+              {index < current ? '✓' : index + 1}
+            </span>
+            {step.title}
+          </p>
+          <p className="hidden text-muted-foreground text-xs sm:block">{step.text}</p>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
 function Summary({ overview }: { overview: PayrollOverview }) {
   const stats = [
@@ -145,6 +182,7 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
         </p>
       ) : data ? (
         <>
+          {!data.isFuture && data.lines.length > 0 && <Steps overview={data} />}
           <Summary overview={data} />
           {!isLocked && <DeductionsPanel deductions={data.pendingDeductions} />}
 
@@ -168,11 +206,24 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                     line={line}
                     isLocked={isLocked}
                     onEditRepayment={() => setDialog({ kind: 'repayment', line })}
-                    onAddAddition={() => setDialog({ kind: 'addition', line })}
                   />
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* THR and bonuses come once or twice a year, so they stay out of the weekly flow. */}
+          {!data.isFuture && !isLocked && (
+            <p className="text-center text-muted-foreground text-sm">
+              Ada THR atau bonus minggu ini?{' '}
+              <button
+                type="button"
+                className="font-medium text-brand-200 underline-offset-4 hover:underline"
+                onClick={() => setDialog({ kind: 'addition', line: null })}
+              >
+                Tambahkan
+              </button>
+            </p>
           )}
 
           {!data.isFuture && (
@@ -203,15 +254,6 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                 </>
               ) : (
                 <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="lg"
-                    onClick={() => setDialog({ kind: 'addition', line: null })}
-                  >
-                    <Plus />
-                    THR / bonus
-                  </Button>
                   <Button
                     type="button"
                     size="lg"

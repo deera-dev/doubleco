@@ -146,6 +146,7 @@ const board = defineAction({
         cut: cutItems.reduce((sum, item) => sum + (item.cut ?? 0), 0),
         assigned: items.reduce((sum, item) => sum + item.assigned, 0),
         remaining: cutItems.reduce((sum, item) => sum + (item.remaining ?? 0), 0),
+        cardableItems: cutItems.filter((item) => (item.remaining ?? 0) > 0).length,
         uncutItems: items.length - cutItems.length,
       }
     })
@@ -257,6 +258,26 @@ const issue = defineAction({
       if (error instanceof Rejection) throw await describeTailors(supabase, error)
       throw error
     }
+  },
+})
+
+/** One card per cut size × colour holding every piece that has no card yet. */
+const issueForWorkOrder = defineAction({
+  input: z.object({ workOrderId: uuid, takenOn: z.string().date() }),
+  run: async ({ workOrderId, takenOn }, request) => {
+    const supabase = createUserClient(request)
+    const row = unwrap<BoardRow | null>(
+      await supabase.from('work_orders').select(boardSelect).eq('id', workOrderId).maybeSingle(),
+    )
+    if (!row) throw new Rejection('NOT_FOUND', 404)
+    const cards = itemsOf(row)
+      .filter((item) => (item.remaining ?? 0) > 0)
+      .map((item) => ({ work_order_item_id: item.id, quantity: item.remaining }))
+    if (cards.length === 0) throw new Rejection('CARDS_REQUIRED')
+    const created = unwrap<{ number: string }[]>(
+      await supabase.rpc('issue_sewing_cards', { p_cards: cards, p_taken_on: takenOn }),
+    )
+    return { numbers: created.map((card) => card.number) }
   },
 })
 
@@ -511,6 +532,7 @@ serveActions({
   board,
   split_options: splitOptions,
   issue,
+  issue_for_work_order: issueForWorkOrder,
   list,
   update,
   cancel,

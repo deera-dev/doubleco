@@ -54,6 +54,7 @@ const boardWorkOrderSchema = z.object({
   cut: z.number(),
   assigned: z.number(),
   remaining: z.number(),
+  cardableItems: z.number(),
   uncutItems: z.number(),
 })
 

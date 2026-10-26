@@ -1,4 +1,4 @@
-import { ChevronDown, CircleCheck, Pencil, Plus, TriangleAlert, X } from 'lucide-react'
+import { ChevronDown, CircleCheck, Pencil, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useMarkPaid, useRemoveAddition } from '@/features/payroll/api/mutations'
@@ -57,15 +57,9 @@ interface PayrollLineCardProps {
   line: PayrollLine
   isLocked: boolean
   onEditRepayment: () => void
-  onAddAddition: () => void
 }
 
-export function PayrollLineCard({
-  line,
-  isLocked,
-  onEditRepayment,
-  onAddAddition,
-}: PayrollLineCardProps) {
+export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLineCardProps) {
   const [isOpen, setIsOpen] = useState(false)
   const markPaid = useMarkPaid()
   const removeAddition = useRemoveAddition()
@@ -137,12 +131,13 @@ export function PayrollLineCard({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="size-8"
+                  size="sm"
+                  className="h-8 px-2"
                   aria-label={`Ubah cicilan ${line.name}`}
                   onClick={onEditRepayment}
                 >
                   <Pencil className="size-3.5" />
+                  Ubah
                 </Button>
               )
             }
@@ -162,12 +157,6 @@ export function PayrollLineCard({
           Rincian
         </Button>
         <div className="flex flex-wrap items-center gap-2">
-          {!isLocked && (
-            <Button type="button" variant="outline" size="sm" onClick={onAddAddition}>
-              <Plus />
-              Tambahan
-            </Button>
-          )}
           {isLocked &&
             (line.status === 'paid' ? (
               <span className="flex items-center gap-1 text-sm text-success">

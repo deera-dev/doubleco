@@ -9,6 +9,7 @@ import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { ConfirmDeleteButton } from '@/shared/components/ConfirmDeleteButton'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
+import { cn } from '@/shared/lib/utils'
 
 export function SamplePhoto({ workOrder }: { workOrder: WorkOrder }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -47,7 +48,12 @@ export function SamplePhoto({ workOrder }: { workOrder: WorkOrder }) {
         <p className="text-muted-foreground text-sm">Ikut tercetak di kartu WO.</p>
       </div>
 
-      <div className="relative aspect-3/4 overflow-hidden rounded-2xl border bg-background/60">
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-2xl border bg-background/60',
+          workOrder.photoUrl ? 'aspect-3/4' : 'aspect-video lg:aspect-3/4',
+        )}
+      >
         {workOrder.photoUrl ? (
           <img
             src={workOrder.photoUrl}

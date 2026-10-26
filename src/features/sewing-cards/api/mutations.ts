@@ -83,3 +83,8 @@ export const useDeleteInspection = () =>
   useCardAction((input: { number: string; reason: string }) =>
     callAction('sewing-cards', 'delete_inspection', cardNumberSchema, input),
   )
+
+export const useIssueForWorkOrder = () =>
+  useCardAction((input: { workOrderId: string; takenOn: string }) =>
+    callAction('sewing-cards', 'issue_for_work_order', issuedSchema, input),
+  )

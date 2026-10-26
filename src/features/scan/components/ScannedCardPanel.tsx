@@ -137,8 +137,7 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
             id="scan-tailor"
             value={tailorText}
             onValueChange={setTailorText}
-            inputMode="numeric"
-            placeholder="Kode di kartu, mis. 29"
+            placeholder="Kode atau nama, mis. 29"
             options={tailors.map((candidate) => ({ label: tailorLabel(candidate) }))}
             aria-invalid={tailorText.trim() !== '' && !tailor}
           />

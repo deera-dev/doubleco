@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Ban, Pencil, Printer } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Ban, Pencil, Plus, Printer, ScanLine } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { WorkOrderCards } from '@/features/sewing-cards/components/WorkOrderCards'
@@ -66,6 +66,88 @@ function Summary({ workOrder }: { workOrder: WorkOrder }) {
         </div>
       </div>
     </header>
+  )
+}
+
+function goToCutResults() {
+  const section = document.getElementById('hasil-potong')
+  section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  section?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+}
+
+/** Tells a first-time user what to do next on this WO, with the button that does it. */
+function NextStep({ workOrder }: { workOrder: WorkOrder }) {
+  const openDialog = useWorkOrdersUiStore((state) => state.openDialog)
+  if (workOrder.status === 'cancelled' || workOrder.status === 'done') return null
+
+  const { items } = workOrder
+  const uncut = items.filter((item) => item.cutQuantity === null)
+  const cardable = items.filter(
+    (item) => item.cutQuantity !== null && item.cutQuantity > item.assignedQuantity,
+  )
+  const withTailor = items.some((item) => item.assignedQuantity > item.submittedQuantity)
+
+  const step =
+    items.length === 0
+      ? {
+          title: 'Pilih warna yang dipotong',
+          text: 'Kartu WO sudah bisa dicetak untuk tukang potong. Setelah dipotong, pilih warnanya lalu isi jumlah potongnya.',
+          action: (
+            <Button type="button" onClick={() => openDialog('add-items')}>
+              <Plus />
+              Pilih warna
+            </Button>
+          ),
+        }
+      : cardable.length > 0
+        ? {
+            title: `Buat & cetak ${cardable.length} kartu jahit`,
+            text: 'Satu hasil potong (ukuran × warna) jadi satu kartu. Tombolnya ada di bagian Hasil potong.',
+            action: (
+              <Button type="button" onClick={goToCutResults}>
+                <ArrowRight />
+                Ke hasil potong
+              </Button>
+            ),
+          }
+        : uncut.length > 0
+          ? {
+              title: 'Isi hasil potong',
+              text: `${uncut.length} ukuran/warna belum diisi jumlah potongnya.`,
+              action: (
+                <Button type="button" onClick={goToCutResults}>
+                  <ArrowRight />
+                  Isi sekarang
+                </Button>
+              ),
+            }
+          : withTailor
+            ? {
+                title: 'Kartu ada di penjahit',
+                text: 'Scan kartunya saat disetor. Kartu yang disetor otomatis masuk gajian Sabtu.',
+                action: (
+                  <Button asChild>
+                    <Link to="/scan">
+                      <ScanLine />
+                      Buka Scan
+                    </Link>
+                  </Button>
+                ),
+              }
+            : null
+  if (!step) return null
+
+  return (
+    <section className="stagger-1 flex animate-rise flex-col gap-3 rounded-3xl border border-brand-400/40 bg-brand-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-1">
+        <p className="font-medium text-brand-100 text-xs uppercase tracking-wider">
+          Langkah berikutnya
+        </p>
+        <p className="font-semibold">{step.title}</p>
+        <p className="text-muted-foreground text-sm">{step.text}</p>
+      </div>
+      <div className="shrink-0">{step.action}</div>
+    </section>
   )
 }
 
@@ -160,6 +242,7 @@ export function WorkOrderDetail({ id }: { id: string }) {
       ) : (
         <>
           <Summary workOrder={workOrder.data} />
+          <NextStep workOrder={workOrder.data} />
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <Details workOrder={workOrder.data} />
             <SamplePhoto workOrder={workOrder.data} />

@@ -1,5 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Download, Printer, Scissors, Search, Shirt } from 'lucide-react'
+import { toast } from 'sonner'
+import { useIssueForWorkOrder } from '@/features/sewing-cards/api/mutations'
 import { useCuttingBoard, useSewingCards } from '@/features/sewing-cards/api/queries'
 import type { BoardWorkOrder, SewingCard } from '@/features/sewing-cards/api/schema'
 import { CardDialogs } from '@/features/sewing-cards/components/CardDialogs'
@@ -34,35 +36,68 @@ const cardColumns: CsvColumn<SewingCard>[] = [
   { header: 'Tanggal setor', value: (row) => row.submittedOn },
 ]
 
+function IssueButton({ workOrder }: { workOrder: BoardWorkOrder }) {
+  const navigate = useNavigate()
+  const issue = useIssueForWorkOrder()
+  return (
+    <Button
+      type="button"
+      disabled={issue.isPending}
+      onClick={() =>
+        issue.mutate(
+          { workOrderId: workOrder.id, takenOn: todayIsoDate() },
+          {
+            onSuccess: ({ numbers }) => {
+              toast.success(`${numbers.length} kartu jahit dibuat`)
+              navigate({ to: '/cetak/kartu-jahit', search: cardPrintSearch(numbers) })
+            },
+            onError: (error) => toast.error(describeError(error)),
+          },
+        )
+      }
+    >
+      <Printer />
+      {issue.isPending ? 'Membuat…' : `Buat & cetak ${workOrder.cardableItems} kartu`}
+    </Button>
+  )
+}
+
 function BoardRow({ workOrder, isReady }: { workOrder: BoardWorkOrder; isReady: boolean }) {
   return (
-    <Link
-      to="/work-order/$id"
-      params={{ id: workOrder.id }}
-      className="surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover"
-    >
-      <span className="sheen-primary flex size-11 shrink-0 items-center justify-center rounded-xl font-semibold text-lg text-primary-foreground">
-        {workOrder.category ?? '?'}
-      </span>
-      <span className="min-w-0 flex-1 space-y-1">
-        <span className="block truncate font-medium font-mono text-sm">{workOrder.number}</span>
-        <span className="block truncate text-muted-foreground text-xs">
-          {formatWorkOrderDate(workOrder.orderedOn)} · potong {workOrder.cutterName}
-          {isReady && workOrder.uncutItems > 0
-            ? ` · ${workOrder.uncutItems} ukuran/warna belum dipotong`
-            : ''}
+    <div className="surface space-y-3 rounded-2xl p-4">
+      <Link
+        to="/work-order/$id"
+        params={{ id: workOrder.id }}
+        className="interactive group -m-1 flex items-center gap-4 rounded-xl p-1 text-left hover:bg-surface-hover"
+      >
+        <span className="sheen-primary flex size-11 shrink-0 items-center justify-center rounded-xl font-semibold text-lg text-primary-foreground">
+          {workOrder.category ?? '?'}
         </span>
-      </span>
-      {isReady && (
-        <span className="shrink-0 text-right">
-          <span className="block font-mono font-semibold text-2xl tabular-nums leading-none">
-            {workOrder.remaining}
+        <span className="min-w-0 flex-1 space-y-1">
+          <span className="block truncate font-medium font-mono text-sm">{workOrder.number}</span>
+          <span className="block truncate text-muted-foreground text-xs">
+            {formatWorkOrderDate(workOrder.orderedOn)} · potong {workOrder.cutterName}
+            {isReady && workOrder.uncutItems > 0
+              ? ` · ${workOrder.uncutItems} ukuran/warna belum dipotong`
+              : ''}
           </span>
-          <span className="text-subtle-foreground text-xs">pcs tanpa kartu</span>
         </span>
+        {isReady && (
+          <span className="shrink-0 text-right">
+            <span className="block font-mono font-semibold text-2xl tabular-nums leading-none">
+              {workOrder.remaining}
+            </span>
+            <span className="text-subtle-foreground text-xs">pcs tanpa kartu</span>
+          </span>
+        )}
+        <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
+      {isReady && (
+        <div className="flex justify-end">
+          <IssueButton workOrder={workOrder} />
+        </div>
       )}
-      <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
-    </Link>
+    </div>
   )
 }
 
@@ -103,7 +138,8 @@ function ReadyPanel() {
               Siap dicetak
             </h2>
             <p className="text-muted-foreground text-sm">
-              Buka WO-nya, lalu tekan “Buat & cetak kartu” di bagian Hasil potong.
+              Satu hasil potong (ukuran × warna) jadi satu kartu. Kartu langsung dibuka untuk
+              dicetak.
             </p>
           </div>
           <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">

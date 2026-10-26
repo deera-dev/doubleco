@@ -103,7 +103,7 @@ export const workOrderFormSchema = z
   .object({
     number: z.string().trim().min(1, 'Nomor WO wajib diisi').max(60),
     orderedOn: z.string().date('Pilih tanggal'),
-    productNumber: z.string().trim().min(1, 'Isi kode produk').max(20),
+    productNumber: z.string().trim().min(1, 'Isi nomor produk').max(20),
     fabricCode: z.string().trim().min(1, 'Isi kode bahan').max(20),
     category: z.enum(['', 'S', 'M', 'L']),
     cutter: requiredLabel('Isi tukang potong'),
