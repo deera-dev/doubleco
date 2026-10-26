@@ -55,8 +55,8 @@ function CardSummary({ card }: { card: ScannedCard }) {
           </span>
         </div>
         <p className="font-semibold text-lg leading-tight">
-          {card.productCode} · {card.sizeName} ·{' '}
-          <span className="text-brand-200">{card.colorName}</span>
+          {card.productCode} · {card.sizeName}
+          {card.colorName && <span className="text-brand-200"> · {card.colorName}</span>}
         </p>
         <p className="text-muted-foreground text-sm">
           {card.workOrderNumber} · ambil {formatWorkOrderDate(card.takenOn)} · kategori{' '}

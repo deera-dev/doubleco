@@ -253,17 +253,15 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                   </Button>
                 </>
               ) : (
-                <>
-                  <Button
-                    type="button"
-                    size="lg"
-                    disabled={data.lines.length === 0}
-                    onClick={() => setDialog({ kind: 'lock' })}
-                  >
-                    <Lock />
-                    Kunci gajian
-                  </Button>
-                </>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={data.lines.length === 0}
+                  onClick={() => setDialog({ kind: 'lock' })}
+                >
+                  <Lock />
+                  Kunci gajian
+                </Button>
               )}
             </div>
           )}

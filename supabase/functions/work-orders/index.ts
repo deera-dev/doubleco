@@ -38,7 +38,7 @@ interface WorkOrderRow {
     id: string
     cut_quantity: number | null
     size_id: string
-    fabric_color_id: string
+    fabric_color_id: string | null
     sizes: { name: string; sort_order: number } | null
     fabric_colors: NamedRef | null
     sewing_cards: { quantity: number; status: string }[]
@@ -67,7 +67,7 @@ function shape(row: WorkOrderRow) {
         sizeName: item.sizes?.name ?? '-',
         sizeOrder: item.sizes?.sort_order ?? 0,
         colorId: item.fabric_color_id,
-        colorName: item.fabric_colors?.name ?? '-',
+        colorName: item.fabric_colors?.name ?? null,
         cutQuantity: item.cut_quantity,
         assignedQuantity: liveCards.reduce((sum, card) => sum + card.quantity, 0),
         submittedQuantity: liveCards
@@ -76,7 +76,7 @@ function shape(row: WorkOrderRow) {
         cardCount: item.sewing_cards.length,
       }
     })
-    .sort((a, b) => a.sizeOrder - b.sizeOrder || a.colorName.localeCompare(b.colorName))
+    .sort((a, b) => a.sizeOrder - b.sizeOrder || (a.colorName ?? '').localeCompare(b.colorName ?? ''))
 
   const unique = (values: string[]) => [...new Set(values)]
   const sizes = [
@@ -107,7 +107,7 @@ function shape(row: WorkOrderRow) {
     changeNotes: row.change_notes,
     additionalInfo: row.additional_info,
     sizes: unique(sizes.map((size) => size.name)),
-    colors: unique(items.map((item) => item.colorName)).sort(),
+    colors: unique(items.flatMap((item) => (item.colorName ? [item.colorName] : []))).sort(),
     items,
     totals: {
       cut: items.reduce((sum, item) => sum + (item.cutQuantity ?? 0), 0),

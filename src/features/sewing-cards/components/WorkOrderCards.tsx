@@ -21,7 +21,7 @@ export function WorkOrderCards({ workOrderId }: { workOrderId: string }) {
           <p className="text-muted-foreground text-sm">
             {list.length > 0
               ? `${list.length} kartu · ${openNumbers.length} masih di penjahit.`
-              : 'Belum ada kartu. Isi hasil potong, lalu tekan “Buat & cetak kartu”.'}
+              : 'Belum ada kartu. Isi jumlah iketan di Hasil potong: satu iketan jadi satu kartu.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

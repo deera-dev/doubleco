@@ -102,16 +102,14 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
         <Field label="Ukuran" className="col-span-2">
           {workOrder.sizes.join(' · ')}
         </Field>
-        <div className="col-span-2 min-w-0 space-y-[0.6mm]">
-          <Label>Warna</Label>
-          {workOrder.colors.length > 0 ? (
+        {workOrder.colors.length > 0 && (
+          <div className="col-span-2 min-w-0 space-y-[0.6mm]">
+            <Label>Warna</Label>
             <p className="line-clamp-2 font-bold print-text-md leading-tight">
               {workOrder.colors.join(', ')}
             </p>
-          ) : (
-            <div aria-hidden className="h-[5mm] border-print-line border-b border-dashed" />
-          )}
-        </div>
+          </div>
+        )}
       </section>
 
       <section className="flex flex-1 gap-[3mm]">

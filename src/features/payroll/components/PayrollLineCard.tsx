@@ -7,6 +7,7 @@ import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
+import { itemLabel } from '@/shared/lib/item-label'
 import { cn } from '@/shared/lib/utils'
 
 const kindLabels = { thr: 'THR', bonus: 'Bonus', other: 'Tambahan' }
@@ -193,7 +194,7 @@ export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLine
                 <li key={card.number} className="flex items-center gap-3 px-4 py-2">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">
-                      {card.productCode} · {card.sizeName} · {card.colorName}
+                      {card.productCode} · {itemLabel(card.sizeName, card.colorName)}
                     </span>
                     <span className="block truncate text-muted-foreground text-xs">
                       <span className="font-mono">{card.number}</span> · kategori {card.category}

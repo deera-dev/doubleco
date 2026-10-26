@@ -75,7 +75,7 @@ function CardSheet({ card, qr, offsets }: CardSheetProps) {
         <Row label="T.Potong">{card.cutterName}</Row>
         <Row label="Model">{card.productCode}</Row>
         <Row label="Ukuran">{card.sizeName}</Row>
-        <Row label="Warna">{card.colorName}</Row>
+        {card.colorName && <Row label="Warna">{card.colorName}</Row>}
         <Row label="Jumlah">{card.quantity}</Row>
         <div className="mt-[0.5mm]">
           <HandwrittenRow label="T.Jahit" />

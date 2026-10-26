@@ -107,7 +107,7 @@ function shapeLine(row: LineRow, isLocked: boolean, balances: Map<string, number
       incomplete: card.submitted_incomplete,
       productCode: card.work_order_items?.work_orders?.products?.code ?? '-',
       sizeName: card.work_order_items?.sizes?.name ?? '-',
-      colorName: card.work_order_items?.fabric_colors?.name ?? '-',
+      colorName: card.work_order_items?.fabric_colors?.name ?? null,
     }))
     .sort((a, b) => a.number.localeCompare(b.number))
   return {

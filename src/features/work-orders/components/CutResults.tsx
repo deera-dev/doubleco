@@ -6,13 +6,16 @@ import { useIssueCards } from '@/features/sewing-cards/api/mutations'
 import { cardPrintSearch } from '@/features/sewing-cards/lib/status'
 import { useRecordCut, useRemoveWorkOrderItem } from '@/features/work-orders/api/mutations'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
+import { CutBundles } from '@/features/work-orders/components/CutBundles'
 import { useWorkOrdersUiStore } from '@/features/work-orders/store'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
 import { todayIsoDate } from '@/shared/lib/format'
+import { itemLabel } from '@/shared/lib/item-label'
 
-export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
+/** Older WOs whose cut results were counted per size × colour. */
+function ColorCutResults({ workOrder }: { workOrder: WorkOrder }) {
   const navigate = useNavigate()
   const recordCut = useRecordCut()
   const issueCards = useIssueCards()
@@ -64,7 +67,7 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
     if (invalid) {
       toast.error(
         invalid.value < invalid.item.assignedQuantity
-          ? `${invalid.item.sizeName} ${invalid.item.colorName}: sudah dibagi ${invalid.item.assignedQuantity}, hasil potong tidak boleh lebih kecil`
+          ? `${itemLabel(invalid.item.sizeName, invalid.item.colorName)}: sudah dibagi ${invalid.item.assignedQuantity}, hasil potong tidak boleh lebih kecil`
           : 'Isi jumlah potong dengan angka bulat lebih dari 0',
       )
       return
@@ -125,9 +128,7 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
           {workOrder.items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">
-                  {item.sizeName} · {item.colorName}
-                </p>
+                <p className="font-medium text-sm">{itemLabel(item.sizeName, item.colorName)}</p>
                 <p className="text-muted-foreground text-xs">
                   {item.assignedQuantity > 0
                     ? `Di kartu ${item.assignedQuantity} · disetor ${item.submittedQuantity}`
@@ -138,7 +139,7 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
                 type="number"
                 inputMode="numeric"
                 min={Math.max(1, item.assignedQuantity)}
-                aria-label={`Hasil potong ${item.sizeName} ${item.colorName}`}
+                aria-label={`Hasil potong ${itemLabel(item.sizeName, item.colorName)}`}
                 placeholder="0"
                 disabled={isClosed}
                 value={drafts[item.id] ?? item.cutQuantity?.toString() ?? ''}
@@ -150,7 +151,7 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
               {!isClosed && (
                 <button
                   type="button"
-                  aria-label={`Hapus ${item.sizeName} ${item.colorName}`}
+                  aria-label={`Hapus ${itemLabel(item.sizeName, item.colorName)}`}
                   disabled={item.cardCount > 0 || removeItem.isPending}
                   title={item.cardCount > 0 ? 'Sudah ada kartu jahit' : undefined}
                   onClick={() =>
@@ -195,5 +196,15 @@ export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
         </div>
       )}
     </section>
+  )
+}
+
+/** Cut results are counted in iketan per size; WOs from before that keep their colour rows. */
+export function CutResults({ workOrder }: { workOrder: WorkOrder }) {
+  const usesColors = workOrder.items.some((item) => item.colorId !== null)
+  return usesColors ? (
+    <ColorCutResults workOrder={workOrder} />
+  ) : (
+    <CutBundles workOrder={workOrder} />
   )
 }
