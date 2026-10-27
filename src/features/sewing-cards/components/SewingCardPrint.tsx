@@ -33,7 +33,7 @@ function Row({
         className,
       )}
     >
-      <span className="w-[15mm] shrink-0 font-semibold text-print-muted uppercase print-text-2xs">
+      <span className="w-[19mm] shrink-0 font-semibold text-print-muted uppercase print-text-label leading-tight">
         {label}
       </span>
       <span className="min-w-0 flex-1 truncate font-extrabold text-print-red uppercase print-text-value leading-tight">
@@ -47,7 +47,7 @@ function Row({
 function HandwrittenRow({ label }: { label: string }) {
   return (
     <div className="h-[9mm] border-print-ink border-b-[0.3mm] pt-[0.8mm]">
-      <span className="font-semibold text-print-muted uppercase print-text-2xs">{label}</span>
+      <span className="font-semibold text-print-muted uppercase print-text-label">{label}</span>
     </div>
   )
 }

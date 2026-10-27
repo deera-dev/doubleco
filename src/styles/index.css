@@ -463,9 +463,14 @@
   font-size: 3.2mm;
 }
 
-/* Sewing card values: clearly above the 2.1mm labels, a step below the 4mm headings. */
-@utility print-text-value {
+/* Sewing card labels (TGL, MODEL…): as big as the values used to be, so they read at arm's length. */
+@utility print-text-label {
   font-size: 3.4mm;
+}
+
+/* Sewing card values in red: 2px (≈0.5mm) above the labels. */
+@utility print-text-value {
+  font-size: 3.9mm;
 }
 
 @utility print-text-md {
