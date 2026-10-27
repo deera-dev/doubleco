@@ -14,6 +14,8 @@ interface ComboboxProps extends Omit<ComponentProps<'input'>, 'value' | 'onChang
   onValueChange: (value: string) => void
   options: ComboboxOption[]
   newHint?: string
+  /** How many suggestions to show; the list scrolls past what fits. */
+  limit?: number
 }
 
 export function Combobox({
@@ -21,6 +23,7 @@ export function Combobox({
   onValueChange,
   options,
   newHint,
+  limit,
   className,
   onBlur,
   disabled,
@@ -32,7 +35,7 @@ export function Combobox({
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const labels = options.map((option) => option.label)
-  const suggestions = suggestLabels(labels, value)
+  const suggestions = suggestLabels(labels, value, limit)
   const exact = findByLabel(labels, value, (label) => label)
   const isNew = value.trim() !== '' && !exact && newHint !== undefined
   const showList = isOpen && suggestions.length > 0 && !disabled
