@@ -365,6 +365,21 @@ const unmarkPaid = defineAction({
   },
 })
 
+const moveCards = defineAction({
+  input: z.object({
+    numbers: z.array(z.string().trim().min(1).max(40)).min(1).max(500),
+    payOn: saturday,
+  }),
+  run: async ({ numbers, payOn }, request) => {
+    const supabase = createUserClient(request)
+    if (payOn > upcomingSaturday()) throw new Rejection('PAY_DATE_IN_FUTURE')
+    const moved = unwrap<number>(
+      await supabase.rpc('move_cards_to_payroll_week', { p_numbers: numbers, p_pay_on: payOn }),
+    )
+    return { count: moved }
+  },
+})
+
 const decideDeduction = defineAction({
   input: z.object({
     id: uuid,
@@ -545,6 +560,7 @@ serveActions({
   unlock,
   mark_paid: markPaid,
   unmark_paid: unmarkPaid,
+  move_cards: moveCards,
   tailor_history: tailorHistory,
   decide_deduction: decideDeduction,
 })

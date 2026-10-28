@@ -1,8 +1,24 @@
-import { ChevronDown, CircleCheck, Pencil, TriangleAlert, Undo2, X } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Pencil,
+  TriangleAlert,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useMarkPaid, useRemoveAddition, useUnmarkPaid } from '@/features/payroll/api/mutations'
+import {
+  useMarkPaid,
+  useMoveCards,
+  useRemoveAddition,
+  useUnmarkPaid,
+} from '@/features/payroll/api/mutations'
 import type { PayrollLine } from '@/features/payroll/api/schema'
+import { shiftWeeks } from '@/features/payroll/lib/dates'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
@@ -57,11 +73,85 @@ function Row({
 interface PayrollLineCardProps {
   line: PayrollLine
   isLocked: boolean
+  /** This line's Saturday, and the latest Saturday that can be filled. */
+  payOn: string
+  currentPayOn: string
   onEditRepayment: () => void
 }
 
-export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLineCardProps) {
+/**
+ * Old data: some cards of a WO were already paid last week outside the app. Picked cards move
+ * to another open week, which is then locked and marked paid as the record.
+ */
+function MoveCards({
+  selected,
+  payOn,
+  currentPayOn,
+  onMoved,
+}: {
+  selected: string[]
+  payOn: string
+  currentPayOn: string
+  onMoved: () => void
+}) {
+  const moveCards = useMoveCards()
+  const move = (target: string) =>
+    moveCards.mutate(
+      { numbers: selected, payOn: target },
+      {
+        onSuccess: ({ count }) => {
+          toast.success(`${count} kartu dipindah ke gajian Sabtu ${formatWorkOrderDate(target)}`)
+          onMoved()
+        },
+        onError: (error) => toast.error(describeError(error)),
+      },
+    )
+  const previous = shiftWeeks(payOn, -1)
+  const next = shiftWeeks(payOn, 1)
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-dashed px-3 py-2">
+      <span className="mr-auto text-muted-foreground text-xs">
+        {selected.length} kartu dipilih · pindah ke gajian
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={moveCards.isPending}
+        onClick={() => move(previous)}
+      >
+        <ChevronLeft />
+        Sabtu {formatWorkOrderDate(previous)}
+      </Button>
+      {next <= currentPayOn && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={moveCards.isPending}
+          onClick={() => move(next)}
+        >
+          Sabtu {formatWorkOrderDate(next)}
+          <ChevronRight />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function PayrollLineCard({
+  line,
+  isLocked,
+  payOn,
+  currentPayOn,
+  onEditRepayment,
+}: PayrollLineCardProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [selected, setSelected] = useState<string[]>([])
+  const toggle = (number: string) =>
+    setSelected((current) =>
+      current.includes(number) ? current.filter((value) => value !== number) : [...current, number],
+    )
   const markPaid = useMarkPaid()
   const unmarkPaid = useUnmarkPaid()
   const removeAddition = useRemoveAddition()
@@ -208,10 +298,30 @@ export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLine
 
       {isOpen && (
         <div className="animate-rise space-y-3 text-sm">
+          {!isLocked && line.cards.length > 0 && (
+            <p className="text-muted-foreground text-xs">
+              Ada kartu yang sudah dibayar di minggu lain? Centang kartunya, lalu pindahkan.
+            </p>
+          )}
           {line.cards.length > 0 && (
             <ul className="divide-y rounded-2xl border">
               {line.cards.map((card) => (
                 <li key={card.number} className="flex items-center gap-3 px-4 py-2">
+                  {!isLocked && (
+                    <button
+                      type="button"
+                      aria-pressed={selected.includes(card.number)}
+                      aria-label={`Pilih ${card.number}`}
+                      onClick={() => toggle(card.number)}
+                      className={cn(
+                        'interactive flex size-6 shrink-0 items-center justify-center rounded-lg border border-border-strong',
+                        selected.includes(card.number) &&
+                          'sheen-primary border-transparent text-primary-foreground',
+                      )}
+                    >
+                      {selected.includes(card.number) && <Check className="size-3.5" />}
+                    </button>
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">
                       {card.productCode} · {itemLabel(card.sizeName, card.colorName)}
@@ -229,6 +339,14 @@ export function PayrollLineCard({ line, isLocked, onEditRepayment }: PayrollLine
                 </li>
               ))}
             </ul>
+          )}
+          {!isLocked && selected.length > 0 && (
+            <MoveCards
+              selected={selected}
+              payOn={payOn}
+              currentPayOn={currentPayOn}
+              onMoved={() => setSelected([])}
+            />
           )}
           {line.additions.map((addition) => (
             <div key={addition.id} className="flex items-center gap-3 rounded-2xl border px-4 py-2">

@@ -214,16 +214,6 @@ export function WorkOrdersPage() {
           <FilterBar
             filters={[
               {
-                key: 'fabric',
-                label: 'Bahan',
-                value: fabricId,
-                options: (options.data?.fabrics ?? []).map((fabric) => ({
-                  value: fabric.id,
-                  label: fabric.name,
-                })),
-                onChange: (value) => setFilters({ fabricId: value }),
-              },
-              {
                 key: 'cutter',
                 label: 'Tukang potong',
                 value: cutterId,
@@ -232,6 +222,16 @@ export function WorkOrdersPage() {
                   label: cutter.name,
                 })),
                 onChange: (value) => setFilters({ cutterId: value }),
+              },
+              {
+                key: 'fabric',
+                label: 'Bahan',
+                value: fabricId,
+                options: (options.data?.fabrics ?? []).map((fabric) => ({
+                  value: fabric.id,
+                  label: fabric.name,
+                })),
+                onChange: (value) => setFilters({ fabricId: value }),
               },
               {
                 key: 'category',
