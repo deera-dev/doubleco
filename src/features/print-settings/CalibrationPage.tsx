@@ -212,7 +212,7 @@ function Editor({ initial }: { initial: Record<PrintDocument, { top: number; lef
           </li>
           <li>Simpan, lalu cetak ulang halaman uji untuk memastikan.</li>
         </ol>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <OffsetField
             label="Atas"
             hint="Plus = turun, minus = naik"

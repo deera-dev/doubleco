@@ -80,7 +80,7 @@ export function SamplePhoto({ workOrder }: { workOrder: WorkOrder }) {
       </div>
 
       {canEdit && (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <Button
             type="button"
             variant="outline"
