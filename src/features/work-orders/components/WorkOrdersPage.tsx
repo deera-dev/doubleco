@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, ClipboardList, Download, Plus, Search } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, ClipboardList, Download, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   fetchWorkOrders,
@@ -8,7 +8,7 @@ import {
 } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { formatWorkOrderDate, workOrderStatusMeta } from '@/features/work-orders/lib/status'
-import { useWorkOrdersUiStore } from '@/features/work-orders/store'
+import { useWorkOrdersUiStore, workOrderSortOptions } from '@/features/work-orders/store'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { FilterBar } from '@/shared/components/FilterBar'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
@@ -17,6 +17,7 @@ import { Pagination } from '@/shared/components/Pagination'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { NativeSelect } from '@/shared/components/ui/native-select'
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value'
 import { type CsvColumn, downloadCsv } from '@/shared/lib/csv'
 import { describeError } from '@/shared/lib/error-messages'
@@ -48,13 +49,16 @@ const exportColumns: CsvColumn<WorkOrder>[] = [
 function ProgressBar({ workOrder }: { workOrder: WorkOrder }) {
   const { cut, assigned, submitted } = workOrder.totals
   if (cut === 0) return null
+  const atTailors = Math.max(assigned - submitted, 0)
   return (
-    <div className="flex h-1.5 overflow-hidden rounded-full bg-border-strong" aria-hidden="true">
-      <div className="sheen-primary h-full" style={{ width: `${(submitted / cut) * 100}%` }} />
-      <div
-        className="h-full bg-brand-400/40"
-        style={{ width: `${((assigned - submitted) / cut) * 100}%` }}
-      />
+    <div
+      className="track-glass flex h-2.5 overflow-hidden rounded-full"
+      title={`${submitted} disetor · ${atTailors} di penjahit · dari ${cut} potong`}
+      aria-hidden="true"
+    >
+      {/* Green: handed in. Amber: still at the tailors. Grey track: not on a card yet. */}
+      <div className="sheen-success h-full" style={{ width: `${(submitted / cut) * 100}%` }} />
+      <div className="sheen-warning h-full" style={{ width: `${(atTailors / cut) * 100}%` }} />
     </div>
   )
 }
@@ -112,11 +116,13 @@ export function WorkOrdersPage() {
   const cutterId = useWorkOrdersUiStore((state) => state.cutterId)
   const category = useWorkOrdersUiStore((state) => state.category)
   const page = useWorkOrdersUiStore((state) => state.page)
+  const sort = useWorkOrdersUiStore((state) => state.sort)
+  const setSort = useWorkOrdersUiStore((state) => state.setSort)
   const setFilters = useWorkOrdersUiStore((state) => state.setFilters)
   const setPage = useWorkOrdersUiStore((state) => state.setPage)
   const options = useWorkOrderFormOptions()
   const debouncedSearch = useDebouncedValue(search)
-  const filters = { status, search: debouncedSearch, fabricId, cutterId, category, page }
+  const filters = { status, search: debouncedSearch, fabricId, cutterId, category, sort, page }
   const workOrders = useWorkOrders(filters)
   const summary = workOrders.data?.summary
   const isFiltered =
@@ -183,41 +189,63 @@ export function WorkOrdersPage() {
         </div>
       </div>
 
-      <div className="stagger-1 animate-rise">
-        <FilterBar
-          filters={[
-            {
-              key: 'fabric',
-              label: 'Bahan',
-              value: fabricId,
-              options: (options.data?.fabrics ?? []).map((fabric) => ({
-                value: fabric.id,
-                label: fabric.name,
-              })),
-              onChange: (value) => setFilters({ fabricId: value }),
-            },
-            {
-              key: 'cutter',
-              label: 'Tukang potong',
-              value: cutterId,
-              options: (options.data?.cutters ?? []).map((cutter) => ({
-                value: cutter.id,
-                label: cutter.name,
-              })),
-              onChange: (value) => setFilters({ cutterId: value }),
-            },
-            {
-              key: 'category',
-              label: 'Kategori',
-              value: category,
-              options: ['S', 'M', 'L'].map((value) => ({ value, label: value })),
-              onChange: (value) =>
-                setFilters({
-                  category: value === 'S' || value === 'M' || value === 'L' ? value : null,
-                }),
-            },
-          ]}
-        />
+      <div className="stagger-1 flex animate-rise flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex items-center gap-2 sm:order-last sm:ml-auto">
+          <ArrowUpDown className="size-4 shrink-0 text-muted-foreground" />
+          <NativeSelect
+            aria-label="Urutkan"
+            className="h-10 w-full sm:w-64"
+            value={sort}
+            onChange={(event) => {
+              const next = workOrderSortOptions.find(
+                (option) => option.value === event.target.value,
+              )
+              if (next) setSort(next.value)
+            }}
+          >
+            {workOrderSortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                Urutkan: {option.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        <div className="min-w-0 flex-1">
+          <FilterBar
+            filters={[
+              {
+                key: 'fabric',
+                label: 'Bahan',
+                value: fabricId,
+                options: (options.data?.fabrics ?? []).map((fabric) => ({
+                  value: fabric.id,
+                  label: fabric.name,
+                })),
+                onChange: (value) => setFilters({ fabricId: value }),
+              },
+              {
+                key: 'cutter',
+                label: 'Tukang potong',
+                value: cutterId,
+                options: (options.data?.cutters ?? []).map((cutter) => ({
+                  value: cutter.id,
+                  label: cutter.name,
+                })),
+                onChange: (value) => setFilters({ cutterId: value }),
+              },
+              {
+                key: 'category',
+                label: 'Kategori',
+                value: category,
+                options: ['S', 'M', 'L'].map((value) => ({ value, label: value })),
+                onChange: (value) =>
+                  setFilters({
+                    category: value === 'S' || value === 'M' || value === 'L' ? value : null,
+                  }),
+              },
+            ]}
+          />
+        </div>
       </div>
 
       {workOrders.isPending ? (
@@ -247,13 +275,23 @@ export function WorkOrdersPage() {
           }
         />
       ) : (
-        <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
-          {workOrders.data.workOrders.map((workOrder) => (
-            <li key={workOrder.id}>
-              <WorkOrderRow workOrder={workOrder} />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2">
+          <p className="flex items-center justify-end gap-4 text-muted-foreground text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="sheen-success size-2.5 rounded-full" /> Disetor
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="sheen-warning size-2.5 rounded-full" /> Di penjahit
+            </span>
+          </p>
+          <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
+            {workOrders.data.workOrders.map((workOrder) => (
+              <li key={workOrder.id}>
+                <WorkOrderRow workOrder={workOrder} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {workOrders.data && (
         <Pagination
