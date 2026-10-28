@@ -312,6 +312,35 @@
     0 12px 28px -12px var(--primary-glow);
 }
 
+/* Progress fills: the same glass highlight as the buttons, in the status colours. */
+@utility sheen-success {
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.05) 55%, transparent),
+    linear-gradient(90deg, #22a866, #4ade9b 60%, #8ff5c6);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(0 0 0 / 0.2),
+    0 0 10px -2px rgb(74 222 155 / 0.6);
+}
+
+@utility sheen-warning {
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.05) 55%, transparent),
+    linear-gradient(90deg, #d99a1e, #f5c04e 60%, #ffe08f);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.6),
+    inset 0 -1px 0 rgb(0 0 0 / 0.2),
+    0 0 10px -2px rgb(245 192 78 / 0.55);
+}
+
+/* Glass track behind a progress fill. */
+@utility track-glass {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.14));
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.55),
+    inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
 @utility sheen-metal {
   background-image: linear-gradient(
     160deg,

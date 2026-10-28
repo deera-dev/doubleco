@@ -137,6 +137,32 @@ async function removePhotoObject(path: string | null) {
 
 const PAGE_SIZE = 20
 
+const sortValues = ['number_desc', 'number_asc', 'ordered_desc', 'ordered_asc', 'created_desc'] as const
+
+// deno-lint-ignore no-explicit-any
+function sorted(query: any, sort: (typeof sortValues)[number]) {
+  const desc = { ascending: false }
+  switch (sort) {
+    case 'number_asc':
+      return query
+        .order('sequence_no', { ascending: true, nullsFirst: false })
+        .order('repeat_no', { ascending: true })
+        .order('created_at', { ascending: true })
+    case 'ordered_desc':
+      return query.order('ordered_on', desc).order('sequence_no', { ...desc, nullsFirst: false }).order('repeat_no', desc)
+    case 'ordered_asc':
+      return query
+        .order('ordered_on', { ascending: true })
+        .order('sequence_no', { ascending: true, nullsFirst: false })
+        .order('repeat_no', { ascending: true })
+    case 'created_desc':
+      return query.order('created_at', desc)
+    default:
+      // Running number first (W-121 above W-120), whatever order they were typed in.
+      return query.order('sequence_no', { ...desc, nullsFirst: false }).order('repeat_no', desc).order('created_at', desc)
+  }
+}
+
 const list = defineAction({
   input: z.object({
     status: z.enum([...statusValues, 'active', 'all']).default('active'),
@@ -144,10 +170,11 @@ const list = defineAction({
     fabricId: uuid.nullable().default(null),
     cutterId: uuid.nullable().default(null),
     category: z.enum(['S', 'M', 'L']).nullable().default(null),
+    sort: z.enum(sortValues).default('number_desc'),
     page: z.number().int().min(1).default(1),
     pageSize: z.number().int().min(1).max(1000).default(PAGE_SIZE),
   }),
-  run: async ({ status, search, fabricId, cutterId, category, page, pageSize }, request) => {
+  run: async ({ status, search, fabricId, cutterId, category, sort, page, pageSize }, request) => {
     const supabase = createUserClient(request)
     const productIds = category
       ? unwrap<{ id: string }[]>(
@@ -183,11 +210,7 @@ const list = defineAction({
 
     const from = (page - 1) * pageSize
     const [rows, ...counts] = await Promise.all([
-      byStatus(filtered(supabase.from('work_orders').select(workOrderSelect, { count: 'exact' })), status)
-        // Running number first (W-121 above W-120), whatever order they were typed in.
-        .order('sequence_no', { ascending: false, nullsFirst: false })
-        .order('repeat_no', { ascending: false })
-        .order('created_at', { ascending: false })
+      sorted(byStatus(filtered(supabase.from('work_orders').select(workOrderSelect, { count: 'exact' })), status), sort)
         .range(from, from + pageSize - 1),
       count('active'),
       count('done'),

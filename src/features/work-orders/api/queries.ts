@@ -6,7 +6,7 @@ import {
   workOrderListSchema,
   workOrderSchema,
 } from '@/features/work-orders/api/schema'
-import type { WorkOrderStatusFilter } from '@/features/work-orders/store'
+import type { WorkOrderSort, WorkOrderStatusFilter } from '@/features/work-orders/store'
 import { callAction } from '@/shared/lib/bff-action'
 
 export const workOrderKeys = {
@@ -24,6 +24,7 @@ export interface WorkOrderListFilters {
   fabricId: string | null
   cutterId: string | null
   category: 'S' | 'M' | 'L' | null
+  sort?: WorkOrderSort
   page: number
 }
 
