@@ -246,6 +246,8 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                       <PayrollLineCard
                         line={line}
                         isLocked={isLocked}
+                        payOn={data.payOn}
+                        currentPayOn={data.currentPayOn}
                         onEditRepayment={() => setDialog({ kind: 'repayment', line })}
                       />
                     </li>

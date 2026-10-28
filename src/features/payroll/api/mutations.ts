@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { z } from 'zod'
 import { payrollKeys } from '@/features/payroll/api/queries'
 import type { AdditionKind } from '@/features/payroll/api/schema'
 import { savedIdSchema, savedPayOnSchema } from '@/features/payroll/api/schema'
@@ -61,6 +62,11 @@ export const useMarkPaid = () =>
 export const useUnmarkPaid = () =>
   usePayrollAction((input: { lineId: string; reason: string }) =>
     callAction('payroll', 'unmark_paid', savedIdSchema, input),
+  )
+
+export const useMoveCards = () =>
+  usePayrollAction((input: { numbers: string[]; payOn: string }) =>
+    callAction('payroll', 'move_cards', z.object({ count: z.number() }), input),
   )
 
 export const useDecideDeduction = () =>

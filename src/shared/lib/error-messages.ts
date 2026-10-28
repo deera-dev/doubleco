@@ -27,6 +27,7 @@ const businessMessages: Record<string, string> = {
   CASH_ADVANCE_ENTRY_NOT_FOUND: 'Catatan kasbon tidak ditemukan.',
   INVALID_AMOUNT: 'Jumlah tidak valid.',
   PAY_DATE_NOT_SATURDAY: 'Tanggal gajian harus hari Sabtu.',
+  PAY_DATE_IN_FUTURE: 'Gajian minggu depan belum bisa diisi.',
   PAYROLL_NOT_LOCKED: 'Gajian minggu ini belum dikunci.',
   PAYROLL_HAS_PAID_LINES: 'Sudah ada yang ditandai dibayar, gajian tidak bisa dibuka lagi.',
   PAYROLL_LINE_ALREADY_PAID: 'Sudah ditandai dibayar.',
