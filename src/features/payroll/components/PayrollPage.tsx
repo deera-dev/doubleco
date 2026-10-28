@@ -98,27 +98,35 @@ function Steps({ overview }: { overview: PayrollOverview }) {
 }
 
 function Summary({ overview }: { overview: PayrollOverview }) {
-  const stats = [
-    { label: 'Total transfer', value: formatRupiah(overview.totals.transfer), emphasis: true },
-    { label: 'Penjahit', value: String(overview.totals.tailors) },
-    { label: 'Kartu · pcs', value: `${overview.totals.cards} · ${overview.totals.pieces}` },
-    { label: 'Upah kotor', value: formatRupiah(overview.totals.grossWage) },
-  ]
+  const { totals } = overview
   return (
-    <section className="stagger-1 grid animate-rise grid-cols-2 gap-3 lg:grid-cols-4">
-      {stats.map((stat) => (
-        <div key={stat.label} className="surface rounded-3xl p-4 sm:p-5">
-          <p className="text-muted-foreground text-xs">{stat.label}</p>
-          <p
-            className={cn(
-              'font-mono font-semibold tabular-nums',
-              stat.emphasis ? 'text-2xl text-brand-100' : 'text-xl',
-            )}
-          >
-            {stat.value}
+    // Money gets whole rows so long amounts never squeeze; the counts share one line.
+    <section className="surface stagger-1 animate-rise space-y-3 rounded-3xl p-4 sm:p-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs">Total transfer</p>
+          <p className="break-words font-mono font-semibold text-3xl text-brand-100 tabular-nums leading-tight">
+            {formatRupiah(totals.transfer)}
           </p>
         </div>
-      ))}
+        <div className="min-w-0 sm:text-right">
+          <p className="text-muted-foreground text-xs">Upah kotor</p>
+          <p className="break-words font-mono font-semibold text-lg tabular-nums">
+            {formatRupiah(totals.grossWage)}
+          </p>
+        </div>
+      </div>
+      <p className="flex flex-wrap gap-x-5 gap-y-1 border-t pt-3 text-muted-foreground text-sm">
+        <span>
+          <span className="font-mono font-semibold text-foreground">{totals.tailors}</span> penjahit
+        </span>
+        <span>
+          <span className="font-mono font-semibold text-foreground">{totals.cards}</span> kartu
+        </span>
+        <span>
+          <span className="font-mono font-semibold text-foreground">{totals.pieces}</span> pcs
+        </span>
+      </p>
     </section>
   )
 }
