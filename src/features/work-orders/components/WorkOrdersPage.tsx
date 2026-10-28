@@ -48,13 +48,16 @@ const exportColumns: CsvColumn<WorkOrder>[] = [
 function ProgressBar({ workOrder }: { workOrder: WorkOrder }) {
   const { cut, assigned, submitted } = workOrder.totals
   if (cut === 0) return null
+  const atTailors = Math.max(assigned - submitted, 0)
   return (
-    <div className="flex h-1.5 overflow-hidden rounded-full bg-border-strong" aria-hidden="true">
-      <div className="sheen-primary h-full" style={{ width: `${(submitted / cut) * 100}%` }} />
-      <div
-        className="h-full bg-brand-400/40"
-        style={{ width: `${((assigned - submitted) / cut) * 100}%` }}
-      />
+    <div
+      className="flex h-2 overflow-hidden rounded-full bg-white/12"
+      title={`${submitted} disetor · ${atTailors} di penjahit · dari ${cut} potong`}
+      aria-hidden="true"
+    >
+      {/* Green: handed in. Amber: still at the tailors. Grey track: not on a card yet. */}
+      <div className="h-full bg-success" style={{ width: `${(submitted / cut) * 100}%` }} />
+      <div className="h-full bg-warning" style={{ width: `${(atTailors / cut) * 100}%` }} />
     </div>
   )
 }
@@ -247,13 +250,23 @@ export function WorkOrdersPage() {
           }
         />
       ) : (
-        <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
-          {workOrders.data.workOrders.map((workOrder) => (
-            <li key={workOrder.id}>
-              <WorkOrderRow workOrder={workOrder} />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2">
+          <p className="flex items-center justify-end gap-4 text-muted-foreground text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-success" /> Disetor
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-warning" /> Di penjahit
+            </span>
+          </p>
+          <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
+            {workOrders.data.workOrders.map((workOrder) => (
+              <li key={workOrder.id}>
+                <WorkOrderRow workOrder={workOrder} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {workOrders.data && (
         <Pagination

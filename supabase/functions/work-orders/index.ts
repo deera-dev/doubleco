@@ -184,7 +184,9 @@ const list = defineAction({
     const from = (page - 1) * pageSize
     const [rows, ...counts] = await Promise.all([
       byStatus(filtered(supabase.from('work_orders').select(workOrderSelect, { count: 'exact' })), status)
-        .order('ordered_on', { ascending: false })
+        // Running number first (W-121 above W-120), whatever order they were typed in.
+        .order('sequence_no', { ascending: false, nullsFirst: false })
+        .order('repeat_no', { ascending: false })
         .order('created_at', { ascending: false })
         .range(from, from + pageSize - 1),
       count('active'),
