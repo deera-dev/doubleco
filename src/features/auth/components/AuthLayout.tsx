@@ -63,7 +63,7 @@ function BrandPanel() {
 
 export function AuthLayout({ title, description, children, footer, credit }: AuthLayoutProps) {
   return (
-    <div className="grid min-h-dvh gap-4 p-4 lg:grid-cols-2 lg:p-5">
+    <div className="grid grid-cols-1 min-h-dvh gap-4 p-4 lg:grid-cols-2 lg:p-5">
       <BrandPanel />
       <main className="flex flex-col px-2 pt-8 pb-4 sm:px-6 lg:px-10">
         <div className="stagger-1 mx-auto my-auto w-full max-w-sm animate-rise space-y-8">

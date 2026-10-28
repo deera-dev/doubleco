@@ -172,7 +172,7 @@ export function ReportsPage() {
         title="Laporan"
         description="Rekap yang bisa dicetak atau disimpan PDF, menggantikan Excel."
       />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DepositRecapCard />
         <TailorBookCard />
         <ThpCard />

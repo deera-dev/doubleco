@@ -58,7 +58,7 @@ export function ProductsPanel({ data }: { data: MasterData }) {
   }
 
   return (
-    <ul className="grid gap-2 sm:grid-cols-2">
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {data.products.map((product) => {
         const rate = product.category ? rateByCategory.get(product.category) : undefined
         return (
@@ -124,7 +124,7 @@ export function PatternsPanel({ data }: { data: MasterData }) {
   }
 
   return (
-    <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {data.patterns.map((pattern) => {
         const products = data.products.filter((product) => product.defaultPatternId === pattern.id)
         return (
@@ -375,7 +375,7 @@ export function FabricsPanel({ data }: { data: MasterData }) {
           <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
             {group.title} · {group.fabrics.length}
           </h2>
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {group.fabrics.map((fabric) => (
               <FabricCard key={fabric.id} fabric={fabric} />
             ))}
@@ -477,7 +477,7 @@ export function WageRatesPanel({ data }: { data: MasterData }) {
   const removeRate = useRemoveMasterData()
 
   return (
-    <div className="grid gap-3 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
       {data.wageRates.map((group) => (
         <section key={group.category} className="surface flex flex-col gap-5 rounded-3xl p-5">
           <div className="flex items-start justify-between gap-3">

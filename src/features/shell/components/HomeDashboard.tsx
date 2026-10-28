@@ -158,7 +158,7 @@ export function HomeDashboard({ displayName, now }: { displayName: string; now: 
         </h1>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ScanHero />
         <PaydayCard today={now} />
       </div>
@@ -170,7 +170,7 @@ export function HomeDashboard({ displayName, now }: { displayName: string; now: 
             {moduleItems.filter((item) => item.to).length} dari {moduleItems.length} modul siap
           </p>
         </div>
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {moduleItems.map((item, index) => (
             <ModuleRow key={item.title} item={item} index={index} />
           ))}

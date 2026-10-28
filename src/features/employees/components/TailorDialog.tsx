@@ -124,7 +124,7 @@ function StatusActions({ employee }: { employee: Employee }) {
           ? `Tidak aktif. Terhapus otomatis ${formatIsoDate(employee.purgeOn)} kecuali diaktifkan kembali.`
           : 'Penjahit yang dinonaktifkan akan terhapus otomatis setelah masa tidak aktif berakhir.'}
       </p>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {employee.status === 'active' ? (
           <Button
             type="button"
@@ -267,7 +267,7 @@ export function TailorDialog({ employee }: { employee: Employee | null }) {
                     ]}
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="accountProvider"
