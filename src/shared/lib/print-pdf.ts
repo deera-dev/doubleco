@@ -62,6 +62,8 @@ async function toBlackAndWhite(dataUrl: string): Promise<string> {
 
 async function renderSheet(sheet: HTMLElement, dpi: number): Promise<string> {
   const { toPng } = await import('html-to-image')
+  // Text measured before the web font arrived would be cut short ("MI…") in the image.
+  await document.fonts.ready
   const options = {
     pixelRatio: dpi / 96,
     backgroundColor: '#ffffff',

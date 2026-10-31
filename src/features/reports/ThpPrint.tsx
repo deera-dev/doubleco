@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { formatPayDay } from '@/features/payroll/lib/dates'
+import { usePrintSettings } from '@/features/print-settings/api'
 import { useDocumentPrint } from '@/features/print-settings/use-document-print'
 import { type ThpData, type ThpRow, useThp } from '@/features/reports/api'
 import { chunk, ReportPage, Sheet, THP_PAPER } from '@/features/reports/ReportSheet'
@@ -16,25 +17,27 @@ const ROWS_PER_SHEET = 15
 /*
  * THP goes through an Epson LQ-310 (dot matrix) on 24 × 27,7 cm continuous paper. Pins print
  * thin or grey strokes faintly, so everything here is solid black, bold and on full lines.
+ * Arial is on every PC: the printout then measures text exactly like the page on screen.
  */
+const THP_FONT = 'Arial, Helvetica, sans-serif'
 const cell = 'border-[0.35mm] border-print-ink px-[1mm]'
 const center = `${cell} text-center`
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-[2mm] border-print-ink border-b-[0.3mm] py-[0.5mm]">
-      <span className="w-[34mm] shrink-0 font-semibold print-text-sm">{label}</span>
-      <span className="min-w-0 truncate font-extrabold print-text-md">{value}</span>
+      <span className="w-[31mm] shrink-0 font-semibold print-text-sm">{label}</span>
+      <span className="min-w-0 font-extrabold print-text-md leading-tight">{value}</span>
     </div>
   )
 }
 
 function Signature({ title }: { title: string }) {
   return (
-    <div className="flex h-[19mm] flex-1 flex-col items-center justify-between border-[0.35mm] border-print-ink p-[1.5mm]">
+    <div className="flex w-[31mm] shrink-0 flex-col items-center justify-between border-[0.35mm] border-print-ink p-[1.5mm]">
       <span className="font-extrabold uppercase print-text-sm">{title}</span>
-      <span className="w-[44mm] border-print-ink border-t-[0.3mm] pt-[0.5mm] text-center font-semibold print-text-xs">
-        nama & tanda tangan
+      <span className="w-full border-print-ink border-t-[0.3mm] pt-[0.5mm] text-center font-semibold print-text-2xs">
+        nama & ttd
       </span>
     </div>
   )
@@ -65,17 +68,21 @@ function ThpSheet({
 
   return (
     // 14mm top and bottom keep clear of the tractor-hole strips; 9mm left and right.
-    <Sheet paper={THP_PAPER} className="gap-[2mm] px-[9mm] py-[14mm] font-semibold">
-      <header className="flex items-start justify-between gap-[5mm]">
-        <div className="space-y-[1.5mm]">
-          <MaryamLogo className="h-[8mm]" />
+    <Sheet
+      paper={THP_PAPER}
+      fontFamily={THP_FONT}
+      className="gap-[2.5mm] px-[9mm] py-[14mm] font-semibold"
+    >
+      <header className="flex items-stretch gap-[3mm]">
+        <div className="w-[38mm] shrink-0 space-y-[1.5mm]">
+          <MaryamLogo className="h-[9mm]" />
           <p className="font-extrabold print-text-md uppercase leading-tight">
             Tanda hasil
             <br />
             produksi (THP)
           </p>
         </div>
-        <div className="w-[140mm]">
+        <div className="min-w-0 flex-1">
           <Info label="Kode barang" value={workOrder.productCode} />
           <Info label="Hari, tgl proses" value={formatPayDay(workOrder.orderedOn)} />
           <Info label="Cutter's name" value={workOrder.cutterName} />
@@ -84,6 +91,11 @@ function ThpSheet({
             value={[workOrder.fabricName, workOrder.fabricCombination].filter(Boolean).join(' + ')}
           />
           <Info label="Size" value={sizeName} />
+        </div>
+        <div className="flex shrink-0 gap-[1.5mm]">
+          <Signature title="Produksi" />
+          <Signature title="Finishing" />
+          <Signature title="Gudang" />
         </div>
       </header>
 
@@ -149,7 +161,7 @@ function ThpSheet({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.cardNumber} className="h-[8mm]">
+            <tr key={row.cardNumber} className="h-[8.5mm]">
               <td className={center}>{offset + index + 1}</td>
               <td className={`${cell} truncate font-extrabold print-text-md`}>
                 {row.tailorName ?? ''}
@@ -168,7 +180,7 @@ function ThpSheet({
             </tr>
           ))}
           {blanks.map((blank) => (
-            <tr key={`blank-${blank}`} className="h-[8mm]">
+            <tr key={`blank-${blank}`} className="h-[8.5mm]">
               <td className={center}>{offset + rows.length + blank + 1}</td>
               {Array.from({ length: 10 }, (_, column) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: empty cells to write in
@@ -177,7 +189,7 @@ function ThpSheet({
             </tr>
           ))}
           {page === pages - 1 && (
-            <tr className="h-[8mm] font-extrabold">
+            <tr className="h-[8.5mm] font-extrabold">
               <td colSpan={3} className={`${cell} text-right uppercase`}>
                 Total jumlah :
               </td>
@@ -192,12 +204,7 @@ function ThpSheet({
         </tbody>
       </table>
 
-      <footer className="mt-auto space-y-[1mm]">
-        <div className="flex gap-[4mm]">
-          <Signature title="Produksi" />
-          <Signature title="Finishing" />
-          <Signature title="Gudang" />
-        </div>
+      <footer className="mt-auto">
         <p className="flex justify-between font-semibold print-text-xs">
           <span>{workOrder.number}</span>
           {pages > 1 && (
@@ -214,6 +221,9 @@ function ThpSheet({
 export function ThpPrint({ workOrderId }: { workOrderId: string }) {
   const thp = useThp(workOrderId)
   const printLog = useDocumentPrint('thp', workOrderId)
+  const offsets = usePrintSettings().data?.settings.find(
+    (setting) => setting.documentType === 'thp',
+  )
   const data = thp.data
   const sheets =
     data?.sizes.flatMap((size) => {
@@ -238,6 +248,7 @@ export function ThpPrint({ workOrderId }: { workOrderId: string }) {
       paper={THP_PAPER}
       printerGroup="thp"
       monochrome
+      offsets={offsets ? { top: offsets.top, left: offsets.left } : undefined}
       back={
         <Button asChild variant="ghost" size="sm">
           <Link to="/work-order/$id" params={{ id: workOrderId }}>
