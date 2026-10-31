@@ -21,11 +21,11 @@ const DAYS = [
   { key: 'sat', label: 'S' },
 ]
 /**
- * Table rows that fit one landscape A4 page at 5mm each, after the header and the totals row.
- * Each tailor takes one row per category they handed in (usually one or two, never three empty).
+ * Every tailor keeps the same three S/M/L rows, so the grid reads evenly. The rows are as low
+ * as the 3.2mm text allows (4mm, no extra leading); 14 tailors fill a landscape A4 page.
  */
-const ROWS_PER_PAGE = 34
-const ROW_HEIGHT = 'h-[5mm]'
+const ROWS_PER_PAGE = 42
+const ROW_HEIGHT = 'h-[4mm] leading-none'
 
 interface CategoryRow {
   category: (typeof CATEGORIES)[number]
@@ -41,7 +41,6 @@ function dayColumn(isoDate: string | null): number {
   return day === 0 ? 0 : day - 1
 }
 
-/** Only the categories with cards: empty S/M/L rows only cost paper. At least one row. */
 function categoryRows(line: PayrollLine): CategoryRow[] {
   const rows = CATEGORIES.map((category) => {
     const cards = line.cards.filter((card) => card.category === category)
@@ -54,8 +53,7 @@ function categoryRows(line: PayrollLine): CategoryRow[] {
       count: cards.length,
     }
   })
-  const used = rows.filter((row) => row.count > 0)
-  return used.length > 0 ? used : rows.slice(0, 1)
+  return rows
 }
 
 /** Fills pages by rows, so short entries let more tailors share a page. */
@@ -123,9 +121,7 @@ function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
               </td>
             </>
           )}
-          <td className={`${cell} text-center font-semibold print-text-sm`}>
-            {row.count > 0 ? row.category : ''}
-          </td>
+          <td className={`${cell} text-center font-semibold print-text-sm`}>{row.category}</td>
           {row.days.map((value, day) => (
             <td key={DAYS[day]?.key} className={`${cell} text-center tabular-nums print-text-sm`}>
               {value || ''}
@@ -229,7 +225,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
           <Sheet
             key={lines[0]?.id ?? `page-${pageIndex}`}
             paper={A4_LANDSCAPE}
-            className="gap-[2mm] px-[7mm] py-[6mm]"
+            className="gap-[1.5mm] px-[7mm] py-[5mm]"
           >
             <header className="flex items-end justify-between gap-[4mm] border-print-ink border-b-[0.4mm] pb-[1.5mm]">
               <MaryamLogo className="h-[7mm]" />
@@ -259,7 +255,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                 ))}
               </colgroup>
               <thead>
-                <tr className="h-[7mm] bg-[#eeeeee] font-bold uppercase">
+                <tr className="h-[6mm] bg-[#eeeeee] font-bold uppercase leading-none">
                   <th className={cell}>No</th>
                   <th className={`${cell} text-left`}>Nama</th>
                   <th className={cell}>Kat</th>
@@ -294,7 +290,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                     <SampleRow key={line.id} line={line} index={sewers.length + index + 1} />
                   ))}
                 {pageIndex === pages.length - 1 && (
-                  <tr className="h-[7mm] bg-[#eeeeee] font-bold">
+                  <tr className="h-[5.5mm] bg-[#eeeeee] font-bold leading-none">
                     <td colSpan={9} className={`${cell} text-right uppercase`}>
                       Total
                     </td>
