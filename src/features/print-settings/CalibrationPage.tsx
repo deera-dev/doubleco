@@ -16,12 +16,13 @@ import { Input } from '@/shared/components/ui/input'
 import { describeError } from '@/shared/lib/error-messages'
 import { toAppError } from '@/shared/types/errors'
 
-const papers: Record<
-  'sewing_card' | 'work_order_card',
-  { label: string; width: number; height: number }
-> = {
+type CalibratedPaper = 'sewing_card' | 'work_order_card' | 'thp'
+
+const papers: Record<CalibratedPaper, { label: string; width: number; height: number }> = {
   sewing_card: { label: 'Kartu jahit', width: 60, height: 100 },
   work_order_card: { label: 'Kartu WO', width: 120, height: 150 },
+  // Continuous form on the LQ-310, printed landscape like the THP itself.
+  thp: { label: 'THP', width: 277, height: 240 },
 }
 
 /** The test sheet draws its marks this far from the paper edge. */
@@ -155,7 +156,7 @@ function TestSheet({
 
 function Editor({ initial }: { initial: Record<PrintDocument, { top: number; left: number }> }) {
   const save = useSavePrintSetting()
-  const [document, setDocument] = useState<'sewing_card' | 'work_order_card'>('sewing_card')
+  const [document, setDocument] = useState<CalibratedPaper>('sewing_card')
   const [drafts, setDrafts] = useState(initial)
   const paper = papers[document]
   const offsets = drafts[document]
@@ -185,6 +186,7 @@ function Editor({ initial }: { initial: Record<PrintDocument, { top: number; lef
         isReady
         showCalibrationLink={false}
         printerGroup={document}
+        monochrome={document === 'thp'}
       />
       <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 print:hidden">
         <div className="space-y-2">
@@ -203,6 +205,7 @@ function Editor({ initial }: { initial: Record<PrintDocument, { top: number; lef
           options={[
             { value: 'sewing_card', label: 'Kartu jahit 6×10' },
             { value: 'work_order_card', label: 'Kartu WO 12×15' },
+            { value: 'thp', label: 'THP 24×27,7' },
           ]}
         />
         <ol className="list-decimal space-y-1 pl-5 text-sm">

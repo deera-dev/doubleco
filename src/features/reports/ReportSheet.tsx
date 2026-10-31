@@ -34,10 +34,13 @@ export function Sheet({
   paper,
   children,
   className,
+  fontFamily,
 }: {
   paper: Paper
   children: ReactNode
   className?: string
+  /** A font installed on every PC, so the printout measures text the same way the page does. */
+  fontFamily?: string
 }) {
   const scale = useSheetScale(paper.width)
   return (
@@ -55,6 +58,7 @@ export function Sheet({
           width: `${paper.width}mm`,
           height: `${paper.height}mm`,
           transform: `scale(${scale})`,
+          fontFamily,
         }}
       >
         {children}
@@ -62,6 +66,8 @@ export function Sheet({
     </div>
   )
 }
+
+const noOffsets = { top: 0, left: 0 }
 
 interface ReportPageProps {
   paper: Paper
@@ -77,6 +83,8 @@ interface ReportPageProps {
   printerGroup?: PrinterGroup
   /** Pure black and white output, for the dot-matrix printer. */
   monochrome?: boolean
+  /** Calibration shift on paper, from Kalibrasi Cetak. */
+  offsets?: { top: number; left: number }
   children: ReactNode
 }
 
@@ -91,6 +99,7 @@ export function ReportPage({
   onPrinted,
   printerGroup = 'report',
   monochrome = false,
+  offsets = noOffsets,
   children,
 }: ReportPageProps) {
   return (
@@ -102,7 +111,7 @@ export function ReportPage({
         summary={summary}
         widthMm={paper.width}
         heightMm={paper.height}
-        offsets={{ top: 0, left: 0 }}
+        offsets={offsets}
         fileName={fileName}
         isReady={isReady}
         showCalibrationLink={false}
