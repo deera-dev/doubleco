@@ -46,18 +46,13 @@ function categoryRows(line: PayrollLine): CategoryRow[] {
 }
 
 /**
- * Money columns of one tailor. Total + tambahan (incl. sampel) + kasbon baru − cicil is the
- * transfer (a rare potongan is in the transfer too). Kasbon lama is the debt carried in from
- * earlier weeks: shown for information, never transferred.
+ * Money columns of one tailor. Total + tambahan + kasbon − cicil is the transfer (a rare
+ * potongan is in the transfer too). Kasbon is only what this transfer pays out.
  */
-function moneyOf(line: PayrollLine, isLocked: boolean) {
+function moneyOf(line: PayrollLine) {
   return {
     wage: line.grossWage + line.samples.amount,
     additions: line.additionTotal - line.samples.amount,
-    oldAdvance: Math.max(
-      line.advanceBalance - line.newAdvanceTotal + (isLocked ? line.advanceRepayment : 0),
-      0,
-    ),
     newAdvance: line.newAdvanceTotal,
     repayment: line.advanceRepayment,
     transfer: line.transferAmount,
@@ -68,8 +63,7 @@ type Money = ReturnType<typeof moneyOf>
 const moneyColumns: { key: keyof Money; label: string; bold?: boolean }[] = [
   { key: 'wage', label: 'Total', bold: true },
   { key: 'additions', label: 'Tambahan' },
-  { key: 'oldAdvance', label: 'Kasbon lama' },
-  { key: 'newAdvance', label: 'Kasbon baru' },
+  { key: 'newAdvance', label: 'Kasbon' },
   { key: 'repayment', label: 'Cicil' },
   { key: 'transfer', label: 'Transfer', bold: true },
 ]
@@ -77,17 +71,9 @@ const moneyColumns: { key: keyof Money; label: string; bold?: boolean }[] = [
 const cell = 'border border-print-ink px-[1mm]'
 const number = `${cell} text-right tabular-nums`
 
-function TailorRows({
-  line,
-  index,
-  isLocked,
-}: {
-  line: PayrollLine
-  index: number
-  isLocked: boolean
-}) {
+function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
   const rows = categoryRows(line)
-  const money = moneyOf(line, isLocked)
+  const money = moneyOf(line)
   return (
     <>
       {rows.map((row, rowIndex) => (
@@ -134,16 +120,8 @@ function TailorRows({
 }
 
 /** Tukang sampel: one row at the bottom, samples instead of the S/M/L grid. */
-function SampleRow({
-  line,
-  index,
-  isLocked,
-}: {
-  line: PayrollLine
-  index: number
-  isLocked: boolean
-}) {
-  const money = moneyOf(line, isLocked)
+function SampleRow({ line, index }: { line: PayrollLine; index: number }) {
+  const money = moneyOf(line)
   const parts = [
     line.samples.high > 0 ? `100rb × ${line.samples.high}` : null,
     line.samples.low > 0 ? `50rb × ${line.samples.low}` : null,
@@ -173,19 +151,18 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
   const overview = usePayrollOverview(payOn)
   const printLog = useDocumentPrint('deposit_recap', payOn)
   const data = overview.data
-  const isLocked = data?.status === 'locked'
   // Tukang sampel are listed apart, at the very bottom of the last page.
   const sewers = (data?.lines ?? []).filter((line) => !line.isSampleMaker)
   const sampleMakers = (data?.lines ?? []).filter((line) => line.isSampleMaker)
   const pages = chunk(sewers, TAILORS_PER_PAGE)
   const totals = (data?.lines ?? []).reduce(
     (sum, line) => {
-      const money = moneyOf(line, isLocked)
+      const money = moneyOf(line)
       for (const column of moneyColumns) sum[column.key] += money[column.key]
       if (!line.isSampleMaker) sum.pieces += line.pieces
       return sum
     },
-    { pieces: 0, wage: 0, additions: 0, oldAdvance: 0, newAdvance: 0, repayment: 0, transfer: 0 },
+    { pieces: 0, wage: 0, additions: 0, newAdvance: 0, repayment: 0, transfer: 0 },
   )
 
   return (
@@ -265,17 +242,11 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                     key={line.id}
                     line={line}
                     index={pageIndex * TAILORS_PER_PAGE + index + 1}
-                    isLocked={isLocked}
                   />
                 ))}
                 {pageIndex === pages.length - 1 &&
                   sampleMakers.map((line, index) => (
-                    <SampleRow
-                      key={line.id}
-                      line={line}
-                      index={sewers.length + index + 1}
-                      isLocked={isLocked}
-                    />
+                    <SampleRow key={line.id} line={line} index={sewers.length + index + 1} />
                   ))}
                 {pageIndex === pages.length - 1 && (
                   <tr className="h-[7mm] bg-[#eeeeee] font-bold">
@@ -301,10 +272,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
               </p>
             )}
             <footer className="mt-auto flex justify-between text-print-muted print-text-xs">
-              <span>
-                {data.status === 'locked' ? 'Gajian dikunci' : 'Gajian belum dikunci'} · Kasbon lama
-                = sisa hutang, tidak ditransfer · Kasbon baru = ikut transfer
-              </span>
+              <span>{data.status === 'locked' ? 'Gajian dikunci' : 'Gajian belum dikunci'}</span>
               <span>
                 Hal {pageIndex + 1}/{pages.length}
               </span>
