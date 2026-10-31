@@ -13,10 +13,43 @@ interface PdfOptions {
   /** Calibration shift applied on paper, in mm. */
   offsets: { top: number; left: number }
   fileName: string
+  /** Pure black and white, no grey or anti-aliasing: crisp on a dot-matrix printer. */
+  monochrome?: boolean
 }
 
 const CSS_PX_PER_MM = 96 / 25.4
 const TARGET_DPI = 300
+
+/**
+ * Turns every pixel black or white. A dot-matrix driver dithers grey (anti-aliased text edges,
+ * light lines) into scattered pins, which reads as blur; hard black edges print sharp.
+ */
+async function toBlackAndWhite(dataUrl: string): Promise<string> {
+  const image = new Image()
+  image.src = dataUrl
+  await image.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = image.naturalWidth
+  canvas.height = image.naturalHeight
+  const context = canvas.getContext('2d')
+  if (!context) return dataUrl
+  context.drawImage(image, 0, 0)
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+  const data = pixels.data
+  for (let index = 0; index < data.length; index += 4) {
+    const luminance =
+      0.299 * (data[index] ?? 255) +
+      0.587 * (data[index + 1] ?? 255) +
+      0.114 * (data[index + 2] ?? 255)
+    const value = luminance < 190 ? 0 : 255
+    data[index] = value
+    data[index + 1] = value
+    data[index + 2] = value
+    data[index + 3] = 255
+  }
+  context.putImageData(pixels, 0, 0)
+  return canvas.toDataURL('image/png')
+}
 
 async function renderSheet(sheet: HTMLElement): Promise<string> {
   const { toPng } = await import('html-to-image')
@@ -32,7 +65,14 @@ async function renderSheet(sheet: HTMLElement): Promise<string> {
   return toPng(sheet, options)
 }
 
-export async function buildPdf({ sheets, widthMm, heightMm, offsets, fileName }: PdfOptions) {
+export async function buildPdf({
+  sheets,
+  widthMm,
+  heightMm,
+  offsets,
+  fileName,
+  monochrome = false,
+}: PdfOptions) {
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({
     unit: 'mm',
@@ -42,7 +82,8 @@ export async function buildPdf({ sheets, widthMm, heightMm, offsets, fileName }:
   })
   for (const [index, sheet] of sheets.entries()) {
     if (index > 0) pdf.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait')
-    const image = await renderSheet(sheet)
+    const rendered = await renderSheet(sheet)
+    const image = monochrome ? await toBlackAndWhite(rendered) : rendered
     const renderedWidthMm = sheet.offsetWidth / CSS_PX_PER_MM
     const renderedHeightMm = sheet.offsetHeight / CSS_PX_PER_MM
     pdf.addImage(image, 'PNG', offsets.left, offsets.top, renderedWidthMm, renderedHeightMm)

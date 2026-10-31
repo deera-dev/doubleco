@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { formatPayDay } from '@/features/payroll/lib/dates'
 import { useDocumentPrint } from '@/features/print-settings/use-document-print'
 import { type ThpData, type ThpRow, useThp } from '@/features/reports/api'
-import { A4_LANDSCAPE, chunk, ReportPage, Sheet } from '@/features/reports/ReportSheet'
+import { chunk, ReportPage, Sheet, THP_PAPER } from '@/features/reports/ReportSheet'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { MaryamLogo } from '@/shared/components/MaryamLogo'
 import { Button } from '@/shared/components/ui/button'
@@ -13,23 +13,27 @@ import { toAppError } from '@/shared/types/errors'
 /** Like the paper THP: 15 lines per sheet, the rest filled in by hand. */
 const ROWS_PER_SHEET = 15
 
-const cell = 'border border-print-ink px-[1mm]'
+/*
+ * THP goes through an Epson LQ-310 (dot matrix) on 24 × 27,7 cm continuous paper. Pins print
+ * thin or grey strokes faintly, so everything here is solid black, bold and on full lines.
+ */
+const cell = 'border-[0.35mm] border-print-ink px-[1mm]'
 const center = `${cell} text-center`
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.6mm]">
-      <span className="w-[38mm] shrink-0 text-print-muted print-text-sm">{label}</span>
-      <span className="min-w-0 truncate font-bold print-text-md">{value}</span>
+    <div className="flex items-baseline gap-[2mm] border-print-ink border-b-[0.3mm] py-[0.8mm]">
+      <span className="w-[34mm] shrink-0 font-semibold print-text-sm">{label}</span>
+      <span className="min-w-0 truncate font-extrabold print-text-md">{value}</span>
     </div>
   )
 }
 
 function Signature({ title }: { title: string }) {
   return (
-    <div className="flex h-[24mm] flex-1 flex-col items-center justify-between border border-print-ink p-[1.5mm]">
-      <span className="font-bold uppercase print-text-sm">{title}</span>
-      <span className="w-[40mm] border-print-ink border-t pt-[0.5mm] text-center text-print-muted print-text-xs">
+    <div className="flex h-[26mm] flex-1 flex-col items-center justify-between border-[0.35mm] border-print-ink p-[1.5mm]">
+      <span className="font-extrabold uppercase print-text-sm">{title}</span>
+      <span className="w-[44mm] border-print-ink border-t-[0.3mm] pt-[0.5mm] text-center font-semibold print-text-xs">
         nama & tanda tangan
       </span>
     </div>
@@ -60,13 +64,17 @@ function ThpSheet({
   )
 
   return (
-    <Sheet paper={A4_LANDSCAPE} className="gap-[3mm] p-[9mm]">
-      <header className="flex items-start justify-between gap-[6mm]">
+    <Sheet paper={THP_PAPER} className="gap-[3mm] p-[8mm] font-semibold">
+      <header className="flex items-start justify-between gap-[5mm]">
         <div className="space-y-[2mm]">
-          <MaryamLogo className="h-[10mm]" />
-          <p className="font-extrabold print-text-lg uppercase">Tanda hasil produksi (THP)</p>
+          <MaryamLogo className="h-[11mm]" />
+          <p className="font-extrabold print-text-md uppercase leading-tight">
+            Tanda hasil
+            <br />
+            produksi (THP)
+          </p>
         </div>
-        <div className="w-[140mm]">
+        <div className="w-[128mm]">
           <Info label="Kode barang" value={workOrder.productCode} />
           <Info label="Hari, tgl proses" value={formatPayDay(workOrder.orderedOn)} />
           <Info label="Cutter's name" value={workOrder.cutterName} />
@@ -78,23 +86,22 @@ function ThpSheet({
         </div>
       </header>
 
-      {/* Keterangan stays narrow (written by hand); the space goes to bigger, readable text. */}
       <table className="w-full table-fixed border-collapse print-text-sm leading-tight">
         <colgroup>
-          <col className="w-[10mm]" />
+          <col className="w-[8mm]" />
           <col />
-          <col className="w-[17mm]" />
-          <col className="w-[20mm]" />
-          <col className="w-[30mm]" />
-          <col className="w-[24mm]" />
-          <col className="w-[22mm]" />
+          <col className="w-[13mm]" />
           <col className="w-[16mm]" />
+          <col className="w-[25mm]" />
           <col className="w-[18mm]" />
-          <col className="w-[40mm]" />
-          <col className="w-[24mm]" />
+          <col className="w-[18mm]" />
+          <col className="w-[12mm]" />
+          <col className="w-[14mm]" />
+          <col className="w-[30mm]" />
+          <col className="w-[16mm]" />
         </colgroup>
-        <thead className="font-bold uppercase print-text-xs">
-          <tr className="h-[5mm] bg-[#eeeeee]">
+        <thead className="font-extrabold uppercase text-[2.6mm]">
+          <tr className="h-[6mm]">
             <th colSpan={6} className={center}>
               Kepala produksi
             </th>
@@ -103,7 +110,7 @@ function ThpSheet({
             </th>
             <th className={center}>Gudang</th>
           </tr>
-          <tr className="h-[4.5mm]">
+          <tr className="h-[5mm]">
             <th rowSpan={2} className={center}>
               No
             </th>
@@ -120,16 +127,18 @@ function ThpSheet({
             <th className={center}>Centang</th>
             <th className={center}>Jumlah</th>
             <th colSpan={2} className={center}>
-              Hasil produksi
+              Hasil prod.
             </th>
             <th rowSpan={2} className={`${cell} text-left`}>
               Keterangan
             </th>
             <th rowSpan={2} className={center}>
-              ACC gudang
+              ACC
+              <br />
+              gudang
             </th>
           </tr>
-          <tr className="h-[4.5mm]">
+          <tr className="h-[5mm]">
             <th className={center}>Ambil</th>
             <th className={center}>Selesai</th>
             <th className={center}>Diterima</th>
@@ -139,24 +148,26 @@ function ThpSheet({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.cardNumber} className="h-[6.4mm]">
+            <tr key={row.cardNumber} className="h-[10mm]">
               <td className={center}>{offset + index + 1}</td>
-              <td className={`${cell} truncate font-semibold`}>{row.tailorName ?? ''}</td>
-              <td className={center}>{row.tailorCode ?? ''}</td>
-              <td className={`${center} font-bold`}>{row.quantity}</td>
+              <td className={`${cell} truncate font-extrabold print-text-md`}>
+                {row.tailorName ?? ''}
+              </td>
+              <td className={`${center} font-extrabold print-text-md`}>{row.tailorCode ?? ''}</td>
+              <td className={`${center} font-extrabold print-text-md`}>{row.quantity}</td>
               <td className={center}>{formatWorkOrderDate(row.takenOn)}</td>
               <td className={center}>
                 {row.submittedOn ? `✓ ${formatWorkOrderDate(row.submittedOn).slice(0, 5)}` : ''}
               </td>
-              <td className={center}>{row.receivedQuantity ?? ''}</td>
-              <td className={center}>{row.okQuantity ?? ''}</td>
-              <td className={center}>{row.defectiveQuantity || ''}</td>
+              <td className={`${center} print-text-md`}>{row.receivedQuantity ?? ''}</td>
+              <td className={`${center} print-text-md`}>{row.okQuantity ?? ''}</td>
+              <td className={`${center} print-text-md`}>{row.defectiveQuantity || ''}</td>
               <td className={`${cell} truncate print-text-xs`}>{row.notes ?? ''}</td>
               <td className={cell} />
             </tr>
           ))}
           {blanks.map((blank) => (
-            <tr key={`blank-${blank}`} className="h-[6.4mm]">
+            <tr key={`blank-${blank}`} className="h-[10mm]">
               <td className={center}>{offset + rows.length + blank + 1}</td>
               {Array.from({ length: 10 }, (_, column) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: empty cells to write in
@@ -165,15 +176,15 @@ function ThpSheet({
             </tr>
           ))}
           {page === pages - 1 && (
-            <tr className="h-[6mm] font-bold">
+            <tr className="h-[8mm] font-extrabold">
               <td colSpan={3} className={`${cell} text-right uppercase`}>
                 Total jumlah :
               </td>
-              <td className={center}>{totals.quantity}</td>
+              <td className={`${center} print-text-md`}>{totals.quantity}</td>
               <td colSpan={3} className={`${cell} text-right uppercase`}>
                 Hasil produksi :
               </td>
-              <td className={center}>{totals.ok || ''}</td>
+              <td className={`${center} print-text-md`}>{totals.ok || ''}</td>
               <td colSpan={3} className={cell} />
             </tr>
           )}
@@ -186,7 +197,7 @@ function ThpSheet({
           <Signature title="Finishing" />
           <Signature title="Gudang" />
         </div>
-        <p className="flex justify-between text-print-muted print-text-xs">
+        <p className="flex justify-between font-semibold print-text-xs">
           <span>{workOrder.number}</span>
           {pages > 1 && (
             <span>
@@ -223,7 +234,9 @@ export function ThpPrint({ workOrderId }: { workOrderId: string }) {
 
   return (
     <ReportPage
-      paper={A4_LANDSCAPE}
+      paper={THP_PAPER}
+      printerGroup="thp"
+      monochrome
       back={
         <Button asChild variant="ghost" size="sm">
           <Link to="/work-order/$id" params={{ id: workOrderId }}>
