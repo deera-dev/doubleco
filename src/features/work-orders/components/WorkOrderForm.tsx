@@ -30,6 +30,7 @@ import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog
 import { LabelChipPicker } from '@/shared/components/LabelChipPicker'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { PhotoViewer } from '@/shared/components/PhotoViewer'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
 import { Button } from '@/shared/components/ui/button'
 import { Combobox } from '@/shared/components/ui/combobox'
@@ -482,11 +483,11 @@ function PhotoPicker({
       />
       {preview ? (
         <div className="flex items-center gap-3 rounded-2xl border bg-background/40 p-3">
-          <img
-            src={preview}
-            alt="Pratinjau foto sampel"
-            className="size-20 rounded-xl object-cover"
-          />
+          <div className="size-20 shrink-0 overflow-hidden rounded-xl">
+            <PhotoViewer src={preview} alt="Pratinjau foto sampel">
+              <img src={preview} alt="Pratinjau foto sampel" className="size-full object-cover" />
+            </PhotoViewer>
+          </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
             <Button
               type="button"

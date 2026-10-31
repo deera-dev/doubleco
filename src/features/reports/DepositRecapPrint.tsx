@@ -94,17 +94,30 @@ function moneyOf(line: PayrollLine, isLocked: boolean) {
 }
 
 type Money = ReturnType<typeof moneyOf>
-const moneyColumns: { key: keyof Money; label: string; bold?: boolean }[] = [
-  { key: 'wage', label: 'Total', bold: true },
+const moneyColumns: { key: keyof Money; label: string; bold?: boolean; strong?: boolean }[] = [
+  { key: 'wage', label: 'Total', bold: true, strong: true },
   { key: 'additions', label: 'Tambahan' },
   { key: 'newAdvance', label: 'Kasbon' },
   { key: 'repayment', label: 'Cicil' },
-  { key: 'balance', label: 'Sisa kasbon' },
-  { key: 'transfer', label: 'Transfer', bold: true },
+  { key: 'balance', label: 'Sisa kasbon', bold: true },
+  { key: 'transfer', label: 'Transfer', bold: true, strong: true },
 ]
 
 const cell = 'border border-print-ink px-[1mm]'
 const number = `${cell} text-right tabular-nums`
+/** Thick frame on the columns read most: pcs per kat, total jait, total, transfer. */
+const strong = 'border-x-[0.6mm]'
+const moneyClass = (column: (typeof moneyColumns)[number]) =>
+  `${number} ${column.bold ? 'font-bold' : ''} ${column.strong ? strong : ''}`
+
+/** Soft tints that survive printing without drowning the numbers. */
+const categoryTint: Record<(typeof CATEGORIES)[number], string> = {
+  S: 'bg-[#e8f1fb]',
+  M: 'bg-[#e9f6ea]',
+  L: 'bg-[#fdf0e2]',
+}
+/** Every other tailor gets a light lilac on its name and money cells. */
+const tailorTint = (index: number) => (index % 2 === 0 ? 'bg-[#f2eff8]' : '')
 
 function TailorRows({
   line,
@@ -118,44 +131,52 @@ function TailorRows({
   const rows = categoryRows(line)
   const span = rows.length
   const money = moneyOf(line, isLocked)
+  const band = tailorTint(index)
   return (
     <>
       {rows.map((row, rowIndex) => (
         <tr key={row.category} className={ROW_HEIGHT}>
           {rowIndex === 0 && (
             <>
-              <td rowSpan={span} className={`${cell} text-center print-text-sm`}>
+              <td rowSpan={span} className={`${cell} ${band} text-center print-text-sm`}>
                 {index}
               </td>
-              <td rowSpan={span} className={`${cell} truncate font-bold print-text-sm`}>
+              <td rowSpan={span} className={`${cell} ${band} truncate font-bold print-text-sm`}>
                 {line.name}
                 <span className="ml-[1.5mm] font-semibold print-text-xs">KODE {line.code}</span>
               </td>
             </>
           )}
-          <td className={`${cell} text-center font-semibold print-text-sm`}>{row.category}</td>
+          <td
+            className={`${cell} ${categoryTint[row.category]} text-center font-semibold print-text-sm`}
+          >
+            {row.category}
+          </td>
           {row.days.map((value, day) => (
-            <td key={DAYS[day]?.key} className={`${cell} text-center tabular-nums print-text-sm`}>
+            <td
+              key={DAYS[day]?.key}
+              className={`${cell} ${categoryTint[row.category]} text-center tabular-nums print-text-sm`}
+            >
               {value || ''}
             </td>
           ))}
-          <td className={`${cell} text-center tabular-nums print-text-sm`}>{row.pieces || ''}</td>
+          <td
+            className={`${cell} ${strong} ${categoryTint[row.category]} text-center font-bold tabular-nums print-text-sm`}
+          >
+            {row.pieces || ''}
+          </td>
           {rowIndex === 0 && (
             <td
               rowSpan={span}
-              className={`${cell} text-center font-bold tabular-nums print-text-sm`}
+              className={`${cell} ${strong} ${band} text-center font-bold tabular-nums print-text-sm`}
             >
               {line.pieces || ''}
             </td>
           )}
-          <td className={number}>{amount(row.wage)}</td>
+          <td className={`${number} ${categoryTint[row.category]}`}>{amount(row.wage)}</td>
           {rowIndex === 0 &&
             moneyColumns.map((column) => (
-              <td
-                key={column.key}
-                rowSpan={span}
-                className={`${number} ${column.bold ? 'font-bold' : ''}`}
-              >
+              <td key={column.key} rowSpan={span} className={`${moneyClass(column)} ${band}`}>
                 {amount(money[column.key])}
               </td>
             ))}
@@ -188,12 +209,13 @@ function SampleRow({
         {line.name}
         <span className="ml-[1.5mm] font-semibold print-text-xs">KODE {line.code} · sampel</span>
       </td>
-      <td colSpan={9} className={`${cell} print-text-sm`}>
+      <td colSpan={8} className={`${cell} print-text-sm`}>
         Sampel {parts.length > 0 ? parts.join(' · ') : '—'}
       </td>
+      <td className={`${cell} ${strong}`} />
       <td className={number}>{amount(line.samples.amount)}</td>
       {moneyColumns.map((column) => (
-        <td key={column.key} className={`${number} ${column.bold ? 'font-bold' : ''}`}>
+        <td key={column.key} className={moneyClass(column)}>
           {amount(money[column.key])}
         </td>
       ))}
@@ -288,15 +310,15 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                       {day.label}
                     </th>
                   ))}
-                  <th className={cell}>
+                  <th className={`${cell} ${strong}`}>
                     Pcs per
                     <br />
                     kat
                   </th>
-                  <th className={cell}>Total jait</th>
+                  <th className={`${cell} ${strong}`}>Total jait</th>
                   <th className={cell}>Harga</th>
                   {moneyColumns.map((column) => (
-                    <th key={column.key} className={cell}>
+                    <th key={column.key} className={`${cell} ${column.strong ? strong : ''}`}>
                       {column.label}
                     </th>
                   ))}
@@ -326,15 +348,16 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                   ))}
                 {pageIndex === pages.length - 1 && (
                   <tr className="h-[5.5mm] bg-[#eeeeee] font-bold leading-none">
-                    <td colSpan={10} className={`${cell} text-right uppercase`}>
+                    <td colSpan={9} className={`${cell} text-right uppercase`}>
                       Total
                     </td>
-                    <td className={`${cell} text-center tabular-nums print-text-sm`}>
+                    <td className={`${cell} ${strong}`} />
+                    <td className={`${cell} ${strong} text-center tabular-nums print-text-sm`}>
                       {totals.pieces || ''}
                     </td>
                     <td className={number} />
                     {moneyColumns.map((column) => (
-                      <td key={column.key} className={number}>
+                      <td key={column.key} className={`${number} ${column.strong ? strong : ''}`}>
                         {amount(totals[column.key])}
                       </td>
                     ))}

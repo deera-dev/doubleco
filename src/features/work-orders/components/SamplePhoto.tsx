@@ -7,6 +7,7 @@ import {
 } from '@/features/work-orders/api/mutations'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
 import { ConfirmDeleteButton } from '@/shared/components/ConfirmDeleteButton'
+import { PhotoViewer } from '@/shared/components/PhotoViewer'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
 import { cn } from '@/shared/lib/utils'
@@ -55,11 +56,13 @@ export function SamplePhoto({ workOrder }: { workOrder: WorkOrder }) {
         )}
       >
         {workOrder.photoUrl ? (
-          <img
-            src={workOrder.photoUrl}
-            alt={`Foto sampel ${workOrder.productCode}`}
-            className="size-full animate-fade-in object-contain"
-          />
+          <PhotoViewer src={workOrder.photoUrl} alt={`Foto sampel ${workOrder.productCode}`}>
+            <img
+              src={workOrder.photoUrl}
+              alt={`Foto sampel ${workOrder.productCode}`}
+              className="size-full animate-fade-in object-contain"
+            />
+          </PhotoViewer>
         ) : (
           <button
             type="button"
