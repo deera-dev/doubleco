@@ -353,8 +353,47 @@ const savePrintSetting = defineAction({
   },
 })
 
+const printedDocuments = ['work_order_card', 'thp', 'deposit_recap', 'tailor_book'] as const
+const documentKey = z.string().trim().min(1).max(120)
+
+/** One row per print: printing again is fine, it just counts. */
+const recordPrint = defineAction({
+  input: z.object({ documentType: z.enum(printedDocuments), documentKey }),
+  run: async ({ documentType, documentKey: key }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.from('print_logs').insert({ document_type: documentType, document_key: key }))
+    return { documentKey: key }
+  },
+})
+
+/** How often, and when last, each document was printed. Keys never printed are left out. */
+const printMarks = defineAction({
+  input: z.object({ documentType: z.enum(printedDocuments), keys: z.array(documentKey).max(200) }),
+  run: async ({ documentType, keys }, request) => {
+    if (keys.length === 0) return { marks: {} }
+    const supabase = createUserClient(request)
+    const rows = unwrap<{ document_key: string; printed_at: string }[]>(
+      await supabase
+        .from('print_logs')
+        .select('document_key, printed_at')
+        .eq('document_type', documentType)
+        .in('document_key', keys)
+        .order('printed_at', { ascending: false }),
+    )
+    const marks: Record<string, { count: number; lastAt: string }> = {}
+    for (const row of rows) {
+      const mark = marks[row.document_key]
+      if (mark) mark.count += 1
+      else marks[row.document_key] = { count: 1, lastAt: row.printed_at }
+    }
+    return { marks }
+  },
+})
+
 serveActions({
   overview,
+  record_print: recordPrint,
+  print_marks: printMarks,
   save_product: saveProduct,
   save_fabric: saveFabric,
   save_series: saveSeries,

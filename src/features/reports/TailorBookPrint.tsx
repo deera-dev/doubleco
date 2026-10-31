@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { usePayrollTailors } from '@/features/payroll/api/queries'
+import { useDocumentPrint } from '@/features/print-settings/use-document-print'
 import { type TailorBook, useTailorHistory } from '@/features/reports/api'
 import { A4_PORTRAIT, amount, chunk, ReportPage, Sheet } from '@/features/reports/ReportSheet'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
@@ -133,6 +134,7 @@ interface TailorBookPrintProps {
 export function TailorBookPrint({ tailorId, from, to }: TailorBookPrintProps) {
   const navigate = useNavigate({ from: '/cetak/rekap-penjahit' })
   const history = useTailorHistory({ tailorId, from, to })
+  const printLog = useDocumentPrint('tailor_book', tailorId ?? 'all')
   const tailors = usePayrollTailors()
   const data = history.data
   const range = `${formatWorkOrderDate(from)} s/d ${formatWorkOrderDate(to)}`
@@ -165,6 +167,7 @@ export function TailorBookPrint({ tailorId, from, to }: TailorBookPrintProps) {
       summary={data ? `${data.tailors.length} penjahit · ${sheets.length} halaman` : undefined}
       fileName={`rekap-penjahit-${from}-${to}.pdf`}
       isReady={data !== undefined && sheets.length > 0}
+      {...printLog}
       controls={
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">

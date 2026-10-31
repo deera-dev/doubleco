@@ -69,6 +69,11 @@ export const useMoveCards = () =>
     callAction('payroll', 'move_cards', z.object({ count: z.number() }), input),
   )
 
+export const useSetSamples = () =>
+  usePayrollAction((input: { payOn: string; tailorId: string; high: number; low: number }) =>
+    callAction('payroll', 'set_samples', savedPayOnSchema, input),
+  )
+
 export const useDecideDeduction = () =>
   usePayrollAction((input: { id: string; decision: 'deduct' | 'waive'; notes: string | null }) =>
     callAction('payroll', 'decide_deduction', savedIdSchema, input),

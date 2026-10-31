@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { formatPayDay } from '@/features/payroll/lib/dates'
+import { useDocumentPrint } from '@/features/print-settings/use-document-print'
 import { type ThpData, type ThpRow, useThp } from '@/features/reports/api'
 import { A4_LANDSCAPE, chunk, ReportPage, Sheet } from '@/features/reports/ReportSheet'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
@@ -18,8 +19,8 @@ const center = `${cell} text-center`
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-[2mm] border-print-line border-b border-dotted py-[0.6mm]">
-      <span className="w-[34mm] shrink-0 text-print-muted print-text-xs">{label}</span>
-      <span className="min-w-0 truncate font-bold print-text-sm">{value}</span>
+      <span className="w-[38mm] shrink-0 text-print-muted print-text-sm">{label}</span>
+      <span className="min-w-0 truncate font-bold print-text-md">{value}</span>
     </div>
   )
 }
@@ -27,8 +28,8 @@ function Info({ label, value }: { label: string; value: string }) {
 function Signature({ title }: { title: string }) {
   return (
     <div className="flex h-[24mm] flex-1 flex-col items-center justify-between border border-print-ink p-[1.5mm]">
-      <span className="font-bold uppercase print-text-xs">{title}</span>
-      <span className="w-[40mm] border-print-ink border-t pt-[0.5mm] text-center text-print-muted print-text-2xs">
+      <span className="font-bold uppercase print-text-sm">{title}</span>
+      <span className="w-[40mm] border-print-ink border-t pt-[0.5mm] text-center text-print-muted print-text-xs">
         nama & tanda tangan
       </span>
     </div>
@@ -63,9 +64,9 @@ function ThpSheet({
       <header className="flex items-start justify-between gap-[6mm]">
         <div className="space-y-[2mm]">
           <MaryamLogo className="h-[10mm]" />
-          <p className="font-extrabold print-text-md uppercase">Tanda hasil produksi (THP)</p>
+          <p className="font-extrabold print-text-lg uppercase">Tanda hasil produksi (THP)</p>
         </div>
-        <div className="w-[130mm]">
+        <div className="w-[140mm]">
           <Info label="Kode barang" value={workOrder.productCode} />
           <Info label="Hari, tgl proses" value={formatPayDay(workOrder.orderedOn)} />
           <Info label="Cutter's name" value={workOrder.cutterName} />
@@ -77,21 +78,22 @@ function ThpSheet({
         </div>
       </header>
 
-      <table className="w-full table-fixed border-collapse print-text-xs leading-tight">
+      {/* Keterangan stays narrow (written by hand); the space goes to bigger, readable text. */}
+      <table className="w-full table-fixed border-collapse print-text-sm leading-tight">
         <colgroup>
-          <col className="w-[8mm]" />
-          <col className="w-[46mm]" />
-          <col className="w-[13mm]" />
-          <col className="w-[16mm]" />
-          <col className="w-[22mm]" />
-          <col className="w-[18mm]" />
-          <col className="w-[18mm]" />
-          <col className="w-[13mm]" />
-          <col className="w-[13mm]" />
+          <col className="w-[10mm]" />
           <col />
+          <col className="w-[17mm]" />
           <col className="w-[20mm]" />
+          <col className="w-[30mm]" />
+          <col className="w-[24mm]" />
+          <col className="w-[22mm]" />
+          <col className="w-[16mm]" />
+          <col className="w-[18mm]" />
+          <col className="w-[40mm]" />
+          <col className="w-[24mm]" />
         </colgroup>
-        <thead className="font-bold uppercase print-text-2xs">
+        <thead className="font-bold uppercase print-text-xs">
           <tr className="h-[5mm] bg-[#eeeeee]">
             <th colSpan={6} className={center}>
               Kepala produksi
@@ -139,12 +141,7 @@ function ThpSheet({
           {rows.map((row, index) => (
             <tr key={row.cardNumber} className="h-[6.4mm]">
               <td className={center}>{offset + index + 1}</td>
-              <td className={`${cell} truncate font-semibold`}>
-                {row.tailorName ?? ''}
-                <span className="ml-[1.5mm] font-mono font-normal text-print-muted print-text-2xs">
-                  {row.cardNumber}
-                </span>
-              </td>
+              <td className={`${cell} truncate font-semibold`}>{row.tailorName ?? ''}</td>
               <td className={center}>{row.tailorCode ?? ''}</td>
               <td className={`${center} font-bold`}>{row.quantity}</td>
               <td className={center}>{formatWorkOrderDate(row.takenOn)}</td>
@@ -154,7 +151,7 @@ function ThpSheet({
               <td className={center}>{row.receivedQuantity ?? ''}</td>
               <td className={center}>{row.okQuantity ?? ''}</td>
               <td className={center}>{row.defectiveQuantity || ''}</td>
-              <td className={`${cell} truncate print-text-2xs`}>{row.notes ?? ''}</td>
+              <td className={`${cell} truncate print-text-xs`}>{row.notes ?? ''}</td>
               <td className={cell} />
             </tr>
           ))}
@@ -189,7 +186,7 @@ function ThpSheet({
           <Signature title="Finishing" />
           <Signature title="Gudang" />
         </div>
-        <p className="flex justify-between text-print-muted print-text-2xs">
+        <p className="flex justify-between text-print-muted print-text-xs">
           <span>{workOrder.number}</span>
           {pages > 1 && (
             <span>
@@ -204,6 +201,7 @@ function ThpSheet({
 
 export function ThpPrint({ workOrderId }: { workOrderId: string }) {
   const thp = useThp(workOrderId)
+  const printLog = useDocumentPrint('thp', workOrderId)
   const data = thp.data
   const sheets =
     data?.sizes.flatMap((size) => {
@@ -237,6 +235,7 @@ export function ThpPrint({ workOrderId }: { workOrderId: string }) {
       summary={data ? `${sheets.length} lembar THP` : undefined}
       fileName={`thp-${data?.workOrder.productCode ?? 'wo'}.pdf`}
       isReady={data !== undefined && sheets.length > 0}
+      {...printLog}
     >
       {thp.isError ? (
         <p role="alert" className="text-destructive text-sm">

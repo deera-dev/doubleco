@@ -3,7 +3,7 @@ import { defineAction, Rejection, serveActions, unwrap } from '../_shared/action
 import { createUserClient } from '../_shared/supabase.ts'
 
 const statusFilter = z.enum(['active', 'inactive', 'all']).default('active')
-const typeFilter = z.enum(['tailor', 'cutter', 'all']).default('all')
+const typeFilter = z.enum(['tailor', 'sample', 'cutter', 'all']).default('all')
 
 const accountInput = z
   .object({
@@ -22,6 +22,7 @@ interface TailorRow {
   notes: string | null
   status: 'active' | 'inactive'
   inactive_since: string | null
+  is_sample_maker: boolean
   tailor_payment_accounts: {
     account_type: 'bank' | 'ewallet'
     provider: string
@@ -68,7 +69,7 @@ const list = defineAction({
       supabase
         .from('tailors')
         .select(
-          'id, code, name, phone, notes, status, inactive_since, tailor_payment_accounts(account_type, provider, account_number, account_holder, is_active)',
+          'id, code, name, phone, notes, status, inactive_since, is_sample_maker, tailor_payment_accounts(account_type, provider, account_number, account_holder, is_active)',
         )
         .is('archived_at', null),
       supabase.from('cutters').select('id, name, is_active, inactive_since').is('archived_at', null),
@@ -91,6 +92,7 @@ const list = defineAction({
           name: tailor.name,
           phone: tailor.phone,
           notes: tailor.notes,
+          isSampleMaker: tailor.is_sample_maker,
           status: tailor.status,
           purgeOn: purgeDate(tailor.inactive_since, retentionDays),
           account: account
@@ -111,6 +113,7 @@ const list = defineAction({
         name: cutter.name,
         phone: null,
         notes: null,
+        isSampleMaker: false,
         status: cutter.is_active ? ('active' as const) : ('inactive' as const),
         purgeOn: purgeDate(cutter.inactive_since, retentionDays),
         account: null,
@@ -118,7 +121,10 @@ const list = defineAction({
       })),
     ]
 
-    const ofType = employees.filter((employee) => type === 'all' || employee.type === type)
+    // Tukang sampel are tailors too: the sample filter narrows the tailors.
+    const ofType = employees.filter((employee) =>
+      type === 'all' ? true : type === 'sample' ? employee.isSampleMaker : employee.type === type,
+    )
     const needle = search.toLowerCase()
     const matches = ofType
       .filter((employee) => status === 'all' || employee.status === status)
@@ -151,6 +157,7 @@ const saveTailor = defineAction({
     name: z.string().trim().min(1).max(60),
     phone: z.string().trim().max(20).nullable().default(null),
     notes: z.string().trim().max(500).nullable().default(null),
+    isSampleMaker: z.boolean().default(false),
     account: accountInput,
     confirmed: z.boolean().default(false),
     reason: z.string().trim().max(200).nullable().default(null),
@@ -176,7 +183,11 @@ const saveTailor = defineAction({
         p_override_reason: input.reason,
       }),
     )
-    return { id: (saved as { id: string }).id }
+    const id = (saved as { id: string }).id
+    unwrap(
+      await supabase.from('tailors').update({ is_sample_maker: input.isSampleMaker }).eq('id', id).select('id').single(),
+    )
+    return { id }
   },
 })
 

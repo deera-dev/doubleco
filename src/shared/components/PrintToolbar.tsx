@@ -26,6 +26,8 @@ interface PrintToolbarProps {
   onPrinted?: () => void
   /** Hidden on the calibration page itself. */
   showCalibrationLink?: boolean
+  /** E.g. "Sudah dicetak 2× · terakhir 31 Okt 10.12": printing again stays allowed. */
+  printedNote?: string
 }
 
 /** Sheets rendered on the page carry `data-print-sheet`; each becomes one PDF page. */
@@ -44,6 +46,7 @@ export function PrintToolbar({
   isReady,
   onPrinted,
   showCalibrationLink = true,
+  printedNote,
 }: PrintToolbarProps) {
   const [building, setBuilding] = useState<'print' | 'pdf' | null>(null)
   // Phones cannot print a PDF from inside a page; there it goes to the printer app instead.
@@ -91,6 +94,12 @@ export function PrintToolbar({
           </Button>
         </div>
       </div>
+      {printedNote && (
+        <p className="flex items-center gap-1.5 font-medium text-success text-xs">
+          <Printer className="size-3.5" />
+          {printedNote}. Boleh dicetak lagi.
+        </p>
+      )}
       <p className="text-muted-foreground text-xs">
         {isPhone
           ? `Cetak membuka daftar aplikasi: pilih aplikasi printer (mis. Epson Smart Panel, Canon PRINT, HP Smart, atau Mopria). `

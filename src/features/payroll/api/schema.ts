@@ -33,6 +33,8 @@ export const payrollLineSchema = z.object({
       colorName: z.string().nullable(),
     }),
   ),
+  isSampleMaker: z.boolean(),
+  samples: z.object({ high: z.number(), low: z.number(), amount: z.number() }),
   additions: z.array(
     z.object({ id, kind: additionKindSchema, amount: z.number(), notes: z.string().nullable() }),
   ),
@@ -70,6 +72,7 @@ export const payrollOverviewSchema = z.object({
     paid: z.number(),
   }),
   pendingDeductions: z.array(pendingDeductionSchema),
+  sampleMakers: z.array(z.object({ id, code: z.string(), name: z.string() })),
 })
 
 export const payrollTailorsSchema = z.object({

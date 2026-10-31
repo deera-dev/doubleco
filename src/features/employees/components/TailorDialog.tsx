@@ -37,6 +37,7 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatIsoDate, formatRupiah } from '@/shared/lib/format'
@@ -61,6 +62,7 @@ function defaultsFor(employee: Employee | null): TailorFormInput {
     name: employee?.name ?? '',
     phone: employee?.phone ?? '',
     notes: employee?.notes ?? '',
+    isSampleMaker: employee?.isSampleMaker ?? false,
     accountType: employee?.account?.type ?? 'bank',
     accountProvider: employee?.account?.provider ?? '',
     accountNumber: employee?.account?.number ?? '',
@@ -75,6 +77,7 @@ function toPayload(id: string | null, values: TailorFormValues): SaveTailorInput
     name: values.name,
     phone: values.phone || null,
     notes: values.notes || null,
+    isSampleMaker: values.isSampleMaker,
     account:
       values.accountNumber === ''
         ? null
@@ -319,6 +322,19 @@ export function TailorDialog({ employee }: { employee: Employee | null }) {
                   ))}
                 </datalist>
               </div>
+
+              <FormField
+                control={form.control}
+                name="isSampleMaker"
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    label="Tukang sampel"
+                    description="Juga mengerjakan sampel. Jumlah sampel (100rb / 50rb) diisi di Gajian."
+                  />
+                )}
+              />
 
               <FormField
                 control={form.control}

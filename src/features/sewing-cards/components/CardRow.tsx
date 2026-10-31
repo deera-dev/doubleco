@@ -67,6 +67,12 @@ export function CardRow({
           <span className={cn('rounded-full border px-2 py-0.5 text-xs', status.className)}>
             {status.label}
           </span>
+          {card.printCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-success text-xs">
+              <Printer className="size-3" />
+              Dicetak {card.printCount}×
+            </span>
+          )}
         </span>
         <span className="line-clamp-2 text-muted-foreground text-xs">
           <span className="text-foreground">{itemLabel(card.sizeName, card.colorName)}</span>

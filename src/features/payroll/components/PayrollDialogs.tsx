@@ -4,6 +4,7 @@ import {
   useAddAddition,
   useLockPayroll,
   useSetRepayment,
+  useSetSamples,
   useUnlockPayroll,
 } from '@/features/payroll/api/mutations'
 import { usePayrollTailors } from '@/features/payroll/api/queries'
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog'
+import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
@@ -141,7 +143,8 @@ export function AdditionDialog({
   const tailors = usePayrollTailors()
   const addAddition = useAddAddition()
   const [tailorText, setTailorText] = useState(line ? `${line.code} · ${line.name}` : '')
-  const [kind, setKind] = useState<AdditionKind>('bonus')
+  // From a tailor's card it is usually a one-off extra; from the page it is usually THR/bonus.
+  const [kind, setKind] = useState<AdditionKind>(line ? 'other' : 'bonus')
   const [amount, setAmount] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const options = tailors.data?.tailors ?? []
@@ -374,6 +377,103 @@ export function UnlockDialog({ payOn, onClose }: { payOn: string; onClose: () =>
             {unlock.isPending ? 'Membuka…' : 'Buka kunci'}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const SAMPLE_PRICES = { high: 100_000, low: 50_000 } as const
+
+function CountField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        inputMode="numeric"
+        className="h-12 font-mono text-lg"
+        value={value}
+        onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
+        placeholder="0"
+      />
+    </div>
+  )
+}
+
+/** Samples sewn this week, by price. Saving replaces the week's sample count for this tailor. */
+export function SamplesDialog({
+  payOn,
+  tailor,
+  initial,
+  onClose,
+}: {
+  payOn: string
+  tailor: { id: string; code: string; name: string }
+  initial: { high: number; low: number }
+  onClose: () => void
+}) {
+  const setSamples = useSetSamples()
+  const [high, setHigh] = useState(initial.high ? String(initial.high) : '')
+  const [low, setLow] = useState(initial.low ? String(initial.low) : '')
+  const highCount = Number(high || 0)
+  const lowCount = Number(low || 0)
+  const total = highCount * SAMPLE_PRICES.high + lowCount * SAMPLE_PRICES.low
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    setSamples.mutate(
+      { payOn, tailorId: tailor.id, high: highCount, low: lowCount },
+      {
+        onSuccess: () => {
+          toast.success(`Sampel ${tailor.name} · ${formatRupiah(total)}`)
+          onClose()
+        },
+      },
+    )
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Sampel · {tailor.name}</DialogTitle>
+          <DialogDescription>
+            Jumlah sampel yang dikerjakan minggu ini (gajian {formatPayDay(payOn)}).
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <CountField id="sample-high" label="Sampel 100rb" value={high} onChange={setHigh} />
+            <CountField id="sample-low" label="Sampel 50rb" value={low} onChange={setLow} />
+          </div>
+          <p className="flex items-center justify-between rounded-2xl border bg-background/40 px-4 py-3 text-sm">
+            <span className="text-muted-foreground">Total sampel</span>
+            <span className="font-mono font-semibold tabular-nums">{formatRupiah(total)}</span>
+          </p>
+          {setSamples.error && (
+            <p role="alert" className="text-destructive text-sm">
+              {describeError(setSamples.error)}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="ghost" size="lg" onClick={onClose}>
+              Batal
+            </Button>
+            <Button type="submit" size="lg" disabled={setSamples.isPending}>
+              {setSamples.isPending ? 'Menyimpan…' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

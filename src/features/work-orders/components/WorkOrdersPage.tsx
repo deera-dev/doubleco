@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUpDown, ChevronRight, ClipboardList, Download, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { type PrintMark, usePrintMarks } from '@/features/print-settings/api'
+import { PrintMarkBadge } from '@/features/print-settings/PrintMark'
 import {
   fetchWorkOrders,
   useWorkOrderFormOptions,
@@ -63,7 +65,15 @@ function ProgressBar({ workOrder }: { workOrder: WorkOrder }) {
   )
 }
 
-function WorkOrderRow({ workOrder }: { workOrder: WorkOrder }) {
+function WorkOrderRow({
+  workOrder,
+  cardMark,
+  thpMark,
+}: {
+  workOrder: WorkOrder
+  cardMark: PrintMark | undefined
+  thpMark: PrintMark | undefined
+}) {
   const status = workOrderStatusMeta[workOrder.status]
   return (
     <Link
@@ -88,6 +98,8 @@ function WorkOrderRow({ workOrder }: { workOrder: WorkOrder }) {
               Ada perubahan
             </span>
           )}
+          <PrintMarkBadge label="Kartu WO" mark={cardMark} />
+          <PrintMarkBadge label="THP" mark={thpMark} />
         </span>
         <span className="block truncate text-muted-foreground text-xs">
           {formatWorkOrderDate(workOrder.orderedOn)} · {workOrder.fabricName}
@@ -124,6 +136,9 @@ export function WorkOrdersPage() {
   const debouncedSearch = useDebouncedValue(search)
   const filters = { status, search: debouncedSearch, fabricId, cutterId, category, sort, page }
   const workOrders = useWorkOrders(filters)
+  const shownIds = workOrders.data?.workOrders.map((workOrder) => workOrder.id) ?? []
+  const cardPrints = usePrintMarks('work_order_card', shownIds)
+  const thpPrints = usePrintMarks('thp', shownIds)
   const summary = workOrders.data?.summary
   const isFiltered =
     debouncedSearch !== '' || fabricId !== null || cutterId !== null || category !== null
@@ -287,7 +302,11 @@ export function WorkOrdersPage() {
           <ul className="stagger-2 grid animate-rise grid-cols-1 gap-2">
             {workOrders.data.workOrders.map((workOrder) => (
               <li key={workOrder.id}>
-                <WorkOrderRow workOrder={workOrder} />
+                <WorkOrderRow
+                  workOrder={workOrder}
+                  cardMark={cardPrints.data?.marks[workOrder.id]}
+                  thpMark={thpPrints.data?.marks[workOrder.id]}
+                />
               </li>
             ))}
           </ul>

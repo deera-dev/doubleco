@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { Employee, EmployeeStatus } from '@/features/employees/api/schema'
 
 export type StatusFilter = EmployeeStatus | 'all'
-export type TypeFilter = Employee['type'] | 'all'
+export type TypeFilter = Employee['type'] | 'sample' | 'all'
 
 export type EmployeeEditor =
   | { kind: 'closed' }
