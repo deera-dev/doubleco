@@ -187,6 +187,7 @@ export function WorkOrderPrint({ id }: { id: string }) {
         offsets={print.data?.offsets ?? { top: 0, left: 0 }}
         fileName={`kartu-wo-${print.data?.workOrder.number ?? 'cetak'}.pdf`}
         isReady={isReady}
+        printerGroup="work_order_card"
         {...printLog}
       />
       <div className="flex justify-center p-6 print:p-0">

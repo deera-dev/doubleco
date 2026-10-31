@@ -3,6 +3,7 @@ import { FileDown, Printer } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components/ui/button'
+import { directPrinterFor, type PrinterGroup, printDirect } from '@/shared/lib/direct-print'
 import {
   buildPdf,
   downloadFile,
@@ -28,6 +29,8 @@ interface PrintToolbarProps {
   showCalibrationLink?: boolean
   /** E.g. "Sudah dicetak 2× · terakhir 31 Okt 10.12": printing again stays allowed. */
   printedNote?: string
+  /** Which printer chosen in Kalibrasi Cetak takes this paper, for direct printing. */
+  printerGroup: PrinterGroup
 }
 
 /** Sheets rendered on the page carry `data-print-sheet`; each becomes one PDF page. */
@@ -47,10 +50,12 @@ export function PrintToolbar({
   onPrinted,
   showCalibrationLink = true,
   printedNote,
+  printerGroup,
 }: PrintToolbarProps) {
   const [building, setBuilding] = useState<'print' | 'pdf' | null>(null)
   // Phones cannot print a PDF from inside a page; there it goes to the printer app instead.
   const isPhone = isTouchDevice()
+  const directPrinter = isPhone ? null : directPrinterFor(printerGroup)
 
   const run = async (kind: 'print' | 'pdf') => {
     setBuilding(kind)
@@ -59,7 +64,17 @@ export function PrintToolbar({
       onPrinted?.()
       if (kind === 'pdf') downloadFile(file)
       else if (isPhone) await shareOrDownload(file)
-      else await printPdf(file)
+      else if (directPrinter) {
+        try {
+          await printDirect(directPrinter, file, { widthMm, heightMm })
+          toast.success(`Dikirim ke ${directPrinter}`)
+        } catch (error) {
+          // QZ Tray closed or the printer refused: the normal dialog still gets it printed.
+          console.error(error)
+          toast.error('Cetak langsung gagal (QZ Tray belum jalan?). Membuka dialog cetak.')
+          await printPdf(file)
+        }
+      } else await printPdf(file)
     } catch {
       toast.error(kind === 'print' ? 'Gagal membuka cetak. Coba lagi.' : 'PDF gagal dibuat.')
     } finally {
@@ -104,8 +119,9 @@ export function PrintToolbar({
         {isPhone
           ? `Cetak membuka daftar aplikasi: pilih aplikasi printer (mis. Epson Smart Panel, Canon PRINT, HP Smart, atau Mopria). `
           : ''}
-        Di dialog cetak pilih ukuran kertas {paper} dan skala 100% / ukuran asli (jangan "sesuaikan
-        halaman").{' '}
+        {directPrinter
+          ? `Cetak langsung ke ${directPrinter}, kertas ${paper}, tanpa dialog. `
+          : `Di dialog cetak pilih ukuran kertas ${paper} dan skala 100% / ukuran asli (jangan "sesuaikan halaman"). `}
         {showCalibrationLink && (
           <>
             Hasil bergeser?{' '}
