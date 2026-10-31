@@ -15,6 +15,13 @@ interface PdfOptions {
   fileName: string
   /** Pure black and white, no grey or anti-aliasing: crisp on a dot-matrix printer. */
   monochrome?: boolean
+  /**
+   * Lay a landscape sheet on a portrait page, turned a quarter (top of the sheet at the left
+   * edge), the way the paper actually goes through the printer. Direct printing sends this, so
+   * neither QZ Tray nor the driver has to rotate anything, which is where landscape prints came
+   * out shifted and cut.
+   */
+  portraitPaper?: boolean
 }
 
 const CSS_PX_PER_MM = 96 / 25.4
@@ -67,6 +74,39 @@ async function renderSheet(sheet: HTMLElement, dpi: number): Promise<string> {
   return toPng(sheet, options)
 }
 
+/**
+ * Draws the sheet on the whole landscape page (calibration shift included) and turns the page a
+ * quarter counter-clockwise, so the top of the sheet ends up along the left edge of the paper.
+ */
+async function turnedPage(
+  dataUrl: string,
+  page: { widthMm: number; heightMm: number },
+  placed: { left: number; top: number; width: number; height: number },
+  dpi: number,
+): Promise<string> {
+  const image = new Image()
+  image.src = dataUrl
+  await image.decode()
+  const pxPerMm = dpi / 25.4
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(page.heightMm * pxPerMm)
+  canvas.height = Math.round(page.widthMm * pxPerMm)
+  const context = canvas.getContext('2d')
+  if (!context) return dataUrl
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.translate(0, canvas.height)
+  context.rotate(-Math.PI / 2)
+  context.drawImage(
+    image,
+    placed.left * pxPerMm,
+    placed.top * pxPerMm,
+    placed.width * pxPerMm,
+    placed.height * pxPerMm,
+  )
+  return canvas.toDataURL('image/png')
+}
+
 export async function buildPdf({
   sheets,
   widthMm,
@@ -74,21 +114,38 @@ export async function buildPdf({
   offsets,
   fileName,
   monochrome = false,
+  portraitPaper = false,
 }: PdfOptions) {
   const { jsPDF } = await import('jspdf')
+  const turn = portraitPaper && widthMm > heightMm
+  const pageWidth = turn ? heightMm : widthMm
+  const pageHeight = turn ? widthMm : heightMm
+  const orientation = pageWidth > pageHeight ? 'landscape' : 'portrait'
+  const dpi = monochrome ? DOT_MATRIX_DPI : TARGET_DPI
   const pdf = new jsPDF({
     unit: 'mm',
-    format: [widthMm, heightMm],
-    orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+    format: [pageWidth, pageHeight],
+    orientation,
     compress: true,
   })
   for (const [index, sheet] of sheets.entries()) {
-    if (index > 0) pdf.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait')
-    const rendered = await renderSheet(sheet, monochrome ? DOT_MATRIX_DPI : TARGET_DPI)
-    const image = monochrome ? await toBlackAndWhite(rendered) : rendered
-    const renderedWidthMm = sheet.offsetWidth / CSS_PX_PER_MM
-    const renderedHeightMm = sheet.offsetHeight / CSS_PX_PER_MM
-    pdf.addImage(image, 'PNG', offsets.left, offsets.top, renderedWidthMm, renderedHeightMm)
+    if (index > 0) pdf.addPage([pageWidth, pageHeight], orientation)
+    const rendered = await renderSheet(sheet, dpi)
+    const placed = {
+      left: offsets.left,
+      top: offsets.top,
+      width: sheet.offsetWidth / CSS_PX_PER_MM,
+      height: sheet.offsetHeight / CSS_PX_PER_MM,
+    }
+    // Black and white last, so turning the page cannot bring grey edges back.
+    const finish = (dataUrl: string) => (monochrome ? toBlackAndWhite(dataUrl) : dataUrl)
+    if (turn) {
+      const page = await finish(await turnedPage(rendered, { widthMm, heightMm }, placed, dpi))
+      pdf.addImage(page, 'PNG', 0, 0, pageWidth, pageHeight)
+    } else {
+      const image = await finish(rendered)
+      pdf.addImage(image, 'PNG', placed.left, placed.top, placed.width, placed.height)
+    }
   }
   return new File([pdf.output('blob')], fileName, { type: 'application/pdf' })
 }

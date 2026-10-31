@@ -132,7 +132,8 @@ export async function printDirect(
   const config = qz.configs.create(printer, {
     size,
     units: 'mm',
-    orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
+    // buildPdf already turned landscape sheets onto portrait paper (`portraitPaper`).
+    orientation: 'portrait',
     margins: 0,
     scaleContent: true,
     colorType: monochrome ? 'blackwhite' : 'color',

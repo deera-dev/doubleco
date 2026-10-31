@@ -78,6 +78,7 @@ export function PrintToolbar({
         offsets,
         fileName,
         monochrome,
+        portraitPaper: kind === 'print' && directPrinter !== null,
       })
       onPrinted?.()
       if (kind === 'pdf') downloadFile(file)
