@@ -22,7 +22,7 @@ const center = `${cell} text-center`
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-[2mm] border-print-ink border-b-[0.3mm] py-[0.8mm]">
+    <div className="flex items-baseline gap-[2mm] border-print-ink border-b-[0.3mm] py-[0.5mm]">
       <span className="w-[34mm] shrink-0 font-semibold print-text-sm">{label}</span>
       <span className="min-w-0 truncate font-extrabold print-text-md">{value}</span>
     </div>
@@ -31,7 +31,7 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Signature({ title }: { title: string }) {
   return (
-    <div className="flex h-[26mm] flex-1 flex-col items-center justify-between border-[0.35mm] border-print-ink p-[1.5mm]">
+    <div className="flex h-[19mm] flex-1 flex-col items-center justify-between border-[0.35mm] border-print-ink p-[1.5mm]">
       <span className="font-extrabold uppercase print-text-sm">{title}</span>
       <span className="w-[44mm] border-print-ink border-t-[0.3mm] pt-[0.5mm] text-center font-semibold print-text-xs">
         nama & tanda tangan
@@ -64,17 +64,18 @@ function ThpSheet({
   )
 
   return (
-    <Sheet paper={THP_PAPER} className="gap-[3mm] p-[8mm] font-semibold">
+    // 14mm top and bottom keep clear of the tractor-hole strips; 9mm left and right.
+    <Sheet paper={THP_PAPER} className="gap-[2mm] px-[9mm] py-[14mm] font-semibold">
       <header className="flex items-start justify-between gap-[5mm]">
-        <div className="space-y-[2mm]">
-          <MaryamLogo className="h-[11mm]" />
+        <div className="space-y-[1.5mm]">
+          <MaryamLogo className="h-[8mm]" />
           <p className="font-extrabold print-text-md uppercase leading-tight">
             Tanda hasil
             <br />
             produksi (THP)
           </p>
         </div>
-        <div className="w-[128mm]">
+        <div className="w-[140mm]">
           <Info label="Kode barang" value={workOrder.productCode} />
           <Info label="Hari, tgl proses" value={formatPayDay(workOrder.orderedOn)} />
           <Info label="Cutter's name" value={workOrder.cutterName} />
@@ -90,18 +91,18 @@ function ThpSheet({
         <colgroup>
           <col className="w-[8mm]" />
           <col />
-          <col className="w-[13mm]" />
-          <col className="w-[16mm]" />
-          <col className="w-[25mm]" />
-          <col className="w-[18mm]" />
-          <col className="w-[18mm]" />
-          <col className="w-[12mm]" />
           <col className="w-[14mm]" />
-          <col className="w-[30mm]" />
           <col className="w-[16mm]" />
+          <col className="w-[26mm]" />
+          <col className="w-[20mm]" />
+          <col className="w-[19mm]" />
+          <col className="w-[14mm]" />
+          <col className="w-[15mm]" />
+          <col className="w-[52mm]" />
+          <col className="w-[18mm]" />
         </colgroup>
         <thead className="font-extrabold uppercase text-[2.6mm]">
-          <tr className="h-[6mm]">
+          <tr className="h-[5mm]">
             <th colSpan={6} className={center}>
               Kepala produksi
             </th>
@@ -148,7 +149,7 @@ function ThpSheet({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.cardNumber} className="h-[10mm]">
+            <tr key={row.cardNumber} className="h-[8mm]">
               <td className={center}>{offset + index + 1}</td>
               <td className={`${cell} truncate font-extrabold print-text-md`}>
                 {row.tailorName ?? ''}
@@ -167,7 +168,7 @@ function ThpSheet({
             </tr>
           ))}
           {blanks.map((blank) => (
-            <tr key={`blank-${blank}`} className="h-[10mm]">
+            <tr key={`blank-${blank}`} className="h-[8mm]">
               <td className={center}>{offset + rows.length + blank + 1}</td>
               {Array.from({ length: 10 }, (_, column) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: empty cells to write in

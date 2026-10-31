@@ -3,7 +3,12 @@ import { FileDown, Printer } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components/ui/button'
-import { directPrinterFor, type PrinterGroup, printDirect } from '@/shared/lib/direct-print'
+import {
+  directPrinterFor,
+  type PrinterGroup,
+  printDirect,
+  readDirectPrintSettings,
+} from '@/shared/lib/direct-print'
 import {
   buildPdf,
   downloadFile,
@@ -57,8 +62,11 @@ export function PrintToolbar({
 }: PrintToolbarProps) {
   const [building, setBuilding] = useState<'print' | 'pdf' | null>(null)
   // Phones cannot print a PDF from inside a page; there it goes to the printer app instead.
-  const isPhone = isTouchDevice()
-  const directPrinter = isPhone ? null : directPrinterFor(printerGroup)
+  // Direct printing is switched on per device, so once chosen it wins over everything else
+  // (a touchscreen PC must not end up in the share sheet).
+  const directPrinter = directPrinterFor(printerGroup)
+  const isPhone = !directPrinter && isTouchDevice()
+  const missingPrinter = !directPrinter && readDirectPrintSettings().enabled
 
   const run = async (kind: 'print' | 'pdf') => {
     setBuilding(kind)
@@ -70,18 +78,22 @@ export function PrintToolbar({
         offsets,
         fileName,
         monochrome,
+        portraitPaper: kind === 'print' && directPrinter !== null,
       })
       onPrinted?.()
       if (kind === 'pdf') downloadFile(file)
       else if (isPhone) await shareOrDownload(file)
       else if (directPrinter) {
         try {
-          await printDirect(directPrinter, file, { widthMm, heightMm })
+          await printDirect(directPrinter, file, { widthMm, heightMm }, monochrome)
           toast.success(`Dikirim ke ${directPrinter}`)
         } catch (error) {
           // QZ Tray closed or the printer refused: the normal dialog still gets it printed.
           console.error(error)
-          toast.error('Cetak langsung gagal (QZ Tray belum jalan?). Membuka dialog cetak.')
+          toast.error('Cetak langsung gagal, membuka dialog cetak.', {
+            description: error instanceof Error ? error.message : String(error),
+            duration: 15000,
+          })
           await printPdf(file)
         }
       } else await printPdf(file)
@@ -129,6 +141,12 @@ export function PrintToolbar({
         {isPhone
           ? `Cetak membuka daftar aplikasi: pilih aplikasi printer (mis. Epson Smart Panel, Canon PRINT, HP Smart, atau Mopria). `
           : ''}
+        {missingPrinter && (
+          <span className="font-medium text-destructive">
+            Printer untuk kertas ini belum dipilih di Kalibrasi Cetak, jadi masih lewat dialog
+            cetak.{' '}
+          </span>
+        )}
         {directPrinter
           ? `Cetak langsung ke ${directPrinter}, kertas ${paper}, tanpa dialog. `
           : `Di dialog cetak pilih ukuran kertas ${paper} dan skala 100% / ukuran asli (jangan "sesuaikan halaman"). `}

@@ -21,7 +21,7 @@ const papers: Record<
   { label: string; width: number; height: number }
 > = {
   sewing_card: { label: 'Kartu jahit', width: 60, height: 100 },
-  work_order_card: { label: 'Kartu WO', width: 120, height: 160 },
+  work_order_card: { label: 'Kartu WO', width: 120, height: 150 },
 }
 
 /** The test sheet draws its marks this far from the paper edge. */
@@ -202,7 +202,7 @@ function Editor({ initial }: { initial: Record<PrintDocument, { top: number; lef
           className="w-fit max-w-full"
           options={[
             { value: 'sewing_card', label: 'Kartu jahit 6×10' },
-            { value: 'work_order_card', label: 'Kartu WO 12×16' },
+            { value: 'work_order_card', label: 'Kartu WO 12×15' },
           ]}
         />
         <ol className="list-decimal space-y-1 pl-5 text-sm">
