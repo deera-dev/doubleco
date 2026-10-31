@@ -13,8 +13,11 @@ export interface Paper {
 
 export const A4_PORTRAIT: Paper = { label: 'A4', width: 210, height: 297 }
 export const A4_LANDSCAPE: Paper = { label: 'A4 mendatar', width: 297, height: 210 }
-/** THP: continuous form for the Epson LQ-310, 24 × 27,7 cm. */
-export const THP_PAPER: Paper = { label: '24 × 27,7 cm', width: 240, height: 277 }
+/**
+ * THP: 24 × 27,7 cm continuous form (tractor holes included) on the Epson LQ-310, printed
+ * landscape: 27,7 cm across, 24 cm down.
+ */
+export const THP_PAPER: Paper = { label: '24 × 27,7 cm mendatar', width: 277, height: 240 }
 
 /** Shrinks a sheet wider than the screen; printing and the PDF always use the real size. */
 function useSheetScale(widthMm: number) {

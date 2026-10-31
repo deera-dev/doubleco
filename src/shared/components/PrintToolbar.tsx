@@ -76,7 +76,7 @@ export function PrintToolbar({
       else if (isPhone) await shareOrDownload(file)
       else if (directPrinter) {
         try {
-          await printDirect(directPrinter, file, { widthMm, heightMm })
+          await printDirect(directPrinter, file, { widthMm, heightMm }, monochrome)
           toast.success(`Dikirim ke ${directPrinter}`)
         } catch (error) {
           // QZ Tray closed or the printer refused: the normal dialog still gets it printed.

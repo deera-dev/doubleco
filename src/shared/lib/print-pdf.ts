@@ -19,6 +19,8 @@ interface PdfOptions {
 
 const CSS_PX_PER_MM = 96 / 25.4
 const TARGET_DPI = 300
+/** Epson LQ-310 prints 180 dpi down the page: black-and-white sheets are drawn at exactly that. */
+const DOT_MATRIX_DPI = 180
 
 /**
  * Turns every pixel black or white. A dot-matrix driver dithers grey (anti-aliased text edges,
@@ -51,10 +53,10 @@ async function toBlackAndWhite(dataUrl: string): Promise<string> {
   return canvas.toDataURL('image/png')
 }
 
-async function renderSheet(sheet: HTMLElement): Promise<string> {
+async function renderSheet(sheet: HTMLElement, dpi: number): Promise<string> {
   const { toPng } = await import('html-to-image')
   const options = {
-    pixelRatio: TARGET_DPI / 96,
+    pixelRatio: dpi / 96,
     backgroundColor: '#ffffff',
     // The on-screen calibration shift is applied in the PDF instead, so it is not doubled.
     style: { transform: 'none', margin: '0' },
@@ -82,7 +84,7 @@ export async function buildPdf({
   })
   for (const [index, sheet] of sheets.entries()) {
     if (index > 0) pdf.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait')
-    const rendered = await renderSheet(sheet)
+    const rendered = await renderSheet(sheet, monochrome ? DOT_MATRIX_DPI : TARGET_DPI)
     const image = monochrome ? await toBlackAndWhite(rendered) : rendered
     const renderedWidthMm = sheet.offsetWidth / CSS_PX_PER_MM
     const renderedHeightMm = sheet.offsetHeight / CSS_PX_PER_MM

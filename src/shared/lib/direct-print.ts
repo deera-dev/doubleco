@@ -1,6 +1,6 @@
 /**
  * Direct printing on the office PC through QZ Tray: the chosen printer, the real paper size,
- * scale 100%, no dialog. QZ Tray only runs requests signed with our certificate; the server
+ * fitted to the printable area, no dialog. QZ Tray only runs requests signed with our certificate; the server
  * signs them (master-data/qz_sign), so the private key never reaches the browser.
  *
  * Printer names belong to that one PC, so the choices are kept on the device.
@@ -107,11 +107,17 @@ function toBase64(file: File): Promise<string> {
   })
 }
 
-/** Sends the PDF straight to the printer at its real size: no dialog, no scaling, no margins. */
+/**
+ * Sends the PDF straight to the printer, no dialog. The sheet is fitted to the area the printer
+ * can actually reach: every printer has a strip at the edges it cannot print on, and at 100% that
+ * strip (or a driver paper size that differs a little) cut the edges off.
+ */
 export async function printDirect(
   printer: string,
   file: File,
   page: { widthMm: number; heightMm: number },
+  /** Black-and-white sheet for the dot-matrix printer: keep it that way, no smoothing. */
+  monochrome = false,
 ) {
   const qz = await connectedQz()
   const isA4 =
@@ -128,8 +134,9 @@ export async function printDirect(
     units: 'mm',
     orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
     margins: 0,
-    scaleContent: false,
-    colorType: 'color',
+    scaleContent: true,
+    colorType: monochrome ? 'blackwhite' : 'color',
+    interpolation: monochrome ? 'nearest-neighbor' : 'bicubic',
     jobName: file.name,
   })
   await qz.print(config, [
