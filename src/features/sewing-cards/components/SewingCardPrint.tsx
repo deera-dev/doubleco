@@ -155,6 +155,7 @@ export function SewingCardPrint({ numbers }: { numbers: string[] }) {
         offsets={print.data?.offsets ?? { top: 0, left: 0 }}
         fileName={`kartu-jahit-${printed[0] ?? 'cetak'}${printed.length > 1 ? `-dst` : ''}.pdf`}
         isReady={isReady}
+        printerGroup="sewing_card"
         printedNote={printedNote(print.data?.cards ?? [])}
         onPrinted={() => recordPrint.mutate({ numbers: printed })}
       />

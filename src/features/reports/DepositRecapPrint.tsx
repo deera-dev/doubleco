@@ -46,20 +46,19 @@ function categoryRows(line: PayrollLine): CategoryRow[] {
 }
 
 /**
- * Money columns of one tailor, adding up to the transfer:
- * upah + sampel + tambahan − potongan + kasbon lama + kasbon baru − cicil.
+ * Money columns of one tailor. Total + tambahan (incl. sampel) + kasbon baru − cicil is the
+ * transfer (a rare potongan is in the transfer too). Kasbon lama is the debt carried in from
+ * earlier weeks: shown for information, never transferred.
  */
-function moneyOf(line: PayrollLine, startsOn: string) {
-  const oldAdvance = line.newAdvances
-    .filter((advance) => advance.entryOn < startsOn)
-    .reduce((sum, advance) => sum + advance.amount, 0)
+function moneyOf(line: PayrollLine, isLocked: boolean) {
   return {
-    wage: line.grossWage,
-    samples: line.samples.amount,
+    wage: line.grossWage + line.samples.amount,
     additions: line.additionTotal - line.samples.amount,
-    deductions: line.deductionTotal,
-    oldAdvance,
-    newAdvance: line.newAdvanceTotal - oldAdvance,
+    oldAdvance: Math.max(
+      line.advanceBalance - line.newAdvanceTotal + (isLocked ? line.advanceRepayment : 0),
+      0,
+    ),
+    newAdvance: line.newAdvanceTotal,
     repayment: line.advanceRepayment,
     transfer: line.transferAmount,
   }
@@ -68,9 +67,7 @@ function moneyOf(line: PayrollLine, startsOn: string) {
 type Money = ReturnType<typeof moneyOf>
 const moneyColumns: { key: keyof Money; label: string; bold?: boolean }[] = [
   { key: 'wage', label: 'Total', bold: true },
-  { key: 'samples', label: 'Sampel' },
   { key: 'additions', label: 'Tambahan' },
-  { key: 'deductions', label: 'Potongan' },
   { key: 'oldAdvance', label: 'Kasbon lama' },
   { key: 'newAdvance', label: 'Kasbon baru' },
   { key: 'repayment', label: 'Cicil' },
@@ -83,14 +80,14 @@ const number = `${cell} text-right tabular-nums`
 function TailorRows({
   line,
   index,
-  startsOn,
+  isLocked,
 }: {
   line: PayrollLine
   index: number
-  startsOn: string
+  isLocked: boolean
 }) {
   const rows = categoryRows(line)
-  const money = moneyOf(line, startsOn)
+  const money = moneyOf(line, isLocked)
   return (
     <>
       {rows.map((row, rowIndex) => (
@@ -136,29 +133,59 @@ function TailorRows({
   )
 }
 
+/** Tukang sampel: one row at the bottom, samples instead of the S/M/L grid. */
+function SampleRow({
+  line,
+  index,
+  isLocked,
+}: {
+  line: PayrollLine
+  index: number
+  isLocked: boolean
+}) {
+  const money = moneyOf(line, isLocked)
+  const parts = [
+    line.samples.high > 0 ? `100rb × ${line.samples.high}` : null,
+    line.samples.low > 0 ? `50rb × ${line.samples.low}` : null,
+    line.pieces > 0 ? `jahit ${line.pieces} pcs` : null,
+  ].filter(Boolean)
+  return (
+    <tr className="h-[8mm]">
+      <td className={`${cell} text-center print-text-sm`}>{index}</td>
+      <td className={`${cell} font-bold print-text-sm`}>
+        <span className="block truncate">{line.name}</span>
+        <span className="block font-normal text-print-muted print-text-xs">tukang sampel</span>
+      </td>
+      <td colSpan={8} className={`${cell} print-text-sm`}>
+        Sampel {parts.length > 0 ? parts.join(' · ') : '—'}
+      </td>
+      <td className={number}>{amount(line.samples.amount)}</td>
+      {moneyColumns.map((column) => (
+        <td key={column.key} className={`${number} ${column.bold ? 'font-bold' : ''}`}>
+          {amount(money[column.key])}
+        </td>
+      ))}
+    </tr>
+  )
+}
+
 export function DepositRecapPrint({ payOn }: { payOn: string }) {
   const overview = usePayrollOverview(payOn)
   const printLog = useDocumentPrint('deposit_recap', payOn)
   const data = overview.data
-  const pages = chunk(data?.lines ?? [], TAILORS_PER_PAGE)
+  const isLocked = data?.status === 'locked'
+  // Tukang sampel are listed apart, at the very bottom of the last page.
+  const sewers = (data?.lines ?? []).filter((line) => !line.isSampleMaker)
+  const sampleMakers = (data?.lines ?? []).filter((line) => line.isSampleMaker)
+  const pages = chunk(sewers, TAILORS_PER_PAGE)
   const totals = (data?.lines ?? []).reduce(
     (sum, line) => {
-      const money = moneyOf(line, data?.startsOn ?? '')
+      const money = moneyOf(line, isLocked)
       for (const column of moneyColumns) sum[column.key] += money[column.key]
-      sum.pieces += line.pieces
+      if (!line.isSampleMaker) sum.pieces += line.pieces
       return sum
     },
-    {
-      pieces: 0,
-      wage: 0,
-      samples: 0,
-      additions: 0,
-      deductions: 0,
-      oldAdvance: 0,
-      newAdvance: 0,
-      repayment: 0,
-      transfer: 0,
-    },
+    { pieces: 0, wage: 0, additions: 0, oldAdvance: 0, newAdvance: 0, repayment: 0, transfer: 0 },
   )
 
   return (
@@ -238,9 +265,18 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                     key={line.id}
                     line={line}
                     index={pageIndex * TAILORS_PER_PAGE + index + 1}
-                    startsOn={data.startsOn}
+                    isLocked={isLocked}
                   />
                 ))}
+                {pageIndex === pages.length - 1 &&
+                  sampleMakers.map((line, index) => (
+                    <SampleRow
+                      key={line.id}
+                      line={line}
+                      index={sewers.length + index + 1}
+                      isLocked={isLocked}
+                    />
+                  ))}
                 {pageIndex === pages.length - 1 && (
                   <tr className="h-[7mm] bg-[#eeeeee] font-bold">
                     <td colSpan={9} className={`${cell} text-right uppercase`}>
@@ -259,13 +295,16 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                 )}
               </tbody>
             </table>
-            {lines.length === 0 && (
+            {lines.length === 0 && sampleMakers.length === 0 && (
               <p className="text-center text-print-muted print-text-sm">
                 Belum ada setoran minggu ini.
               </p>
             )}
             <footer className="mt-auto flex justify-between text-print-muted print-text-xs">
-              <span>{data.status === 'locked' ? 'Gajian dikunci' : 'Gajian belum dikunci'}</span>
+              <span>
+                {data.status === 'locked' ? 'Gajian dikunci' : 'Gajian belum dikunci'} · Kasbon lama
+                = sisa hutang, tidak ditransfer · Kasbon baru = ikut transfer
+              </span>
               <span>
                 Hal {pageIndex + 1}/{pages.length}
               </span>

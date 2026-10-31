@@ -7,6 +7,7 @@ import {
   usePrintSettings,
   useSavePrintSetting,
 } from '@/features/print-settings/api'
+import { DirectPrintSettings } from '@/features/print-settings/DirectPrintSettings'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PrintToolbar } from '@/shared/components/PrintToolbar'
 import { SegmentedControl } from '@/shared/components/SegmentedControl'
@@ -183,14 +184,17 @@ function Editor({ initial }: { initial: Record<PrintDocument, { top: number; lef
         fileName={`uji-cetak-${document}.pdf`}
         isReady
         showCalibrationLink={false}
+        printerGroup={document}
       />
       <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 print:hidden">
         <div className="space-y-2">
           <h1 className="font-semibold text-2xl tracking-tight">Kalibrasi cetak</h1>
           <p className="text-muted-foreground text-sm">
-            Kalau hasil cetak bergeser dari kertas, atur di sini sekali untuk printer ini.
+            Pilih printer untuk cetak langsung, dan atur geser kalau hasil cetak bergeser dari
+            kertas.
           </p>
         </div>
+        <DirectPrintSettings />
         <SegmentedControl
           label="Jenis kertas"
           value={document}

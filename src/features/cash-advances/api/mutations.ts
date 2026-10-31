@@ -12,6 +12,8 @@ export interface EntryInput {
   notes: string | null
   confirmed: boolean
   reason: string | null
+  /** Handed over directly (cash or transferred already): not added to the Saturday transfer. */
+  given?: boolean
 }
 
 function useLedgerAction<Input extends object>(action: string) {
@@ -36,5 +38,6 @@ export const useUpdateEntry = () =>
     entryOn: string
     notes: string | null
     reason: string | null
+    given: boolean | null
   }>('update_entry')
 export const useDeleteEntry = () => useLedgerAction<{ id: string; reason: string }>('delete_entry')

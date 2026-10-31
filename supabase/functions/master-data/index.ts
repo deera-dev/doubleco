@@ -390,10 +390,47 @@ const printMarks = defineAction({
   },
 })
 
+/**
+ * QZ Tray (direct printing on the office PC) only accepts print requests signed with our own
+ * certificate. The private key stays here, in the QZ_PRIVATE_KEY secret; the certificate is public.
+ */
+const qzCertificate = defineAction({
+  input: z.object({}),
+  run: () => Promise.resolve({ certificate: Deno.env.get('QZ_CERTIFICATE') ?? null }),
+})
+
+let qzKey: Promise<CryptoKey> | null = null
+
+function loadQzKey(pem: string): Promise<CryptoKey> {
+  const body = pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, '')
+  const der = Uint8Array.from(atob(body), (char) => char.charCodeAt(0))
+  return crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-512' }, false, [
+    'sign',
+  ])
+}
+
+const qzSign = defineAction({
+  input: z.object({ data: z.string().min(1).max(20_000) }),
+  run: async ({ data }, request) => {
+    const pem = Deno.env.get('QZ_PRIVATE_KEY')
+    if (!pem) throw new Rejection('QZ_NOT_CONFIGURED', 503)
+    // Only signed-in staff get signatures: a signature lets a page print on the office PC.
+    const supabase = createUserClient(request)
+    if (unwrap<boolean>(await supabase.rpc('is_staff')) !== true) throw new Rejection('FORBIDDEN', 403)
+    qzKey ??= loadQzKey(pem)
+    const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', await qzKey, new TextEncoder().encode(data))
+    let binary = ''
+    for (const byte of new Uint8Array(signature)) binary += String.fromCharCode(byte)
+    return { signature: btoa(binary) }
+  },
+})
+
 serveActions({
   overview,
   record_print: recordPrint,
   print_marks: printMarks,
+  qz_certificate: qzCertificate,
+  qz_sign: qzSign,
   save_product: saveProduct,
   save_fabric: saveFabric,
   save_series: saveSeries,

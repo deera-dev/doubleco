@@ -94,6 +94,7 @@ export function ReportPage({
         fileName={fileName}
         isReady={isReady}
         showCalibrationLink={false}
+        printerGroup="report"
         printedNote={printedNote}
         onPrinted={onPrinted}
       />
