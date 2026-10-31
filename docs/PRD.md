@@ -14,7 +14,7 @@ manual di Excel dan kertas:
 
 | Dokumen saat ini                                | Isi                                                                                                                                                                              | Masalah                                                                                        |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Kartu WO** (kertas 12×16 cm)                  | Tanggal, tukang potong, kode produk, size, bahan, ADA/TIDAK ADA PERUBAHAN, info lanjutan, foto sampel                                                                            | Diketik ulang tiap WO; kode pola belum ada                                                     |
+| **Kartu WO** (kertas 12×15 cm)                  | Tanggal, tukang potong, kode produk, size, bahan, ADA/TIDAK ADA PERUBAHAN, info lanjutan, foto sampel                                                                            | Diketik ulang tiap WO; kode pola belum ada                                                     |
 | **Kertas laporan anak jahit** (6×10 cm)         | Tgl, T.Potong, Model, Jumlah, T.Jahit, Kode, Warna, TTD                                                                                                                          | Ditulis tangan per penjahit                                                                    |
 | **THP** (`CONT_THP.xlsx`)                       | Kode barang, tgl proses, tukang potong, bahan & kombinasi, size; per penjahit: kode, jumlah, tgl ambil; kolom finishing (selesai, diterima, OK/RUSAK, keterangan) dan ACC gudang | Data yang sama diketik ulang dari kartu                                                        |
 | **Setoran jahit** (`SETORAN_JAIT_<BULAN>.xlsx`) | Per minggu: per penjahit × kategori S/M/L × hari (Senin–Sabtu), total, harga, kasbon                                                                                             | Tarif (S=20.000, M=25.000, L=30.000) di-hardcode di ratusan rumus; tidak ada jejak kode produk |
@@ -34,7 +34,7 @@ Contoh kesalahan input yang sudah terjadi di data nyata:
 2. **Scan, bukan tulis.** Setiap kartu punya QR; setoran dan pemeriksaan
    dicatat dengan scan dari kamera HP.
 3. **Gajian Sabtu dihitung otomatis** — upah, kasbon, cicilan, daftar transfer.
-4. **Cetak langsung** ke kertas yang sudah ada (6×10, 12×16, A4) di Epson L1250.
+4. **Cetak langsung** ke kertas yang sudah ada (6×10, 12×15, A4) di Epson L1250.
 
 ### Indikator keberhasilan
 
@@ -90,7 +90,7 @@ membuka akses peran lain tidak perlu bongkar ulang.
 ```
 [1] Master data
       │
-[2] Buat WO ──► cetak Kartu WO (12×16) ──► Tukang Potong
+[2] Buat WO ──► cetak Kartu WO (12×15) ──► Tukang Potong
       │
 [3] Catat hasil potong per size × warna
       │
@@ -134,7 +134,7 @@ membuka akses peran lain tidak perlu bongkar ulang.
   model A), list tetap".
 - Status WO: `DRAFT → DIPOTONG → DIJAHIT → SELESAI` (+ `BATAL`), dihitung dari
   status kartu-kartunya.
-- **Cetak Kartu WO 12×16 cm** berlabel jelas dan foto sampel hasil unggah (tanpa QR).
+- **Cetak Kartu WO 12×15 cm** berlabel jelas dan foto sampel hasil unggah (tanpa QR).
 
 ### 5.3 Hasil potong & pembagian ke penjahit
 
@@ -343,7 +343,7 @@ Printer: **Epson L1250** (inkjet, Wi-Fi), kertas sudah dipotong sesuai ukuran.
 
 | Dokumen                        | Ukuran       | Isi utama                                                                                                                                                                     |
 | ------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kartu WO                       | 120 × 160 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel (diunggah) |
+| Kartu WO                       | 120 × 150 mm | Logo, tanggal, tukang potong, kode produk, **kode pola**, ukuran, bahan, warna, status perubahan (merah = ada / biru = tidak), catatan, info lanjutan, foto sampel (diunggah) |
 | Kartu Jahit                    | 60 × 100 mm  | "PRODUCTION", Tgl, T.Potong, Model, Ukuran, Jumlah, T.Jahit, Kode, Warna, QR, nomor kartu, TTD                                                                                |
 | THP                            | A4           | Seperti `CONT_THP.xlsx` + QR WO                                                                                                                                               |
 | Daftar transfer / rekap gajian | A4           | Tabel rekap                                                                                                                                                                   |
@@ -418,7 +418,7 @@ gajian**, cocokkan hasilnya, baru tinggalkan Excel.
 | Kartu jahit         | Satu ukuran × satu warna; kartu baru setelah kartu sebelumnya selesai                                                                                                                                                      |
 | WO                  | Satu kode produk + satu bahan, banyak ukuran & warna; nomor default `WO_<kode_produk>`, bisa diedit                                                                                                                        |
 | Pengguna            | Fase 1 hanya Kepala Produksi                                                                                                                                                                                               |
-| Printer             | Epson L1250, kertas 6×10, 12×16, A4                                                                                                                                                                                        |
+| Printer             | Epson L1250, kertas 6×10, 12×15, A4                                                                                                                                                                                        |
 | Data lama           | Diimpor lewat wizard                                                                                                                                                                                                       |
 | Transfer            | Manual; aplikasi menyiapkan daftar                                                                                                                                                                                         |
 

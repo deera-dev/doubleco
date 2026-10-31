@@ -122,7 +122,7 @@ export async function printDirect(
   const qz = await connectedQz()
   const isA4 =
     Math.min(page.widthMm, page.heightMm) === 210 && Math.max(page.widthMm, page.heightMm) === 297
-  // `custom` exists in QZ Tray 2.2+ but not in @types/qz-tray: 6×10 and 12×16 cards are not
+  // `custom` exists in QZ Tray 2.2+ but not in @types/qz-tray: 6×10 and 12×15 cards are not
   // standard driver sizes.
   const size = {
     width: Math.min(page.widthMm, page.heightMm),

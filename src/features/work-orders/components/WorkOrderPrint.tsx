@@ -13,7 +13,7 @@ import { formatIsoDate, todayIsoDate } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
 import { toAppError } from '@/shared/types/errors'
 
-const PAGE_STYLE = '@page { size: 120mm 160mm; margin: 0; }'
+const PAGE_STYLE = '@page { size: 120mm 150mm; margin: 0; }'
 
 function Label({ children }: { children: ReactNode }) {
   return (
@@ -181,9 +181,9 @@ export function WorkOrderPrint({ id }: { id: string }) {
             </Link>
           </Button>
         }
-        paper="120 × 160 mm"
+        paper="120 × 150 mm"
         widthMm={120}
-        heightMm={160}
+        heightMm={150}
         offsets={print.data?.offsets ?? { top: 0, left: 0 }}
         fileName={`kartu-wo-${print.data?.workOrder.number ?? 'cetak'}.pdf`}
         isReady={isReady}

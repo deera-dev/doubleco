@@ -9,7 +9,7 @@ import { cn } from '@/shared/lib/utils'
 
 const groups: { group: PrinterGroup; label: string; paper: string }[] = [
   { group: 'sewing_card', label: 'Kartu jahit', paper: 'kertas 6×10 cm' },
-  { group: 'work_order_card', label: 'Kartu WO', paper: 'kertas 12×16 cm' },
+  { group: 'work_order_card', label: 'Kartu WO', paper: 'kertas 12×15 cm' },
   { group: 'thp', label: 'THP (printer rangkap)', paper: 'kertas 24×27,7 cm' },
   { group: 'report', label: 'Laporan rekap', paper: 'kertas A4' },
 ]
