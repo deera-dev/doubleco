@@ -29,6 +29,7 @@ interface EntryRow {
   created_at: string
   payroll_line_id: string | null
   import_batch_id: string | null
+  given_on: string | null
   payroll_lines: { payroll_periods: { pay_on: string; status: string } | null } | null
 }
 
@@ -87,7 +88,7 @@ const ledger = defineAction({
       supabase
         .from('cash_advance_entries')
         .select(
-          'id, entry_type, amount, entry_on, notes, created_at, payroll_line_id, import_batch_id, payroll_lines(payroll_periods(pay_on, status))',
+          'id, entry_type, amount, entry_on, notes, created_at, payroll_line_id, import_batch_id, given_on, payroll_lines(payroll_periods(pay_on, status))',
         )
         .eq('tailor_id', tailorId)
         .order('entry_on', { ascending: false })
@@ -107,6 +108,8 @@ const ledger = defineAction({
           amount: Number(entry.amount),
           entryOn: entry.entry_on,
           notes: entry.notes,
+          // Kasbon handed over directly: counts as debt, never added to a transfer.
+          givenOn: entry.given_on,
           payOn: period?.pay_on ?? null,
           isPayrollLocked: period?.status === 'locked',
           isEditable:
@@ -129,6 +132,7 @@ const entryInput = z.object({
   notes,
   confirmed: z.boolean().default(false),
   reason,
+  given: z.boolean().default(false),
 })
 
 const recordAdvance = defineAction({
@@ -147,6 +151,7 @@ const recordAdvance = defineAction({
         })
         .single(),
     )
+    if (input.given) unwrap(await supabase.rpc('set_advance_given', { p_entry_id: created.id, p_given: true }))
     return { id: created.id }
   },
 })
@@ -172,7 +177,14 @@ const recordRepayment = defineAction({
 })
 
 const updateEntry = defineAction({
-  input: z.object({ id: uuid, amount, entryOn: z.string().date(), notes, reason }),
+  input: z.object({
+    id: uuid,
+    amount,
+    entryOn: z.string().date(),
+    notes,
+    reason,
+    given: z.boolean().nullable().default(null),
+  }),
   run: async (input, request) => {
     const supabase = createUserClient(request)
     unwrap(
@@ -184,6 +196,9 @@ const updateEntry = defineAction({
         p_reason: input.reason,
       }),
     )
+    if (input.given !== null) {
+      unwrap(await supabase.rpc('set_advance_given', { p_entry_id: input.id, p_given: input.given }))
+    }
     return { id: input.id }
   },
 })

@@ -20,6 +20,7 @@ import {
 } from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { describeError } from '@/shared/lib/error-messages'
 import { formatRupiah } from '@/shared/lib/format'
@@ -53,6 +54,8 @@ export function EntryDialog({ editor, tailors, today, onClose }: EntryDialogProp
   const [entryOn, setEntryOn] = useState(entry?.entryOn ?? today)
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [reason, setReason] = useState('')
+  const isAdvance = editor.kind === 'advance' || entry?.type === 'advance'
+  const [given, setGiven] = useState(entry?.givenOn != null)
   const [isConfirming, setIsConfirming] = useState(false)
   const key = labelKey(tailorText)
   const tailor =
@@ -86,6 +89,7 @@ export function EntryDialog({ editor, tailors, today, onClose }: EntryDialogProp
           entryOn,
           notes: notes.trim() || null,
           reason: reason.trim() || null,
+          given: isAdvance ? given : null,
         },
         { onSuccess: () => done('Catatan kasbon diperbarui'), onError },
       )
@@ -100,6 +104,7 @@ export function EntryDialog({ editor, tailors, today, onClose }: EntryDialogProp
         notes: notes.trim() || null,
         confirmed,
         reason: confirmed ? reason.trim() || 'Dikonfirmasi' : null,
+        given: editor.kind === 'advance' ? given : false,
       },
       {
         onSuccess: () =>
@@ -184,6 +189,18 @@ export function EntryDialog({ editor, tailors, today, onClose }: EntryDialogProp
                 />
               </div>
             </div>
+            {isAdvance && (
+              <Switch
+                checked={given}
+                onCheckedChange={setGiven}
+                label="Sudah diberikan langsung"
+                description={
+                  given
+                    ? 'Tunai atau sudah ditransfer: tidak ikut transfer gajian Sabtu, tetap dicicil.'
+                    : 'Dibayar bersama gaji Sabtu (ikut transfer).'
+                }
+              />
+            )}
             <div className="space-y-2">
               <Label htmlFor="entry-notes">Catatan (opsional)</Label>
               <Textarea

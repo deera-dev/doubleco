@@ -31,6 +31,7 @@ export const entrySchema = z.object({
   isPayrollLocked: z.boolean(),
   isEditable: z.boolean(),
   isDeletable: z.boolean(),
+  givenOn: z.string().nullable(),
 })
 
 export const ledgerSchema = z.object({

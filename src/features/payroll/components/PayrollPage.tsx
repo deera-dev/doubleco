@@ -152,14 +152,36 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
       (tailor) => !data.lines.some((line) => line.tailorId === tailor.id),
     ) ?? []
   const needle = labelKey(search)
+  // Tukang sampel get their own section at the top; the list below is the sewers.
+  const sampleLines = (data?.lines ?? []).filter((line) => line.isSampleMaker)
   const lines = (data?.lines ?? []).filter(
     (line) =>
-      needle === '' || labelKey(line.code) === needle || labelKey(line.name).includes(needle),
+      !line.isSampleMaker &&
+      (needle === '' || labelKey(line.code) === needle || labelKey(line.name).includes(needle)),
   )
   const isLocked = data?.status === 'locked'
   const close = () => setDialog({ kind: 'none' })
   const go = (weeks: number) =>
     data && navigate({ to: '/gajian', search: { sabtu: shiftWeeks(data.payOn, weeks) } })
+
+  const renderCard = (line: PayrollLine) =>
+    data && (
+      <PayrollLineCard
+        line={line}
+        isLocked={isLocked}
+        payOn={data.payOn}
+        currentPayOn={data.currentPayOn}
+        onEditRepayment={() => setDialog({ kind: 'repayment', line })}
+        onAddAddition={() => setDialog({ kind: 'addition', line })}
+        onEditSamples={() =>
+          setDialog({
+            kind: 'samples',
+            tailor: { id: line.tailorId, code: line.code, name: line.name },
+            initial: { high: line.samples.high, low: line.samples.low },
+          })
+        }
+      />
+    )
 
   return (
     <div className="space-y-6 pb-24">
@@ -226,6 +248,41 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
         <>
           {!data.isFuture && data.lines.length > 0 && <Steps overview={data} />}
           <Summary overview={data} />
+          {/* Tukang sampel first, right under the totals; those without cards can still get samples. */}
+          {!data.isFuture &&
+            (sampleLines.length > 0 || (!isLocked && idleSampleMakers.length > 0)) && (
+              <section className="space-y-3">
+                <h2 className="font-semibold">Tukang sampel</h2>
+                {sampleLines.length > 0 && (
+                  <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    {sampleLines.map((line) => (
+                      <li key={line.id}>{renderCard(line)}</li>
+                    ))}
+                  </ul>
+                )}
+                {!isLocked && idleSampleMakers.length > 0 && (
+                  <div className="surface flex flex-wrap items-center gap-2 rounded-2xl p-3">
+                    <span className="text-muted-foreground text-sm">
+                      Belum ada di gajian minggu ini, isi sampelnya bila ada:
+                    </span>
+                    {idleSampleMakers.map((tailor) => (
+                      <Button
+                        key={tailor.id}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setDialog({ kind: 'samples', tailor, initial: { high: 0, low: 0 } })
+                        }
+                      >
+                        <span className="font-mono text-muted-foreground">{tailor.code}</span>
+                        {tailor.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
           {!isLocked && <DeductionsPanel deductions={data.pendingDeductions} />}
 
           {data.isFuture ? (
@@ -234,7 +291,8 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
               title="Belum bisa direkap"
               description="Gajian minggu depan direkap setelah minggu ini selesai."
             />
-          ) : data.lines.length === 0 ? (
+          ) : data.lines.length === sampleLines.length && sampleLines.length > 0 ? null : data.lines
+              .length === 0 ? (
             <EmptyState
               icon={Banknote}
               title="Belum ada yang dibayar minggu ini"
@@ -263,24 +321,7 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
               ) : (
                 <ul className="stagger-2 grid animate-rise grid-cols-1 gap-3 xl:grid-cols-2">
                   {paginate(lines, page, PAGE_SIZE).map((line) => (
-                    <li key={line.id}>
-                      <PayrollLineCard
-                        line={line}
-                        isLocked={isLocked}
-                        payOn={data.payOn}
-                        currentPayOn={data.currentPayOn}
-                        startsOn={data.startsOn}
-                        onEditRepayment={() => setDialog({ kind: 'repayment', line })}
-                        onAddAddition={() => setDialog({ kind: 'addition', line })}
-                        onEditSamples={() =>
-                          setDialog({
-                            kind: 'samples',
-                            tailor: { id: line.tailorId, code: line.code, name: line.name },
-                            initial: { high: line.samples.high, low: line.samples.low },
-                          })
-                        }
-                      />
-                    </li>
+                    <li key={line.id}>{renderCard(line)}</li>
                   ))}
                 </ul>
               )}
@@ -291,35 +332,6 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                 onChange={setPage}
               />
             </div>
-          )}
-
-          {/* Tukang sampel without cards this week still need a place to enter their samples. */}
-          {!data.isFuture && !isLocked && idleSampleMakers.length > 0 && (
-            <section className="surface space-y-3 rounded-3xl p-4 sm:p-5">
-              <div>
-                <h2 className="font-semibold">Tukang sampel</h2>
-                <p className="text-muted-foreground text-sm">
-                  Belum ada di gajian minggu ini. Isi sampelnya bila ada.
-                </p>
-              </div>
-              <ul className="flex flex-wrap gap-2">
-                {idleSampleMakers.map((tailor) => (
-                  <li key={tailor.id}>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setDialog({ kind: 'samples', tailor, initial: { high: 0, low: 0 } })
-                      }
-                    >
-                      <span className="font-mono text-muted-foreground">{tailor.code}</span>
-                      {tailor.name}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
           )}
 
           {/* THR and bonuses come once or twice a year, so they stay out of the weekly flow. */}

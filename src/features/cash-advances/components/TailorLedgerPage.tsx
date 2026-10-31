@@ -34,6 +34,8 @@ const typeMeta: Record<EntryType, { label: string; sign: 1 | -1; className: stri
 }
 
 function describeEntry(entry: LedgerEntry): string {
+  if (entry.type === 'advance' && entry.givenOn)
+    return 'sudah diberikan langsung (tidak ikut transfer)'
   if (entry.type === 'repayment' && entry.payOn)
     return `dipotong dari gaji Sabtu ${formatWorkOrderDate(entry.payOn)}`
   if (entry.type === 'advance' && entry.payOn) {
