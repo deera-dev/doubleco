@@ -4,7 +4,7 @@ import { usePayrollOverview } from '@/features/payroll/api/queries'
 import type { PayrollLine } from '@/features/payroll/api/schema'
 import { formatPayDay, formatWeek } from '@/features/payroll/lib/dates'
 import { useDocumentPrint } from '@/features/print-settings/use-document-print'
-import { A4_LANDSCAPE, amount, chunk, ReportPage, Sheet } from '@/features/reports/ReportSheet'
+import { A4_LANDSCAPE, amount, ReportPage, Sheet } from '@/features/reports/ReportSheet'
 import { MaryamLogo } from '@/shared/components/MaryamLogo'
 import { Button } from '@/shared/components/ui/button'
 import { describeError } from '@/shared/lib/error-messages'
@@ -20,13 +20,18 @@ const DAYS = [
   { key: 'fri', label: 'J' },
   { key: 'sat', label: 'S' },
 ]
-/** Three rows (S/M/L) per tailor: this many tailors fill a landscape A4 page. */
-const TAILORS_PER_PAGE = 9
+/**
+ * Table rows that fit one landscape A4 page at 5mm each, after the header and the totals row.
+ * Each tailor takes one row per category they handed in (usually one or two, never three empty).
+ */
+const ROWS_PER_PAGE = 34
+const ROW_HEIGHT = 'h-[5mm]'
 
 interface CategoryRow {
   category: (typeof CATEGORIES)[number]
   days: number[]
   wage: number
+  count: number
 }
 
 /** Monday is the first column; a card handed in on Sunday counts with that Monday. */
@@ -36,13 +41,39 @@ function dayColumn(isoDate: string | null): number {
   return day === 0 ? 0 : day - 1
 }
 
+/** Only the categories with cards: empty S/M/L rows only cost paper. At least one row. */
 function categoryRows(line: PayrollLine): CategoryRow[] {
-  return CATEGORIES.map((category) => {
+  const rows = CATEGORIES.map((category) => {
     const cards = line.cards.filter((card) => card.category === category)
     const days = DAYS.map(() => 0)
     for (const card of cards) days[dayColumn(card.submittedOn)] += card.quantity
-    return { category, days, wage: cards.reduce((sum, card) => sum + card.wage, 0) }
+    return {
+      category,
+      days,
+      wage: cards.reduce((sum, card) => sum + card.wage, 0),
+      count: cards.length,
+    }
   })
+  const used = rows.filter((row) => row.count > 0)
+  return used.length > 0 ? used : rows.slice(0, 1)
+}
+
+/** Fills pages by rows, so short entries let more tailors share a page. */
+function paginate(lines: PayrollLine[], lastPageReserve: number): PayrollLine[][] {
+  const pages: PayrollLine[][] = [[]]
+  let used = 0
+  for (const line of lines) {
+    const height = categoryRows(line).length
+    if (used + height > ROWS_PER_PAGE && (pages.at(-1)?.length ?? 0) > 0) {
+      pages.push([])
+      used = 0
+    }
+    pages.at(-1)?.push(line)
+    used += height
+  }
+  // The sample rows sit at the bottom of the last page; give them a page of their own if needed.
+  if (used + lastPageReserve > ROWS_PER_PAGE && (pages.at(-1)?.length ?? 0) > 0) pages.push([])
+  return pages
 }
 
 /**
@@ -73,32 +104,38 @@ const number = `${cell} text-right tabular-nums`
 
 function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
   const rows = categoryRows(line)
+  const span = rows.length
   const money = moneyOf(line)
   return (
     <>
       {rows.map((row, rowIndex) => (
-        <tr key={row.category} className="h-[5.6mm]">
+        <tr key={row.category} className={ROW_HEIGHT}>
           {rowIndex === 0 && (
             <>
-              <td rowSpan={3} className={`${cell} text-center print-text-sm`}>
+              <td rowSpan={span} className={`${cell} text-center print-text-sm`}>
                 {index}
               </td>
-              <td rowSpan={3} className={`${cell} font-bold print-text-sm`}>
-                <span className="block truncate">{line.name}</span>
-                <span className="block font-normal text-print-muted print-text-xs">
-                  kode {line.code}
+              <td rowSpan={span} className={`${cell} truncate font-bold print-text-sm`}>
+                {line.name}
+                <span className="ml-[1.5mm] font-normal text-print-muted print-text-xs">
+                  {line.code}
                 </span>
               </td>
             </>
           )}
-          <td className={`${cell} text-center font-semibold print-text-sm`}>{row.category}</td>
+          <td className={`${cell} text-center font-semibold print-text-sm`}>
+            {row.count > 0 ? row.category : ''}
+          </td>
           {row.days.map((value, day) => (
             <td key={DAYS[day]?.key} className={`${cell} text-center tabular-nums print-text-sm`}>
               {value || ''}
             </td>
           ))}
           {rowIndex === 0 && (
-            <td rowSpan={3} className={`${cell} text-center font-bold tabular-nums print-text-md`}>
+            <td
+              rowSpan={span}
+              className={`${cell} text-center font-bold tabular-nums print-text-sm`}
+            >
               {line.pieces || ''}
             </td>
           )}
@@ -107,7 +144,7 @@ function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
             moneyColumns.map((column) => (
               <td
                 key={column.key}
-                rowSpan={3}
+                rowSpan={span}
                 className={`${number} ${column.bold ? 'font-bold' : ''}`}
               >
                 {amount(money[column.key])}
@@ -128,11 +165,11 @@ function SampleRow({ line, index }: { line: PayrollLine; index: number }) {
     line.pieces > 0 ? `jahit ${line.pieces} pcs` : null,
   ].filter(Boolean)
   return (
-    <tr className="h-[8mm]">
+    <tr className={ROW_HEIGHT}>
       <td className={`${cell} text-center print-text-sm`}>{index}</td>
-      <td className={`${cell} font-bold print-text-sm`}>
-        <span className="block truncate">{line.name}</span>
-        <span className="block font-normal text-print-muted print-text-xs">tukang sampel</span>
+      <td className={`${cell} truncate font-bold print-text-sm`}>
+        {line.name}
+        <span className="ml-[1.5mm] font-normal text-print-muted print-text-xs">sampel</span>
       </td>
       <td colSpan={8} className={`${cell} print-text-sm`}>
         Sampel {parts.length > 0 ? parts.join(' · ') : '—'}
@@ -154,7 +191,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
   // Tukang sampel are listed apart, at the very bottom of the last page.
   const sewers = (data?.lines ?? []).filter((line) => !line.isSampleMaker)
   const sampleMakers = (data?.lines ?? []).filter((line) => line.isSampleMaker)
-  const pages = chunk(sewers, TAILORS_PER_PAGE)
+  const pages = paginate(sewers, sampleMakers.length)
   const totals = (data?.lines ?? []).reduce(
     (sum, line) => {
       const money = moneyOf(line)
@@ -189,9 +226,13 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
         <div className="h-[60vh] w-full max-w-3xl animate-pulse rounded-lg bg-surface-hover" />
       ) : (
         pages.map((lines, pageIndex) => (
-          <Sheet key={lines[0]?.id ?? 'empty'} paper={A4_LANDSCAPE} className="gap-[3mm] p-[8mm]">
-            <header className="flex items-end justify-between gap-[4mm] border-print-ink border-b-[0.5mm] pb-[2mm]">
-              <MaryamLogo className="h-[9mm]" />
+          <Sheet
+            key={lines[0]?.id ?? `page-${pageIndex}`}
+            paper={A4_LANDSCAPE}
+            className="gap-[2mm] px-[7mm] py-[6mm]"
+          >
+            <header className="flex items-end justify-between gap-[4mm] border-print-ink border-b-[0.4mm] pb-[1.5mm]">
+              <MaryamLogo className="h-[7mm]" />
               <div className="text-right">
                 <p className="font-extrabold print-text-lg uppercase">Rekap setoran jahit</p>
                 <p className="font-semibold print-text-sm">
@@ -241,7 +282,11 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                   <TailorRows
                     key={line.id}
                     line={line}
-                    index={pageIndex * TAILORS_PER_PAGE + index + 1}
+                    index={
+                      pages.slice(0, pageIndex).reduce((sum, page) => sum + page.length, 0) +
+                      index +
+                      1
+                    }
                   />
                 ))}
                 {pageIndex === pages.length - 1 &&
