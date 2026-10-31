@@ -11,6 +11,7 @@ export interface SaveTailorInput {
   name: string
   phone: string | null
   notes: string | null
+  isSampleMaker: boolean
   account: { type: 'bank' | 'ewallet'; provider: string; number: string; holder: string } | null
   confirmed: boolean
 }

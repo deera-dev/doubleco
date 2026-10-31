@@ -46,3 +46,35 @@ export function useSavePrintSetting() {
     },
   })
 }
+
+export type PrintedDocument = 'work_order_card' | 'thp' | 'deposit_recap' | 'tailor_book'
+
+const printMarkSchema = z.object({ count: z.number(), lastAt: z.string() })
+export type PrintMark = z.infer<typeof printMarkSchema>
+
+const printMarksSchema = z.object({ marks: z.record(z.string(), printMarkSchema) })
+
+/** How often each document was printed; a key missing from the result was never printed. */
+export function usePrintMarks(documentType: PrintedDocument, keys: string[]) {
+  return useQuery({
+    queryKey: ['print-marks', documentType, keys],
+    queryFn: () =>
+      callAction('master-data', 'print_marks', printMarksSchema, { documentType, keys }),
+    enabled: keys.length > 0,
+    staleTime: 30_000,
+  })
+}
+
+export function useRecordDocumentPrint() {
+  return useMutation<
+    { documentKey: string },
+    AppError,
+    { documentType: PrintedDocument; documentKey: string }
+  >({
+    mutationFn: (input) =>
+      callAction('master-data', 'record_print', z.object({ documentKey: z.string() }), input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['print-marks'] })
+    },
+  })
+}

@@ -11,6 +11,10 @@ const saturday = z
   .refine((value) => new Date(`${value}T00:00:00Z`).getUTCDay() === 6, 'PAY_DATE_NOT_SATURDAY')
 const reason = z.string().trim().max(200).nullable().default(null)
 
+/** Sample prices; set_payroll_samples uses the same two. */
+const SAMPLE_HIGH = 100_000
+const SAMPLE_LOW = 50_000
+
 function today(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
 }
@@ -49,7 +53,7 @@ interface LineRow {
   account_holder: string | null
   status: 'draft' | 'paid'
   paid_at: string | null
-  tailors: { code: string; name: string; tailor_payment_accounts: Account[] } | null
+  tailors: { code: string; name: string; is_sample_maker: boolean; tailor_payment_accounts: Account[] } | null
   sewing_cards: {
     number: string
     quantity: number
@@ -63,7 +67,14 @@ interface LineRow {
       work_orders: { products: { code: string } | null } | null
     } | null
   }[]
-  payroll_additions: { id: string; kind: 'thr' | 'bonus' | 'other'; amount: number; notes: string | null }[]
+  payroll_additions: {
+    id: string
+    kind: 'thr' | 'bonus' | 'other'
+    amount: number
+    notes: string | null
+    quantity: number | null
+    sample_rate: number | null
+  }[]
   deduction_proposals: {
     id: string
     quantity: number
@@ -76,10 +87,10 @@ interface LineRow {
 const lineSelect = `
   id, tailor_id, gross_wage, advance_repayment, deduction_total, addition_total, new_advance_total,
   transfer_amount, account_provider, account_number, account_holder, status, paid_at,
-  tailors(code, name, tailor_payment_accounts(provider, account_number, account_holder, is_active)),
+  tailors(code, name, is_sample_maker, tailor_payment_accounts(provider, account_number, account_holder, is_active)),
   sewing_cards(number, quantity, wage_amount, wage_category, submitted_on, submitted_incomplete,
     work_order_items(sizes(name), fabric_colors(name), work_orders(products(code)))),
-  payroll_additions(id, kind, amount, notes),
+  payroll_additions(id, kind, amount, notes, quantity, sample_rate),
   deduction_proposals(id, quantity, amount, inspections(sewing_cards(number))),
   cash_advance_entries(id, entry_type, amount, entry_on)
 `
@@ -128,12 +139,23 @@ function shapeLine(row: LineRow, isLocked: boolean, balances: Map<string, number
     paidAt: row.paid_at,
     pieces: cards.reduce((sum, card) => sum + card.quantity, 0),
     cards,
-    additions: row.payroll_additions.map((addition) => ({
-      id: addition.id,
-      kind: addition.kind,
-      amount: Number(addition.amount),
-      notes: addition.notes,
-    })),
+    isSampleMaker: row.tailors?.is_sample_maker ?? false,
+    // Samples are payroll additions with a rate; they get their own line on the card and the recap.
+    samples: {
+      high: row.payroll_additions.find((addition) => Number(addition.sample_rate) === SAMPLE_HIGH)?.quantity ?? 0,
+      low: row.payroll_additions.find((addition) => Number(addition.sample_rate) === SAMPLE_LOW)?.quantity ?? 0,
+      amount: row.payroll_additions
+        .filter((addition) => addition.sample_rate !== null)
+        .reduce((sum, addition) => sum + Number(addition.amount), 0),
+    },
+    additions: row.payroll_additions
+      .filter((addition) => addition.sample_rate === null)
+      .map((addition) => ({
+        id: addition.id,
+        kind: addition.kind,
+        amount: Number(addition.amount),
+        notes: addition.notes,
+      })),
     deductions: row.deduction_proposals.map((deduction) => ({
       id: deduction.id,
       quantity: deduction.quantity,
@@ -230,6 +252,15 @@ const overview = defineAction({
         paid: lines.filter((line) => line.status === 'paid').length,
       },
       pendingDeductions: await pendingDeductions(supabase),
+      // Every active tukang sampel, so samples can be entered even in a week without cards.
+      sampleMakers: unwrap<{ id: string; code: string; name: string }[]>(
+        await supabase
+          .from('tailors')
+          .select('id, code, name')
+          .eq('is_sample_maker', true)
+          .eq('status', 'active')
+          .is('archived_at', null),
+      ).sort((a, b) => a.code.localeCompare(b.code, 'id', { numeric: true })),
     }
   },
 })
@@ -377,6 +408,28 @@ const moveCards = defineAction({
       await supabase.rpc('move_cards_to_payroll_week', { p_numbers: numbers, p_pay_on: payOn }),
     )
     return { count: moved }
+  },
+})
+
+const setSamples = defineAction({
+  input: z.object({
+    payOn: saturday,
+    tailorId: uuid,
+    high: z.number().int().min(0).max(1000),
+    low: z.number().int().min(0).max(1000),
+  }),
+  run: async ({ payOn, tailorId, high, low }, request) => {
+    const supabase = createUserClient(request)
+    if (payOn > upcomingSaturday()) throw new Rejection('PAY_DATE_IN_FUTURE')
+    unwrap(
+      await supabase.rpc('set_payroll_samples', {
+        p_pay_on: payOn,
+        p_tailor_id: tailorId,
+        p_high: high,
+        p_low: low,
+      }),
+    )
+    return { payOn }
   },
 })
 
@@ -561,6 +614,7 @@ serveActions({
   mark_paid: markPaid,
   unmark_paid: unmarkPaid,
   move_cards: moveCards,
+  set_samples: setSamples,
   tailor_history: tailorHistory,
   decide_deduction: decideDeduction,
 })

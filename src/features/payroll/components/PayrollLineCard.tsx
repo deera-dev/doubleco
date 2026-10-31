@@ -5,6 +5,8 @@ import {
   ChevronRight,
   CircleCheck,
   Pencil,
+  Plus,
+  Shirt,
   TriangleAlert,
   Undo2,
   X,
@@ -76,7 +78,11 @@ interface PayrollLineCardProps {
   /** This line's Saturday, and the latest Saturday that can be filled. */
   payOn: string
   currentPayOn: string
+  /** Monday of the week: kasbon from before it is "kasbon lama". */
+  startsOn: string
   onEditRepayment: () => void
+  onAddAddition: () => void
+  onEditSamples: () => void
 }
 
 /**
@@ -144,7 +150,10 @@ export function PayrollLineCard({
   isLocked,
   payOn,
   currentPayOn,
+  startsOn,
   onEditRepayment,
+  onAddAddition,
+  onEditSamples,
 }: PayrollLineCardProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
@@ -156,6 +165,11 @@ export function PayrollLineCard({
   const unmarkPaid = useUnmarkPaid()
   const removeAddition = useRemoveAddition()
   const isNegative = line.transferAmount < 0
+  // Kasbon taken before this week (not yet paid out) rides on this transfer too; say which is which.
+  const oldAdvance = line.newAdvances
+    .filter((advance) => advance.entryOn < startsOn)
+    .reduce((sum, advance) => sum + advance.amount, 0)
+  const otherAdditions = line.additionTotal - line.samples.amount
 
   return (
     <article
@@ -202,9 +216,24 @@ export function PayrollLineCard({
           amount={line.grossWage}
           sign="+"
         />
-        {line.additionTotal > 0 && <Row label="Tambahan" amount={line.additionTotal} sign="+" />}
-        {line.newAdvanceTotal > 0 && (
-          <Row label="Kasbon baru" amount={line.newAdvanceTotal} sign="+" />
+        {line.samples.high > 0 && (
+          <Row
+            label={`Sampel 100rb × ${line.samples.high}`}
+            amount={line.samples.high * 100_000}
+            sign="+"
+          />
+        )}
+        {line.samples.low > 0 && (
+          <Row
+            label={`Sampel 50rb × ${line.samples.low}`}
+            amount={line.samples.low * 50_000}
+            sign="+"
+          />
+        )}
+        {otherAdditions > 0 && <Row label="Tambahan" amount={otherAdditions} sign="+" />}
+        {oldAdvance > 0 && <Row label="Kasbon lama (belum dibayar)" amount={oldAdvance} sign="+" />}
+        {line.newAdvanceTotal - oldAdvance > 0 && (
+          <Row label="Kasbon baru" amount={line.newAdvanceTotal - oldAdvance} sign="+" />
         )}
         {line.deductionTotal > 0 && (
           <Row label="Potongan rusak" amount={line.deductionTotal} sign="−" />
@@ -249,6 +278,20 @@ export function PayrollLineCard({
           Rincian
         </Button>
         <div className="flex flex-wrap items-center gap-2">
+          {!isLocked && (
+            <>
+              {line.isSampleMaker && (
+                <Button type="button" variant="outline" size="sm" onClick={onEditSamples}>
+                  <Shirt />
+                  Sampel
+                </Button>
+              )}
+              <Button type="button" variant="outline" size="sm" onClick={onAddAddition}>
+                <Plus />
+                Tambahan
+              </Button>
+            </>
+          )}
           {isLocked &&
             (line.status === 'paid' ? (
               <span className="flex items-center gap-1 text-sm text-success">

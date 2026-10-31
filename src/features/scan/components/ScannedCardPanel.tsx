@@ -1,4 +1,13 @@
-import { Ban, CircleCheck, ClipboardCheck, OctagonAlert, ScanLine, Undo2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import {
+  Ban,
+  CircleCheck,
+  ClipboardCheck,
+  OctagonAlert,
+  Printer,
+  ScanLine,
+  Undo2,
+} from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { InspectionPanel } from '@/features/scan/components/InspectionPanel'
@@ -7,7 +16,7 @@ import { formatSubmittedAt } from '@/features/scan/lib/format'
 import { type ScanMode, useScanUiStore } from '@/features/scan/store'
 import { useSubmitCard, useUnsubmitCard } from '@/features/sewing-cards/api/mutations'
 import type { ScannedCard, ScanTailor } from '@/features/sewing-cards/api/schema'
-import { cardStatusMeta } from '@/features/sewing-cards/lib/status'
+import { cardPrintSearch, cardStatusMeta } from '@/features/sewing-cards/lib/status'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { Button } from '@/shared/components/ui/button'
@@ -62,6 +71,17 @@ function CardSummary({ card }: { card: ScannedCard }) {
           {card.workOrderNumber} · ambil {formatWorkOrderDate(card.takenOn)} · kategori{' '}
           {card.category}
         </p>
+        {card.status !== 'cancelled' && (
+          <Link
+            to="/cetak/kartu-jahit"
+            search={cardPrintSearch([card.number])}
+            className="inline-flex items-center gap-1.5 font-medium text-link text-sm underline-offset-4 hover:underline"
+          >
+            <Printer className="size-4" />
+            Cetak ulang kartu
+            {card.printCount > 0 ? ` · sudah dicetak ${card.printCount}×` : ''}
+          </Link>
+        )}
       </div>
       <div className="shrink-0 text-right">
         <p className="font-mono font-semibold text-4xl tabular-nums leading-none">

@@ -47,6 +47,11 @@ export function EmployeeRow({ employee, onSelect }: { employee: Employee; onSele
               #{employee.code}
             </span>
           )}
+          {employee.isSampleMaker && (
+            <span className="shrink-0 rounded-full border border-brand-400/40 bg-brand-500/10 px-2 text-brand-100 text-xs">
+              Sampel
+            </span>
+          )}
         </span>
         <span
           className={cn(

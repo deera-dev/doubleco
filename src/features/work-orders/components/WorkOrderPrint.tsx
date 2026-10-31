@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { useDocumentPrint } from '@/features/print-settings/use-document-print'
 import { useWorkOrderPrint } from '@/features/work-orders/api/queries'
 import type { PrintData } from '@/features/work-orders/api/schema'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
@@ -138,7 +139,7 @@ function WorkOrderCard({ data, onPhotoSettled }: CardProps) {
           <div className="min-h-0 space-y-[0.8mm]">
             <Label>Info lanjutan</Label>
             <p className="line-clamp-4 font-semibold print-text-xs leading-snug">
-              {workOrder.additionalInfo ?? 'Info lebih lanjut hubungi tukang potong.'}
+              {workOrder.additionalInfo ?? ''}
             </p>
           </div>
         </div>
@@ -163,6 +164,7 @@ interface CardProps {
 
 export function WorkOrderPrint({ id }: { id: string }) {
   const print = useWorkOrderPrint(id)
+  const printLog = useDocumentPrint('work_order_card', id)
   const [settledPhoto, setSettledPhoto] = useState<string | null>(null)
   const photoUrl = print.data?.workOrder.photoUrl ?? null
   const isReady = print.data !== undefined && (photoUrl === null || settledPhoto === photoUrl)
@@ -185,6 +187,7 @@ export function WorkOrderPrint({ id }: { id: string }) {
         offsets={print.data?.offsets ?? { top: 0, left: 0 }}
         fileName={`kartu-wo-${print.data?.workOrder.number ?? 'cetak'}.pdf`}
         isReady={isReady}
+        {...printLog}
       />
       <div className="flex justify-center p-6 print:p-0">
         {print.isPending ? (

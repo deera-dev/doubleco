@@ -2,6 +2,8 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, Ban, Pencil, Plus, Printer, ScanLine, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
+import { usePrintMarks } from '@/features/print-settings/api'
+import { PrintMarkBadge } from '@/features/print-settings/PrintMark'
 import { WorkOrderCards } from '@/features/sewing-cards/components/WorkOrderCards'
 import { useDeleteWorkOrder, useForceDeleteWorkOrder } from '@/features/work-orders/api/mutations'
 import { useWorkOrder } from '@/features/work-orders/api/queries'
@@ -40,6 +42,8 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 function Summary({ workOrder }: { workOrder: WorkOrder }) {
   const status = workOrderStatusMeta[workOrder.status]
+  const cardPrints = usePrintMarks('work_order_card', [workOrder.id])
+  const thpPrints = usePrintMarks('thp', [workOrder.id])
   return (
     <header className="animate-rise space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -49,6 +53,8 @@ function Summary({ workOrder }: { workOrder: WorkOrder }) {
         <span className="text-muted-foreground text-sm">
           {formatWorkOrderDate(workOrder.orderedOn)}
         </span>
+        <PrintMarkBadge label="Kartu WO dicetak" mark={cardPrints.data?.marks[workOrder.id]} />
+        <PrintMarkBadge label="THP dicetak" mark={thpPrints.data?.marks[workOrder.id]} />
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">

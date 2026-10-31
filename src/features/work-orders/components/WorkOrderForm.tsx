@@ -707,7 +707,13 @@ function FormFields({
         <SegmentedControl
           label="Status perubahan"
           value={changeStatus}
-          onChange={(value) => form.setValue('changeStatus', value, { shouldValidate: true })}
+          onChange={(value) => {
+            form.setValue('changeStatus', value, { shouldValidate: true })
+            // Details usually come from the cutter: start from that, edit when known.
+            if (value === 'changed' && form.getValues('changeNotes').trim() === '') {
+              form.setValue('changeNotes', 'Hubungi tukang potong', { shouldValidate: true })
+            }
+          }}
           options={[
             { value: 'follow_sample', label: 'Tidak ada (ikut sampel)' },
             { value: 'changed', label: 'Ada perubahan' },
@@ -740,7 +746,7 @@ function FormFields({
             <FormItem>
               <FormLabel>Catatan di kartu (opsional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Mis. info lebih lanjut hubungi tukang potong" {...field} />
+                <Textarea placeholder="Kosongkan bila tidak ada" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

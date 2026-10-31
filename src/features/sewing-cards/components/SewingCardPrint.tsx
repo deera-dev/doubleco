@@ -121,6 +121,14 @@ function useQrImages(numbers: string[]) {
   })
 }
 
+/** Reprinting a lost card is fine; the note just says it is not the first copy. */
+function printedNote(cards: SewingCard[]): string | undefined {
+  const printedBefore = cards.filter((card) => card.printCount > 0)
+  if (printedBefore.length === 0) return undefined
+  if (cards.length === 1) return `Kartu ini sudah dicetak ${cards[0]?.printCount}×`
+  return `${printedBefore.length} dari ${cards.length} kartu sudah pernah dicetak`
+}
+
 export function SewingCardPrint({ numbers }: { numbers: string[] }) {
   const print = useCardPrint(numbers)
   const printed = print.data?.cards.map((card) => card.number) ?? []
@@ -147,6 +155,7 @@ export function SewingCardPrint({ numbers }: { numbers: string[] }) {
         offsets={print.data?.offsets ?? { top: 0, left: 0 }}
         fileName={`kartu-jahit-${printed[0] ?? 'cetak'}${printed.length > 1 ? `-dst` : ''}.pdf`}
         isReady={isReady}
+        printedNote={printedNote(print.data?.cards ?? [])}
         onPrinted={() => recordPrint.mutate({ numbers: printed })}
       />
 

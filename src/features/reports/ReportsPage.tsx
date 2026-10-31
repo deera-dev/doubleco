@@ -3,6 +3,8 @@ import { ClipboardList, NotebookTabs, Printer, Sheet } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { usePayrollTailors } from '@/features/payroll/api/queries'
 import { formatPayDay, saturdayOf } from '@/features/payroll/lib/dates'
+import { usePrintMarks } from '@/features/print-settings/api'
+import { PrintMarkBadge } from '@/features/print-settings/PrintMark'
 import { useWorkOrders } from '@/features/work-orders/api/queries'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { PageHeader } from '@/shared/components/PageHeader'
@@ -43,6 +45,7 @@ function ReportCard({
 function DepositRecapCard() {
   const [day, setDay] = useState(todayIsoDate())
   const payOn = saturdayOf(day)
+  const prints = usePrintMarks('deposit_recap', [payOn])
   return (
     <ReportCard
       icon={<Sheet />}
@@ -58,7 +61,10 @@ function DepositRecapCard() {
             value={day}
             onChange={(event) => event.target.value && setDay(event.target.value)}
           />
-          <p className="text-muted-foreground text-xs">Gajian {formatPayDay(payOn)}</p>
+          <p className="flex flex-wrap items-center gap-2 text-muted-foreground text-xs">
+            Gajian {formatPayDay(payOn)}
+            <PrintMarkBadge mark={prints.data?.marks[payOn]} />
+          </p>
         </div>
         <Button asChild size="lg">
           <Link to="/cetak/rekap-setoran" search={{ sabtu: payOn }}>
@@ -83,6 +89,10 @@ function ThpCard() {
     page: 1,
   })
   const list = workOrders.data?.workOrders.slice(0, 6) ?? []
+  const prints = usePrintMarks(
+    'thp',
+    list.map((workOrder) => workOrder.id),
+  )
   return (
     <ReportCard
       icon={<ClipboardList />}
@@ -118,7 +128,10 @@ function ThpCard() {
                     {workOrder.cutterName}
                   </span>
                 </span>
-                <Printer className="size-4 shrink-0 text-muted-foreground" />
+                <span className="flex shrink-0 items-center gap-2">
+                  <PrintMarkBadge mark={prints.data?.marks[workOrder.id]} />
+                  <Printer className="size-4 text-muted-foreground" />
+                </span>
               </Link>
             </li>
           ))
@@ -131,6 +144,8 @@ function ThpCard() {
 function TailorBookCard() {
   const tailors = usePayrollTailors()
   const [tailorId, setTailorId] = useState('')
+  const bookKey = tailorId || 'all'
+  const prints = usePrintMarks('tailor_book', [bookKey])
   return (
     <ReportCard
       icon={<NotebookTabs />}
@@ -152,6 +167,7 @@ function TailorBookCard() {
               </option>
             ))}
           </NativeSelect>
+          <PrintMarkBadge mark={prints.data?.marks[bookKey]} />
         </div>
         <Button asChild size="lg">
           <Link to="/cetak/rekap-penjahit" search={{ penjahit: tailorId || undefined }}>

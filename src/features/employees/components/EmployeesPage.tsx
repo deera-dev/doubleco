@@ -27,7 +27,15 @@ const statusLabels: Record<Employee['status'], string> = {
 }
 
 const exportColumns: CsvColumn<Employee>[] = [
-  { header: 'Jenis', value: (row) => (row.type === 'tailor' ? 'Penjahit' : 'Tukang potong') },
+  {
+    header: 'Jenis',
+    value: (row) =>
+      row.type === 'cutter'
+        ? 'Tukang potong'
+        : row.isSampleMaker
+          ? 'Penjahit, tukang sampel'
+          : 'Penjahit',
+  },
   { header: 'Kode', value: (row) => row.code },
   { header: 'Nama', value: (row) => row.name },
   { header: 'Status', value: (row) => statusLabels[row.status] },
@@ -144,6 +152,7 @@ export function EmployeesPage() {
           options={[
             { value: 'all', label: 'Semua' },
             { value: 'tailor', label: 'Penjahit' },
+            { value: 'sample', label: 'Tukang sampel' },
             { value: 'cutter', label: 'Tukang potong' },
           ]}
         />

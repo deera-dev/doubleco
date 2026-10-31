@@ -17,10 +17,13 @@ import {
   AdditionDialog,
   LockDialog,
   RepaymentDialog,
+  SamplesDialog,
   UnlockDialog,
 } from '@/features/payroll/components/PayrollDialogs'
 import { PayrollLineCard } from '@/features/payroll/components/PayrollLineCard'
 import { formatPayDay, formatWeek, shiftWeeks } from '@/features/payroll/lib/dates'
+import { usePrintMarks } from '@/features/print-settings/api'
+import { PrintMarkBadge } from '@/features/print-settings/PrintMark'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { ListSkeleton } from '@/shared/components/ListSkeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
@@ -57,6 +60,11 @@ type Dialog =
   | { kind: 'none' }
   | { kind: 'repayment'; line: PayrollLine }
   | { kind: 'addition'; line: PayrollLine | null }
+  | {
+      kind: 'samples'
+      tailor: { id: string; code: string; name: string }
+      initial: { high: number; low: number }
+    }
   | { kind: 'lock' }
   | { kind: 'unlock' }
 
@@ -138,6 +146,11 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const data = overview.data
+  const recapPrints = usePrintMarks('deposit_recap', data ? [data.payOn] : [])
+  const idleSampleMakers =
+    data?.sampleMakers.filter(
+      (tailor) => !data.lines.some((line) => line.tailorId === tailor.id),
+    ) ?? []
   const needle = labelKey(search)
   const lines = (data?.lines ?? []).filter(
     (line) =>
@@ -256,7 +269,16 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                         isLocked={isLocked}
                         payOn={data.payOn}
                         currentPayOn={data.currentPayOn}
+                        startsOn={data.startsOn}
                         onEditRepayment={() => setDialog({ kind: 'repayment', line })}
+                        onAddAddition={() => setDialog({ kind: 'addition', line })}
+                        onEditSamples={() =>
+                          setDialog({
+                            kind: 'samples',
+                            tailor: { id: line.tailorId, code: line.code, name: line.name },
+                            initial: { high: line.samples.high, low: line.samples.low },
+                          })
+                        }
                       />
                     </li>
                   ))}
@@ -269,6 +291,35 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
                 onChange={setPage}
               />
             </div>
+          )}
+
+          {/* Tukang sampel without cards this week still need a place to enter their samples. */}
+          {!data.isFuture && !isLocked && idleSampleMakers.length > 0 && (
+            <section className="surface space-y-3 rounded-3xl p-4 sm:p-5">
+              <div>
+                <h2 className="font-semibold">Tukang sampel</h2>
+                <p className="text-muted-foreground text-sm">
+                  Belum ada di gajian minggu ini. Isi sampelnya bila ada.
+                </p>
+              </div>
+              <ul className="flex flex-wrap gap-2">
+                {idleSampleMakers.map((tailor) => (
+                  <li key={tailor.id}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setDialog({ kind: 'samples', tailor, initial: { high: 0, low: 0 } })
+                      }
+                    >
+                      <span className="font-mono text-muted-foreground">{tailor.code}</span>
+                      {tailor.name}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {/* THR and bonuses come once or twice a year, so they stay out of the weekly flow. */}
@@ -288,12 +339,18 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
           {!data.isFuture && (
             <div className="action-bar hide-with-keyboard sticky bottom-28 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border p-3 lg:bottom-4">
               {data.lines.length > 0 && (
-                <Button asChild variant="outline" size="lg">
-                  <Link to="/cetak/rekap-setoran" search={{ sabtu: data.payOn }}>
-                    <Printer />
-                    Cetak rekap
-                  </Link>
-                </Button>
+                <>
+                  <PrintMarkBadge
+                    label="Rekap dicetak"
+                    mark={recapPrints.data?.marks[data.payOn]}
+                  />
+                  <Button asChild variant="outline" size="lg">
+                    <Link to="/cetak/rekap-setoran" search={{ sabtu: data.payOn }}>
+                      <Printer />
+                      Cetak rekap
+                    </Link>
+                  </Button>
+                </>
               )}
               {isLocked ? (
                 <>
@@ -334,6 +391,14 @@ export function PayrollPage({ payOn }: { payOn: string | null }) {
           {dialog.kind === 'repayment' && <RepaymentDialog line={dialog.line} onClose={close} />}
           {dialog.kind === 'addition' && (
             <AdditionDialog payOn={data.payOn} line={dialog.line} onClose={close} />
+          )}
+          {dialog.kind === 'samples' && (
+            <SamplesDialog
+              payOn={data.payOn}
+              tailor={dialog.tailor}
+              initial={dialog.initial}
+              onClose={close}
+            />
           )}
           {dialog.kind === 'lock' && <LockDialog overview={data} onClose={close} />}
           {dialog.kind === 'unlock' && <UnlockDialog payOn={data.payOn} onClose={close} />}

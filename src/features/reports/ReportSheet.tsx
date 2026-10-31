@@ -65,6 +65,8 @@ interface ReportPageProps {
   isReady: boolean
   /** Filters and notes shown above the sheets, never printed. */
   controls?: ReactNode
+  printedNote?: string
+  onPrinted?: () => void
   children: ReactNode
 }
 
@@ -75,6 +77,8 @@ export function ReportPage({
   fileName,
   isReady,
   controls,
+  printedNote,
+  onPrinted,
   children,
 }: ReportPageProps) {
   return (
@@ -90,6 +94,8 @@ export function ReportPage({
         fileName={fileName}
         isReady={isReady}
         showCalibrationLink={false}
+        printedNote={printedNote}
+        onPrinted={onPrinted}
       />
       {controls && <div className="mx-auto max-w-5xl px-4 pt-4 print:hidden">{controls}</div>}
       <div className="flex flex-col items-center gap-6 px-4 py-6 print:block print:p-0">
