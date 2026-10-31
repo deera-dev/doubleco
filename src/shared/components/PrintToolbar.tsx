@@ -31,6 +31,8 @@ interface PrintToolbarProps {
   printedNote?: string
   /** Which printer chosen in Kalibrasi Cetak takes this paper, for direct printing. */
   printerGroup: PrinterGroup
+  /** Pure black and white output (no grey), for the dot-matrix printer. */
+  monochrome?: boolean
 }
 
 /** Sheets rendered on the page carry `data-print-sheet`; each becomes one PDF page. */
@@ -51,6 +53,7 @@ export function PrintToolbar({
   showCalibrationLink = true,
   printedNote,
   printerGroup,
+  monochrome = false,
 }: PrintToolbarProps) {
   const [building, setBuilding] = useState<'print' | 'pdf' | null>(null)
   // Phones cannot print a PDF from inside a page; there it goes to the printer app instead.
@@ -60,7 +63,14 @@ export function PrintToolbar({
   const run = async (kind: 'print' | 'pdf') => {
     setBuilding(kind)
     try {
-      const file = await buildPdf({ sheets: printSheets(), widthMm, heightMm, offsets, fileName })
+      const file = await buildPdf({
+        sheets: printSheets(),
+        widthMm,
+        heightMm,
+        offsets,
+        fileName,
+        monochrome,
+      })
       onPrinted?.()
       if (kind === 'pdf') downloadFile(file)
       else if (isPhone) await shareOrDownload(file)

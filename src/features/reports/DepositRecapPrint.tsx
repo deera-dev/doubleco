@@ -31,6 +31,7 @@ interface CategoryRow {
   category: (typeof CATEGORIES)[number]
   days: number[]
   wage: number
+  pieces: number
   count: number
 }
 
@@ -50,6 +51,7 @@ function categoryRows(line: PayrollLine): CategoryRow[] {
       category,
       days,
       wage: cards.reduce((sum, card) => sum + card.wage, 0),
+      pieces: cards.reduce((sum, card) => sum + card.quantity, 0),
       count: cards.length,
     }
   })
@@ -76,14 +78,17 @@ function paginate(lines: PayrollLine[], lastPageReserve: number): PayrollLine[][
 
 /**
  * Money columns of one tailor. Total + tambahan + kasbon − cicil is the transfer (a rare
- * potongan is in the transfer too). Kasbon is only what this transfer pays out.
+ * potongan is in the transfer too). Kasbon is only what this transfer pays out; sisa kasbon is
+ * the debt left after this week's cicilan, for information.
  */
-function moneyOf(line: PayrollLine) {
+function moneyOf(line: PayrollLine, isLocked: boolean) {
   return {
     wage: line.grossWage + line.samples.amount,
     additions: line.additionTotal - line.samples.amount,
     newAdvance: line.newAdvanceTotal,
     repayment: line.advanceRepayment,
+    // Locked weeks have booked the cicilan already; open ones still take it off.
+    balance: Math.max(line.advanceBalance - (isLocked ? 0 : line.advanceRepayment), 0),
     transfer: line.transferAmount,
   }
 }
@@ -94,16 +99,25 @@ const moneyColumns: { key: keyof Money; label: string; bold?: boolean }[] = [
   { key: 'additions', label: 'Tambahan' },
   { key: 'newAdvance', label: 'Kasbon' },
   { key: 'repayment', label: 'Cicil' },
+  { key: 'balance', label: 'Sisa kasbon' },
   { key: 'transfer', label: 'Transfer', bold: true },
 ]
 
 const cell = 'border border-print-ink px-[1mm]'
 const number = `${cell} text-right tabular-nums`
 
-function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
+function TailorRows({
+  line,
+  index,
+  isLocked,
+}: {
+  line: PayrollLine
+  index: number
+  isLocked: boolean
+}) {
   const rows = categoryRows(line)
   const span = rows.length
-  const money = moneyOf(line)
+  const money = moneyOf(line, isLocked)
   return (
     <>
       {rows.map((row, rowIndex) => (
@@ -115,9 +129,7 @@ function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
               </td>
               <td rowSpan={span} className={`${cell} truncate font-bold print-text-sm`}>
                 {line.name}
-                <span className="ml-[1.5mm] font-normal text-print-muted print-text-xs">
-                  {line.code}
-                </span>
+                <span className="ml-[1.5mm] font-semibold print-text-xs">KODE {line.code}</span>
               </td>
             </>
           )}
@@ -127,6 +139,7 @@ function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
               {value || ''}
             </td>
           ))}
+          <td className={`${cell} text-center tabular-nums print-text-sm`}>{row.pieces || ''}</td>
           {rowIndex === 0 && (
             <td
               rowSpan={span}
@@ -153,8 +166,16 @@ function TailorRows({ line, index }: { line: PayrollLine; index: number }) {
 }
 
 /** Tukang sampel: one row at the bottom, samples instead of the S/M/L grid. */
-function SampleRow({ line, index }: { line: PayrollLine; index: number }) {
-  const money = moneyOf(line)
+function SampleRow({
+  line,
+  index,
+  isLocked,
+}: {
+  line: PayrollLine
+  index: number
+  isLocked: boolean
+}) {
+  const money = moneyOf(line, isLocked)
   const parts = [
     line.samples.high > 0 ? `100rb × ${line.samples.high}` : null,
     line.samples.low > 0 ? `50rb × ${line.samples.low}` : null,
@@ -165,9 +186,9 @@ function SampleRow({ line, index }: { line: PayrollLine; index: number }) {
       <td className={`${cell} text-center print-text-sm`}>{index}</td>
       <td className={`${cell} truncate font-bold print-text-sm`}>
         {line.name}
-        <span className="ml-[1.5mm] font-normal text-print-muted print-text-xs">sampel</span>
+        <span className="ml-[1.5mm] font-semibold print-text-xs">KODE {line.code} · sampel</span>
       </td>
-      <td colSpan={8} className={`${cell} print-text-sm`}>
+      <td colSpan={9} className={`${cell} print-text-sm`}>
         Sampel {parts.length > 0 ? parts.join(' · ') : '—'}
       </td>
       <td className={number}>{amount(line.samples.amount)}</td>
@@ -188,14 +209,15 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
   const sewers = (data?.lines ?? []).filter((line) => !line.isSampleMaker)
   const sampleMakers = (data?.lines ?? []).filter((line) => line.isSampleMaker)
   const pages = paginate(sewers, sampleMakers.length)
+  const isLocked = data?.status === 'locked'
   const totals = (data?.lines ?? []).reduce(
     (sum, line) => {
-      const money = moneyOf(line)
+      const money = moneyOf(line, isLocked)
       for (const column of moneyColumns) sum[column.key] += money[column.key]
       if (!line.isSampleMaker) sum.pieces += line.pieces
       return sum
     },
-    { pieces: 0, wage: 0, additions: 0, newAdvance: 0, repayment: 0, transfer: 0 },
+    { pieces: 0, wage: 0, additions: 0, newAdvance: 0, repayment: 0, balance: 0, transfer: 0 },
   )
 
   return (
@@ -227,8 +249,9 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
             paper={A4_LANDSCAPE}
             className="gap-[1.5mm] px-[7mm] py-[5mm]"
           >
-            <header className="flex items-end justify-between gap-[4mm] border-print-ink border-b-[0.4mm] pb-[1.5mm]">
-              <MaryamLogo className="h-[7mm]" />
+            <header className="flex items-center justify-between gap-[4mm] border-print-ink border-b-[0.4mm] pb-[1.5mm]">
+              {/* As tall as the title block beside it. */}
+              <MaryamLogo className="h-[10.5mm]" />
               <div className="text-right">
                 <p className="font-extrabold print-text-lg uppercase">Rekap setoran jahit</p>
                 <p className="font-semibold print-text-sm">
@@ -245,6 +268,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                 {DAYS.map((day) => (
                   <col key={day.key} className="w-[9mm]" />
                 ))}
+                <col className="w-[14mm]" />
                 <col className="w-[13mm]" />
                 <col className="w-[20mm]" />
                 {moneyColumns.map((column) => (
@@ -264,6 +288,11 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                       {day.label}
                     </th>
                   ))}
+                  <th className={cell}>
+                    Pcs per
+                    <br />
+                    kat
+                  </th>
                   <th className={cell}>Total jait</th>
                   <th className={cell}>Harga</th>
                   {moneyColumns.map((column) => (
@@ -283,15 +312,21 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                       index +
                       1
                     }
+                    isLocked={isLocked}
                   />
                 ))}
                 {pageIndex === pages.length - 1 &&
                   sampleMakers.map((line, index) => (
-                    <SampleRow key={line.id} line={line} index={sewers.length + index + 1} />
+                    <SampleRow
+                      key={line.id}
+                      line={line}
+                      index={sewers.length + index + 1}
+                      isLocked={isLocked}
+                    />
                   ))}
                 {pageIndex === pages.length - 1 && (
                   <tr className="h-[5.5mm] bg-[#eeeeee] font-bold leading-none">
-                    <td colSpan={9} className={`${cell} text-right uppercase`}>
+                    <td colSpan={10} className={`${cell} text-right uppercase`}>
                       Total
                     </td>
                     <td className={`${cell} text-center tabular-nums print-text-sm`}>
@@ -312,8 +347,7 @@ export function DepositRecapPrint({ payOn }: { payOn: string }) {
                 Belum ada setoran minggu ini.
               </p>
             )}
-            <footer className="mt-auto flex justify-between text-print-muted print-text-xs">
-              <span>{data.status === 'locked' ? 'Gajian dikunci' : 'Gajian belum dikunci'}</span>
+            <footer className="mt-auto flex justify-end text-print-muted print-text-xs">
               <span>
                 Hal {pageIndex + 1}/{pages.length}
               </span>

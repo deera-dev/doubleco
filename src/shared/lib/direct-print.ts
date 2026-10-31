@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { callAction } from '@/shared/lib/bff-action'
 
-export type PrinterGroup = 'sewing_card' | 'work_order_card' | 'report'
+export type PrinterGroup = 'sewing_card' | 'work_order_card' | 'thp' | 'report'
 
 export interface DirectPrintSettings {
   enabled: boolean

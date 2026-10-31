@@ -10,7 +10,8 @@ import { cn } from '@/shared/lib/utils'
 const groups: { group: PrinterGroup; label: string; paper: string }[] = [
   { group: 'sewing_card', label: 'Kartu jahit', paper: 'kertas 6×10 cm' },
   { group: 'work_order_card', label: 'Kartu WO', paper: 'kertas 12×16 cm' },
-  { group: 'report', label: 'Laporan (THP, rekap)', paper: 'kertas A4' },
+  { group: 'thp', label: 'THP (printer rangkap)', paper: 'kertas 24×27,7 cm' },
+  { group: 'report', label: 'Laporan rekap', paper: 'kertas A4' },
 ]
 
 type Connection =
@@ -85,7 +86,7 @@ export function DirectPrintSettings() {
         description="Kalau QZ Tray mati, tombol Cetak otomatis kembali ke dialog cetak biasa."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {groups.map(({ group, label, paper }) => {
           const chosen = settings.printers[group] ?? ''
           // Keep a saved printer visible even before QZ Tray answers.

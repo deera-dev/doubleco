@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { PrintToolbar } from '@/shared/components/PrintToolbar'
+import type { PrinterGroup } from '@/shared/lib/direct-print'
 import { cn } from '@/shared/lib/utils'
 
 const CSS_PX_PER_MM = 96 / 25.4
@@ -12,6 +13,8 @@ export interface Paper {
 
 export const A4_PORTRAIT: Paper = { label: 'A4', width: 210, height: 297 }
 export const A4_LANDSCAPE: Paper = { label: 'A4 mendatar', width: 297, height: 210 }
+/** THP: continuous form for the Epson LQ-310, 24 × 27,7 cm. */
+export const THP_PAPER: Paper = { label: '24 × 27,7 cm', width: 240, height: 277 }
 
 /** Shrinks a sheet wider than the screen; printing and the PDF always use the real size. */
 function useSheetScale(widthMm: number) {
@@ -67,6 +70,10 @@ interface ReportPageProps {
   controls?: ReactNode
   printedNote?: string
   onPrinted?: () => void
+  /** Which printer from Kalibrasi Cetak takes this paper. */
+  printerGroup?: PrinterGroup
+  /** Pure black and white output, for the dot-matrix printer. */
+  monochrome?: boolean
   children: ReactNode
 }
 
@@ -79,6 +86,8 @@ export function ReportPage({
   controls,
   printedNote,
   onPrinted,
+  printerGroup = 'report',
+  monochrome = false,
   children,
 }: ReportPageProps) {
   return (
@@ -94,7 +103,8 @@ export function ReportPage({
         fileName={fileName}
         isReady={isReady}
         showCalibrationLink={false}
-        printerGroup="report"
+        printerGroup={printerGroup}
+        monochrome={monochrome}
         printedNote={printedNote}
         onPrinted={onPrinted}
       />
