@@ -216,6 +216,11 @@ function CardsPanel() {
             { value: 'taken', label: 'Di penjahit', count: cards.data?.summary.taken },
             { value: 'submitted', label: 'Disetor', count: cards.data?.summary.submitted },
             { value: 'paid', label: 'Dibayar', count: cards.data?.summary.paid },
+            {
+              value: 'unfinished',
+              label: 'Belum tuntas',
+              count: cards.data?.summary.unfinished,
+            },
             { value: 'all', label: 'Semua', count: cards.data?.summary.all },
           ]}
         />

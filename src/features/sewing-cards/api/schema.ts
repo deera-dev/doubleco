@@ -15,6 +15,8 @@ export const sewingCardSchema = z.object({
   submittedAt: z.string().nullable(),
   submittedIncomplete: z.boolean(),
   remainingNotes: z.string().nullable(),
+  /** Belum tuntas: handed in before it was 100% done, the rest not in yet. */
+  remainingPending: z.boolean().default(false),
   inspectionStatus: z.enum(['pending', 'in_repair', 'done']),
   category,
   wageAmount: z.number(),
@@ -38,6 +40,7 @@ export const cardListSchema = z.object({
     taken: z.number(),
     submitted: z.number(),
     paid: z.number(),
+    unfinished: z.number().default(0),
     cancelled: z.number(),
     all: z.number(),
   }),

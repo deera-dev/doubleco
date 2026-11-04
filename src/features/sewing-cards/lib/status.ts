@@ -10,6 +10,12 @@ export const cardStatusMeta: Record<CardStatus, { label: string; className: stri
   },
 }
 
+/** Red marking for a card handed in before it was 100% done. */
+export const unfinishedMeta = {
+  label: 'Belum tuntas',
+  className: 'border-destructive/40 bg-destructive/15 text-destructive',
+}
+
 export function cardPrintSearch(numbers: string[]): { nomor: string } {
   return { nomor: numbers.join(',') }
 }
