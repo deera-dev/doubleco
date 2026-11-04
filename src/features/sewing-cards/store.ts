@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { CardStatus, SewingCard } from '@/features/sewing-cards/api/schema'
 
-/** `unfinished` is Belum tuntas: paid cards whose remaining work is not in yet. */
+/** `unfinished` is Belum tuntas: handed-in or paid cards whose remaining work is not in yet. */
 export type CardStatusFilter = CardStatus | 'unfinished' | 'all'
 export type CuttingTab = 'ready' | 'cards'
 
