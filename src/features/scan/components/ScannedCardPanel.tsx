@@ -337,14 +337,13 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
         {card.remainingPending && card.status !== 'cancelled' && (
           <Button
             type="button"
-            variant="outline"
             size="lg"
-            className="border-destructive/50 text-destructive hover:bg-destructive/10"
+            className="font-semibold"
             disabled={deliver.isPending}
             onClick={markComplete}
           >
             <CheckCheck />
-            {deliver.isPending ? 'Menyimpan…' : 'Sudah lengkap'}
+            {deliver.isPending ? 'Menyimpan…' : 'Tandai lengkap'}
           </Button>
         )}
         {canInspect && (
