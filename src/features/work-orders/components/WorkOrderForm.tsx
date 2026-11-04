@@ -25,6 +25,11 @@ import {
   previewProductCode,
 } from '@/features/work-orders/lib/product-code'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
+import {
+  followsProduct,
+  isOriginalProduct,
+  nextWorkOrderNumber,
+} from '@/features/work-orders/lib/work-order-number'
 import { ChipToggleGroup } from '@/shared/components/ChipToggleGroup'
 import { ConfirmWarningsDialog } from '@/shared/components/ConfirmWarningsDialog'
 import { LabelChipPicker } from '@/shared/components/LabelChipPicker'
@@ -172,18 +177,30 @@ function useDebouncedValue(value: string, delay = 400) {
   return debounced
 }
 
-function useSuggestedNumber(form: WorkOrderForm, isCreating: boolean) {
+/**
+ * The WO number follows the product code: filled in on a new WO, and renamed when an edit changes
+ * the product (WO_W-118 BLS → WO_W-120 BLS). A number typed by hand, or an old one that never had
+ * the product code in it, is left alone.
+ */
+function useSuggestedNumber(form: WorkOrderForm, workOrder: WorkOrder | null) {
   const product = useDebouncedValue(
     composeProductCode(form.watch('cutter'), form.watch('productNumber'), form.watch('fabricCode')),
   )
-  const suggestion = useNumberSuggestion(product, isCreating)
+  const suggestion = useNumberSuggestion(
+    product,
+    followsProduct(workOrder) && !isOriginalProduct(workOrder, product),
+  )
   const suggested = suggestion.data?.number
 
   useEffect(() => {
-    if (suggested && !form.getFieldState('number').isDirty) {
-      form.setValue('number', suggested)
-    }
-  }, [suggested, form])
+    const next = nextWorkOrderNumber({
+      original: workOrder,
+      product,
+      suggested,
+      isTypedByHand: form.getFieldState('number').isDirty,
+    })
+    if (next !== null && next !== form.getValues('number')) form.setValue('number', next)
+  }, [suggested, product, workOrder, form])
 }
 
 /** Kode produk = cutter initial – product number + fabric code, built right where it is typed. */
@@ -774,7 +791,7 @@ export function WorkOrderForm({ workOrder }: { workOrder: WorkOrder | null }) {
     defaultValues: defaultsFor(workOrder),
     shouldFocusError: false,
   })
-  useSuggestedNumber(form, workOrder === null)
+  useSuggestedNumber(form, workOrder)
 
   // Waits for every error to render (react-hook-form publishes schema errors after onInvalid),
   // so the scroll lands on the first missing field in page order.
