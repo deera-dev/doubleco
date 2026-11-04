@@ -38,7 +38,7 @@ jobs:
         # The bundler fetches supabase-js from jsr.io and sometimes times out; retry before failing.
         run: |
           for attempt in 1 2 3; do
-            supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api && exit 0
+            supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes && exit 0
             echo "::warning::Deploy attempt $attempt failed, retrying in 30s"
             sleep 30
           done

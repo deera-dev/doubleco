@@ -3,10 +3,10 @@
 
 -- 1. One flag the card lists can filter and count on.
 alter table public.sewing_cards
-  add column remaining_pending boolean
+  add column if not exists remaining_pending boolean
   generated always as (submitted_incomplete and remaining_delivered_on is null) stored;
 
-create index sewing_cards_remaining_pending_idx on public.sewing_cards (status)
+create index if not exists sewing_cards_remaining_pending_idx on public.sewing_cards (status)
   where remaining_pending;
 
 -- 2. Marking a card as not yet done no longer asks how much is left; a note stays optional.
