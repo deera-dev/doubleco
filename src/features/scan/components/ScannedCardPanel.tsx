@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
   Ban,
+  CheckCheck,
   CircleCheck,
   ClipboardCheck,
   OctagonAlert,
@@ -14,7 +15,11 @@ import { InspectionPanel } from '@/features/scan/components/InspectionPanel'
 import { signal } from '@/features/scan/lib/feedback'
 import { formatSubmittedAt } from '@/features/scan/lib/format'
 import { type ScanMode, useScanUiStore } from '@/features/scan/store'
-import { useSubmitCard, useUnsubmitCard } from '@/features/sewing-cards/api/mutations'
+import {
+  useDeliverRemaining,
+  useSubmitCard,
+  useUnsubmitCard,
+} from '@/features/sewing-cards/api/mutations'
 import type { ScannedCard, ScanTailor } from '@/features/sewing-cards/api/schema'
 import { cardPrintSearch, cardStatusMeta } from '@/features/sewing-cards/lib/status'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
@@ -107,11 +112,10 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
   const [tailorText, setTailorText] = useState(initialTailor ? tailorLabel(initialTailor) : '')
   const [submittedOn, setSubmittedOn] = useState(today)
   const [isIncomplete, setIsIncomplete] = useState(false)
-  const [notes, setNotes] = useState('')
   const [isConfirming, setIsConfirming] = useState(false)
   const tailor = resolveTailor(tailors, tailorText)
   const warnings = confirmationWarnings(submitCard.error)
-  const canSubmit = tailor !== undefined && (!isIncomplete || notes.trim() !== '')
+  const canSubmit = tailor !== undefined
 
   const save = (confirmed: boolean) => {
     if (!tailor) return
@@ -121,7 +125,7 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
         tailorId: tailor.id === card.tailorId ? null : tailor.id,
         submittedOn,
         incomplete: isIncomplete,
-        remainingNotes: isIncomplete ? notes.trim() : null,
+        remainingNotes: null,
         confirmed,
         reason: confirmed ? 'Dikonfirmasi saat scan setor' : null,
       },
@@ -186,19 +190,8 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
         checked={isIncomplete}
         onCheckedChange={setIsIncomplete}
         label="Belum selesai 100%"
-        description="Tetap dibayar penuh. Sisa pekerjaan dipantau sampai diserahkan."
+        description="Tetap dibayar penuh. Kartu ditandai Belum tuntas sampai sisanya disetor."
       />
-      {isIncomplete && (
-        <div className="space-y-2">
-          <Label htmlFor="scan-notes">Sisa pekerjaan</Label>
-          <Textarea
-            id="scan-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Mis. 3 pcs belum dipasang kancing"
-          />
-        </div>
-      )}
       {submitCard.error && !warnings && (
         <p role="alert" className="text-destructive text-sm">
           {describeError(submitCard.error)}
@@ -284,6 +277,19 @@ function UnsubmitDialog({ card, onClose }: { card: ScannedCard; onClose: () => v
 function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
   const [isUnsubmitting, setIsUnsubmitting] = useState(false)
   const setMode = useScanUiStore((state) => state.setMode)
+  const deliver = useDeliverRemaining()
+  const markComplete = () =>
+    deliver.mutate(
+      { number: card.number },
+      {
+        onSuccess: () => {
+          signal('saved')
+          toast.success(`${card.number} lengkap`)
+          onDone()
+        },
+        onError: (error) => toast.error(describeError(error)),
+      },
+    )
   const canInspect = card.status !== 'cancelled' && card.inspectionStatus !== 'done'
   const title =
     card.status === 'cancelled'
@@ -314,8 +320,8 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
               ]
                 .filter(Boolean)
                 .join(' · ')}
-              {card.submittedIncomplete && card.remainingNotes
-                ? `. Belum selesai: ${card.remainingNotes}`
+              {card.remainingPending
+                ? `. Belum tuntas${card.remainingNotes ? `: ${card.remainingNotes}` : ''}`
                 : ''}
             </p>
           )}
@@ -326,6 +332,19 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
           <Button type="button" variant="ghost" size="lg" onClick={() => setIsUnsubmitting(true)}>
             <Undo2 />
             Batalkan setoran
+          </Button>
+        )}
+        {card.remainingPending && card.status !== 'cancelled' && (
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10"
+            disabled={deliver.isPending}
+            onClick={markComplete}
+          >
+            <CheckCheck />
+            {deliver.isPending ? 'Menyimpan…' : 'Sudah lengkap'}
           </Button>
         )}
         {canInspect && (

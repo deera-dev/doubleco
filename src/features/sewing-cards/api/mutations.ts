@@ -47,6 +47,12 @@ export const useCancelCard = () =>
     callAction('sewing-cards', 'cancel', cardNumberSchema, input),
   )
 
+/** The rest of a Belum tuntas card came in: back to plain Disetor / Dibayar. */
+export const useDeliverRemaining = () =>
+  useCardAction((input: { number: string }) =>
+    callAction('sewing-cards', 'deliver_remaining', cardNumberSchema, input),
+  )
+
 export const useRecordPrint = () =>
   useCardAction((input: { numbers: string[] }) =>
     callAction('sewing-cards', 'record_print', countSchema, input),

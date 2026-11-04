@@ -74,6 +74,8 @@ const businessMessages: Record<string, string> = {
     'Catatan ini bagian dari gajian yang sudah dikunci. Buka kunci gajian Sabtu itu dulu, lalu hapus.',
   SUBMITTED_BEFORE_TAKEN: 'Tanggal setor tidak boleh sebelum tanggal ambil.',
   REMAINING_NOTES_REQUIRED: 'Tulis sisa pekerjaan yang belum selesai.',
+  CARD_NOT_INCOMPLETE: 'Kartu ini tidak ditandai belum selesai.',
+  REMAINING_ALREADY_DELIVERED: 'Kartu ini sudah ditandai lengkap.',
   COLOR_NOT_IN_FABRIC: 'Warna tidak sesuai dengan bahan WO.',
   REASON_REQUIRED: 'Alasan wajib diisi.',
   WORK_ORDER_HAS_PAID_CARDS:

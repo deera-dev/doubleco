@@ -22,6 +22,7 @@ interface CardRow {
   submitted_by: string | null
   submitted_incomplete: boolean
   remaining_notes: string | null
+  remaining_pending: boolean
   inspection_status: 'pending' | 'in_repair' | 'done'
   tailors: { id: string; code: string; name: string } | null
   work_order_items: {
@@ -40,7 +41,8 @@ interface CardRow {
 
 const cardSelect = `
   id, number, quantity, taken_on, status, wage_category, wage_amount, print_count, submitted_on,
-  submitted_at, submitted_by, submitted_incomplete, remaining_notes, inspection_status,
+  submitted_at, submitted_by, submitted_incomplete, remaining_notes, remaining_pending,
+  inspection_status,
   tailors(id, code, name),
   work_order_items!inner(id, work_order_id, sizes(name), fabric_colors(name),
     work_orders(id, number, products(code, name), cutters(name), fabric:fabrics!work_orders_fabric_id_fkey(name)))
@@ -58,6 +60,7 @@ function shapeCard(row: CardRow) {
     submittedAt: row.submitted_at,
     submittedIncomplete: row.submitted_incomplete,
     remainingNotes: row.remaining_notes,
+    remainingPending: row.remaining_pending,
     inspectionStatus: row.inspection_status,
     category: row.wage_category,
     wageAmount: Number(row.wage_amount),
@@ -306,7 +309,8 @@ const issueForWorkOrder = defineAction({
 
 const list = defineAction({
   input: z.object({
-    status: z.enum([...cardStatuses, 'all']).default('taken'),
+    // `unfinished` (Belum tuntas): paid, but part of the work is still to be handed in.
+    status: z.enum([...cardStatuses, 'unfinished', 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
     tailorId: uuid.nullable().default(null),
@@ -353,8 +357,12 @@ const list = defineAction({
     }
     // Cancelled cards are left out of "all": they only clutter the lists.
     // deno-lint-ignore no-explicit-any
-    const byStatus = (query: any, value: typeof input.status) =>
-      value === 'all' ? query.neq('status', 'cancelled') : query.eq('status', value)
+    const byStatus = (query: any, value: typeof input.status) => {
+      if (value === 'all') return query.neq('status', 'cancelled')
+      if (value === 'unfinished') return query.eq('status', 'paid').eq('remaining_pending', true)
+      if (value === 'paid') return query.eq('status', 'paid').eq('remaining_pending', false)
+      return query.eq('status', value)
+    }
     const count = async (value: typeof input.status) => {
       const { count: total, error } = await byStatus(
         filtered(supabase.from('sewing_cards').select('id, work_order_items!inner(id)', { count: 'exact', head: true })),
@@ -365,7 +373,7 @@ const list = defineAction({
     }
 
     const from = (input.page - 1) * input.pageSize
-    const [rows, taken, submitted, paid, cancelled, all] = await Promise.all([
+    const [rows, taken, submitted, paid, unfinished, cancelled, all] = await Promise.all([
       byStatus(filtered(supabase.from('sewing_cards').select(cardSelect, { count: 'exact' })), input.status)
         .order('taken_on', { ascending: false })
         .order('number', { ascending: false })
@@ -373,11 +381,12 @@ const list = defineAction({
       count('taken'),
       count('submitted'),
       count('paid'),
+      count('unfinished'),
       count('cancelled'),
       count('all'),
     ])
     return {
-      summary: { taken, submitted, paid, cancelled, all },
+      summary: { taken, submitted, paid, unfinished, cancelled, all },
       total: rows.count ?? 0,
       page: input.page,
       pageSize: input.pageSize,
@@ -511,6 +520,16 @@ const submit = defineAction({
   },
 })
 
+/** The rest of a "belum selesai 100%" card came in: the card counts as complete again. */
+const deliverRemaining = defineAction({
+  input: z.object({ number: cardNumber }),
+  run: async ({ number }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('deliver_card_remaining', { p_number: number }))
+    return { number }
+  },
+})
+
 const quantity = z.number().int().min(0).max(100_000)
 
 const inspect = defineAction({
@@ -596,6 +615,7 @@ serveActions({
   list,
   update,
   cancel,
+  deliver_remaining: deliverRemaining,
   print: printData,
   record_print: recordPrint,
   scan_options: scanOptions,
