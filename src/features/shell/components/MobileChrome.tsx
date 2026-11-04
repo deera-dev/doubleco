@@ -7,10 +7,12 @@ import { announceSoon } from '@/features/shell/components/NavigationEntry'
 import { Avatar, useSignOutAndLeave } from '@/features/shell/components/UserMenu'
 import { roleLabel } from '@/features/shell/lib/roles'
 import {
+  cuttingItem,
   homeItem,
   type NavigationItem,
   navigationSections,
   payrollItem,
+  reportsItem,
   scanItem,
   workOrderItem,
 } from '@/features/shell/navigation'
@@ -61,7 +63,7 @@ export function MobileTopBar({ me }: { me: Me }) {
 
 function DockEntry({ item }: { item: NavigationItem }) {
   const className =
-    'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground transition-all duration-200 active:scale-90'
+    'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] text-muted-foreground transition-all duration-200 active:scale-90'
   const content = (
     <>
       <item.icon className="size-5" />
@@ -96,7 +98,10 @@ export function BottomDock() {
   useBackToClose(isMoreOpen, () => setIsMoreOpen(false))
   const moreItems = navigationSections
     .flatMap((section) => section.items)
-    .filter((item) => ![homeItem, scanItem, workOrderItem, payrollItem].includes(item))
+    .filter(
+      (item) =>
+        ![homeItem, scanItem, workOrderItem, cuttingItem, payrollItem, reportsItem].includes(item),
+    )
 
   return (
     <nav
@@ -137,8 +142,9 @@ export function BottomDock() {
       <div className="surface chrome flex items-stretch rounded-3xl bg-popover/90 px-1">
         <DockEntry item={homeItem} />
         <DockEntry item={workOrderItem} />
-        <div className="flex flex-1 items-start justify-center">
-          <span className="-mt-5 animate-pulse-ring rounded-2xl">
+        <DockEntry item={cuttingItem} />
+        <div className="flex w-16 shrink-0 items-start justify-center">
+          <span className="-mt-5 shrink-0 animate-pulse-ring rounded-2xl">
             <Link
               to="/scan"
               aria-label={scanItem.title}
@@ -149,12 +155,13 @@ export function BottomDock() {
           </span>
         </div>
         <DockEntry item={payrollItem} />
+        <DockEntry item={reportsItem} />
         <button
           type="button"
           onClick={() => setIsMoreOpen((open) => !open)}
           aria-expanded={isMoreOpen}
           className={cn(
-            'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground',
+            'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] text-muted-foreground',
             isMoreOpen && 'text-foreground',
           )}
         >

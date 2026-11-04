@@ -309,7 +309,7 @@ const issueForWorkOrder = defineAction({
 
 const list = defineAction({
   input: z.object({
-    // `unfinished` (Belum tuntas): paid, but part of the work is still to be handed in.
+    // `unfinished` (Belum tuntas): handed in or paid, but part of the work is still to come in.
     status: z.enum([...cardStatuses, 'unfinished', 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
@@ -359,7 +359,9 @@ const list = defineAction({
     // deno-lint-ignore no-explicit-any
     const byStatus = (query: any, value: typeof input.status) => {
       if (value === 'all') return query.neq('status', 'cancelled')
-      if (value === 'unfinished') return query.eq('status', 'paid').eq('remaining_pending', true)
+      if (value === 'unfinished') {
+        return query.in('status', ['submitted', 'paid']).eq('remaining_pending', true)
+      }
       if (value === 'paid') return query.eq('status', 'paid').eq('remaining_pending', false)
       return query.eq('status', value)
     }
@@ -375,6 +377,8 @@ const list = defineAction({
     const from = (input.page - 1) * input.pageSize
     const [rows, taken, submitted, paid, unfinished, cancelled, all] = await Promise.all([
       byStatus(filtered(supabase.from('sewing_cards').select(cardSelect, { count: 'exact' })), input.status)
+        // Belum tuntas first, so the cards still owed work are seen before anything else.
+        .order('remaining_pending', { ascending: false })
         .order('taken_on', { ascending: false })
         .order('number', { ascending: false })
         .range(from, from + input.pageSize - 1),
