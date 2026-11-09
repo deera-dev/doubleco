@@ -1,5 +1,6 @@
--- CMT luar: outside sewing workshops that take sewing cards too. They are paid per WO at their
--- own price per pcs (not the S/M/L rates), outside the Saturday payroll, and show on the THP.
+-- CMT luar: outside sewing workshops that take sewing cards too. Each CMT has its own S/M/L price
+-- per pcs; a card it sews takes that price for the card's category. CMT cards stay outside the
+-- Saturday payroll and show on the THP.
 
 -- 1. The CMT list (Master Data).
 create table if not exists public.cmt_vendors (
@@ -10,6 +11,22 @@ create table if not exists public.cmt_vendors (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.cmt_vendors
+  add column if not exists rate_s bigint not null default 0 check (rate_s >= 0),
+  add column if not exists rate_m bigint not null default 0 check (rate_m >= 0),
+  add column if not exists rate_l bigint not null default 0 check (rate_l >= 0);
+
+-- The CMT's price per pcs for a card category.
+create or replace function public.cmt_rate_for(p_cmt_vendor_id uuid, p_category public.wage_category)
+returns bigint
+language sql
+stable
+set search_path = ''
+as $$
+  select case p_category when 'S' then rate_s when 'M' then rate_m else rate_l end
+  from public.cmt_vendors where id = p_cmt_vendor_id
+$$;
 
 create unique index if not exists cmt_vendors_code_key_idx on public.cmt_vendors (public.label_key(code));
 
@@ -45,32 +62,15 @@ for delete to authenticated using (public.has_role('production_head'));
 
 grant select, insert, update, delete on public.cmt_vendors to authenticated;
 
--- 2. The CMT price per pcs, per WO.
-alter table public.work_orders add column if not exists cmt_rate bigint check (cmt_rate > 0);
-
-create or replace function public.set_work_order_cmt_rate(p_work_order_id uuid, p_rate bigint)
-returns void
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  perform public.require_role('production_head');
-  if p_rate is not null and (p_rate <= 0 or p_rate > 10000000) then
-    perform public.raise_app_error('INVALID_AMOUNT');
-  end if;
-  update public.work_orders set cmt_rate = p_rate where id = p_work_order_id;
-  if not found then
-    perform public.raise_app_error('NOT_FOUND');
-  end if;
-end;
-$$;
-
-grant execute on function public.set_work_order_cmt_rate(uuid, bigint) to authenticated;
+-- 2. No price per WO: the price comes from the CMT's S/M/L list (an earlier draft had one).
+drop function if exists public.set_work_order_cmt_rate(uuid, bigint);
+alter table public.work_orders drop column if exists cmt_rate;
 
 -- 3. A card is sewn by a tailor or by a CMT, never both.
 alter table public.sewing_cards
-  add column if not exists cmt_vendor_id uuid references public.cmt_vendors (id);
+  add column if not exists cmt_vendor_id uuid references public.cmt_vendors (id),
+  -- The CMT price per pcs when the card was handed to the CMT, so later price changes keep history.
+  add column if not exists cmt_rate bigint;
 
 alter table public.sewing_cards drop constraint if exists sewing_cards_one_maker;
 alter table public.sewing_cards
@@ -148,6 +148,8 @@ begin
   set status = 'submitted',
       tailor_id = case when p_cmt_vendor_id is not null then null else coalesce(p_tailor_id, tailor_id) end,
       cmt_vendor_id = p_cmt_vendor_id,
+      cmt_rate = case when p_cmt_vendor_id is not null
+        then public.cmt_rate_for(p_cmt_vendor_id, wage_category) end,
       submitted_on = submitted,
       submitted_at = now(),
       submitted_by = auth.uid(),
@@ -215,6 +217,11 @@ begin
       cmt_vendor_id = case
         when p_tailor_id is not null then null
         else coalesce(p_cmt_vendor_id, cmt_vendor_id)
+      end,
+      cmt_rate = case
+        when p_tailor_id is not null then null
+        when p_cmt_vendor_id is not null then public.cmt_rate_for(p_cmt_vendor_id, wage_category)
+        else cmt_rate
       end,
       -- Another maker: the card leaves the old payroll line; a tailor's joins on the next rekap.
       payroll_line_id = case when maker_changed then null else payroll_line_id end

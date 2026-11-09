@@ -22,6 +22,8 @@ export const cmtSchema = z.object({
   id: z.string().uuid(),
   code: z.string(),
   name: z.string(),
+  /** Price per pcs for each card category. */
+  rates: z.object({ S: z.number(), M: z.number(), L: z.number() }).default({ S: 0, M: 0, L: 0 }),
   isActive: z.boolean(),
 })
 

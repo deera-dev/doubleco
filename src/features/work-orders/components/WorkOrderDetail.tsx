@@ -8,7 +8,7 @@ import { WorkOrderCards } from '@/features/sewing-cards/components/WorkOrderCard
 import { useDeleteWorkOrder, useForceDeleteWorkOrder } from '@/features/work-orders/api/mutations'
 import { useWorkOrder } from '@/features/work-orders/api/queries'
 import type { WorkOrder } from '@/features/work-orders/api/schema'
-import { CmtRateField } from '@/features/work-orders/components/CmtRateField'
+import { CmtPrices } from '@/features/work-orders/components/CmtPrices'
 import { CutResults } from '@/features/work-orders/components/CutResults'
 import { SamplePhoto } from '@/features/work-orders/components/SamplePhoto'
 import { WorkOrderDialogs } from '@/features/work-orders/components/WorkOrderDialogs'
@@ -220,7 +220,7 @@ function Details({ workOrder }: { workOrder: WorkOrder }) {
         <dt className="text-muted-foreground text-xs">Info lanjutan</dt>
         <dd className="text-sm">{workOrder.additionalInfo ?? '—'}</dd>
       </div>
-      <CmtRateField key={workOrder.cmtRate ?? 'none'} workOrder={workOrder} />
+      <CmtPrices workOrder={workOrder} />
     </section>
   )
 }

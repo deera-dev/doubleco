@@ -38,9 +38,13 @@ export const useSavePattern = () =>
   useMasterDataAction<{ id: string | null; code: string; isActive: boolean }>('save_pattern')
 
 export const useSaveCmt = () =>
-  useMasterDataAction<{ id: string | null; code: string; name: string; isActive: boolean }>(
-    'save_cmt',
-  )
+  useMasterDataAction<{
+    id: string | null
+    code: string
+    name: string
+    rates: Record<WageCategory, number>
+    isActive: boolean
+  }>('save_cmt')
 
 export const useSaveFabric = () =>
   useMasterDataAction<{

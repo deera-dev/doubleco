@@ -21,7 +21,6 @@ interface WorkOrderRow {
   change_notes: string | null
   additional_info: string | null
   sample_photo_public_id: string | null
-  cmt_rate: number | null
   status: (typeof statusValues)[number]
   created_at: string
   product_id: string
@@ -48,7 +47,7 @@ interface WorkOrderRow {
 
 const workOrderSelect = `
   id, number, ordered_on, pattern_id, fabric_combination_id, change_status, change_notes,
-  additional_info, sample_photo_public_id, cmt_rate, status, created_at, product_id, fabric_id, cutter_id,
+  additional_info, sample_photo_public_id, status, created_at, product_id, fabric_id, cutter_id,
   products(code, name, wage_category), patterns(code), cutters(name),
   fabric_series_id, series:fabric_series(name),
   fabric:fabrics!work_orders_fabric_id_fkey(name),
@@ -107,7 +106,6 @@ function shape(row: WorkOrderRow) {
     changeStatus: row.change_status,
     changeNotes: row.change_notes,
     additionalInfo: row.additional_info,
-    cmtRate: row.cmt_rate === null ? null : Number(row.cmt_rate),
     sizes: unique(sizes.map((size) => size.name)),
     colors: unique(items.flatMap((item) => (item.colorName ? [item.colorName] : []))).sort(),
     items,
@@ -560,16 +558,6 @@ const thpData = defineAction({
   },
 })
 
-/** Price per pcs for a CMT luar sewing this WO; null clears it. */
-const setCmtRate = defineAction({
-  input: z.object({ id: uuid, rate: z.number().int().positive().max(10_000_000).nullable() }),
-  run: async ({ id, rate }, request) => {
-    const supabase = createUserClient(request)
-    unwrap(await supabase.rpc('set_work_order_cmt_rate', { p_work_order_id: id, p_rate: rate }))
-    return { id }
-  },
-})
-
 const photoUploadUrl = defineAction({
   input: z.object({ id: uuid, contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']) }),
   run: async ({ id, contentType }, request) => {
@@ -627,7 +615,6 @@ serveActions({
   force_delete: forceDelete,
   print: printData,
   thp: thpData,
-  set_cmt_rate: setCmtRate,
   photo_upload_url: photoUploadUrl,
   set_photo: setPhoto,
   remove_photo: removePhoto,

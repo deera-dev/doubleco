@@ -49,6 +49,8 @@ export function CardRow({
       className={cn(
         'surface rounded-2xl transition-colors',
         isSelected && 'border-brand-400/50 bg-brand-500/10',
+        // CMT luar cards: an amber frame tells them apart without another status.
+        card.cmtId && !isUnfinished && 'border-warning/60! bg-warning/5',
         isUnfinished && 'border-destructive/70! bg-destructive/5',
         card.status === 'cancelled' && 'opacity-60',
       )}
@@ -86,11 +88,7 @@ export function CardRow({
             >
               {card.cmtName ?? card.tailorName ?? 'Belum dicatat'}
             </span>
-            {card.cmtName && (
-              <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-warning text-xs">
-                CMT luar
-              </span>
-            )}
+
             <span className={cn('rounded-full border px-2 py-0.5 text-xs', status.className)}>
               {status.label}
             </span>

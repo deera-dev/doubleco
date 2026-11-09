@@ -26,6 +26,7 @@ interface CardRow {
   inspection_status: 'pending' | 'in_repair' | 'done'
   tailors: { id: string; code: string; name: string } | null
   cmt_vendors: { id: string; code: string; name: string } | null
+  cmt_rate: number | null
   work_order_items: {
     id: string
     sizes: { name: string } | null
@@ -43,7 +44,7 @@ interface CardRow {
 const cardSelect = `
   id, number, quantity, taken_on, status, wage_category, wage_amount, print_count, submitted_on,
   submitted_at, submitted_by, submitted_incomplete, remaining_notes, remaining_pending,
-  inspection_status,
+  inspection_status, cmt_rate,
   tailors(id, code, name), cmt_vendors(id, code, name),
   work_order_items!inner(id, work_order_id, sizes(name), fabric_colors(name),
     work_orders(id, number, products(code, name), cutters(name), fabric:fabrics!work_orders_fabric_id_fkey(name)))
@@ -73,6 +74,7 @@ function shapeCard(row: CardRow) {
     cmtId: row.cmt_vendors?.id ?? null,
     cmtCode: row.cmt_vendors?.code ?? null,
     cmtName: row.cmt_vendors?.name ?? null,
+    cmtRate: row.cmt_rate === null ? null : Number(row.cmt_rate),
     workOrderItemId: row.work_order_items?.id ?? '',
     sizeName: row.work_order_items?.sizes?.name ?? '-',
     colorName: row.work_order_items?.fabric_colors?.name ?? null,
@@ -315,8 +317,7 @@ const issueForWorkOrder = defineAction({
 const list = defineAction({
   input: z.object({
     // `unfinished` (Belum tuntas): handed in or paid, but part of the work is still to come in.
-    // `cmt`: cards sewn by a CMT luar. They are never paid through payroll, so they leave Disetor.
-    status: z.enum([...cardStatuses, 'unfinished', 'cmt', 'all']).default('taken'),
+    status: z.enum([...cardStatuses, 'unfinished', 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
     tailorId: uuid.nullable().default(null),
@@ -372,8 +373,6 @@ const list = defineAction({
         return query.in('status', ['submitted', 'paid']).eq('remaining_pending', true)
       }
       if (value === 'paid') return query.eq('status', 'paid').eq('remaining_pending', false)
-      if (value === 'submitted') return query.eq('status', 'submitted').is('cmt_vendor_id', null)
-      if (value === 'cmt') return query.neq('status', 'cancelled').not('cmt_vendor_id', 'is', null)
       return query.eq('status', value)
     }
     const count = async (value: typeof input.status) => {
@@ -386,7 +385,7 @@ const list = defineAction({
     }
 
     const from = (input.page - 1) * input.pageSize
-    const [rows, taken, submitted, paid, unfinished, cmt, cancelled, all] = await Promise.all([
+    const [rows, taken, submitted, paid, unfinished, cancelled, all] = await Promise.all([
       byStatus(filtered(supabase.from('sewing_cards').select(cardSelect, { count: 'exact' })), input.status)
         // Belum tuntas first, so the cards still owed work are seen before anything else.
         .order('remaining_pending', { ascending: false })
@@ -397,12 +396,11 @@ const list = defineAction({
       count('submitted'),
       count('paid'),
       count('unfinished'),
-      count('cmt'),
       count('cancelled'),
       count('all'),
     ])
     return {
-      summary: { taken, submitted, paid, unfinished, cmt, cancelled, all },
+      summary: { taken, submitted, paid, unfinished, cancelled, all },
       total: rows.count ?? 0,
       page: input.page,
       pageSize: input.pageSize,

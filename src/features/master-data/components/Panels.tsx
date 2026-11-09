@@ -159,7 +159,10 @@ export function PatternsPanel({ data }: { data: MasterData }) {
   )
 }
 
-/** CMT luar: outside workshops that take sewing cards, paid per WO outside the Saturday payroll. */
+const thousandsFormat = new Intl.NumberFormat('id-ID')
+const formatThousands = (value: number) => thousandsFormat.format(value)
+
+/** CMT luar: outside workshops that take sewing cards at their own S/M/L price, outside payroll. */
 export function CmtsPanel({ data }: { data: MasterData }) {
   const openEditor = useMasterDataUiStore((state) => state.openEditor)
 
@@ -197,7 +200,8 @@ export function CmtsPanel({ data }: { data: MasterData }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium text-sm">{cmt.name}</span>
               <span className="block truncate text-muted-foreground text-xs">
-                Kode {cmt.code} · harga per WO, di luar gajian
+                S {formatThousands(cmt.rates.S)} · M {formatThousands(cmt.rates.M)} · L{' '}
+                {formatThousands(cmt.rates.L)}
               </span>
             </span>
             {!cmt.isActive && <InactiveBadge />}

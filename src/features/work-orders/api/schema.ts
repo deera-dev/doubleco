@@ -37,8 +37,6 @@ export const workOrderSchema = z.object({
   changeStatus: changeStatusSchema,
   changeNotes: z.string().nullable(),
   additionalInfo: z.string().nullable(),
-  /** Price per pcs paid to a CMT luar for this WO, outside the Saturday payroll. */
-  cmtRate: z.number().nullable().default(null),
   sizes: z.array(z.string()),
   colors: z.array(z.string()),
   items: z.array(workOrderItemSchema),

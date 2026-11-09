@@ -258,17 +258,26 @@ function PatternEditor({ pattern }: { pattern: Pattern | null }) {
   )
 }
 
+const cmtThousands = new Intl.NumberFormat('id-ID')
+
 function CmtEditor({ cmt }: { cmt: Cmt | null }) {
   const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
   const saveCmt = useSaveCmt()
   const remove = useRemoveMasterData()
   const [code, setCode] = useState(cmt?.code ?? '')
   const [codeError, setCodeError] = useState<string | null>(null)
+  const [rates, setRates] = useState(() => ({
+    S: cmt?.rates.S ? cmtThousands.format(cmt.rates.S) : '',
+    M: cmt?.rates.M ? cmtThousands.format(cmt.rates.M) : '',
+    L: cmt?.rates.L ? cmtThousands.format(cmt.rates.L) : '',
+  }))
+  const [ratesError, setRatesError] = useState<string | null>(null)
+  const rateOf = (text: string) => Number(text.replace(/\D/g, '') || 0)
 
   return (
     <NamedItemDialog
-      title={cmt ? `Ubah CMT ${cmt.name}` : 'Tambah CMT luar'}
-      description="CMT luar bisa mengambil kartu jahit. Harganya per WO, di luar gajian Sabtu, dan namanya tercetak di THP."
+      title={cmt ? `Ubah ${cmt.name}` : 'Tambah CMT luar'}
+      description="CMT luar bisa mengambil kartu jahit dengan harga S/M/L-nya sendiri. Tidak masuk gajian Sabtu; namanya tercetak di THP."
       nameLabel="Nama CMT"
       placeholder="Mis. CMT ABADI"
       initialName={cmt?.name ?? ''}
@@ -284,8 +293,13 @@ function CmtEditor({ cmt }: { cmt: Cmt | null }) {
           setCodeError('Isi kode CMT')
           return
         }
+        const parsed = { S: rateOf(rates.S), M: rateOf(rates.M), L: rateOf(rates.L) }
+        if (parsed.S === 0 || parsed.M === 0 || parsed.L === 0) {
+          setRatesError('Isi harga S, M, dan L')
+          return
+        }
         saveCmt.mutate(
-          { id: cmt?.id ?? null, code: cleanCode, ...values },
+          { id: cmt?.id ?? null, code: cleanCode, rates: parsed, ...values },
           {
             onSuccess: () => {
               toast.success(cmt ? 'CMT diperbarui' : `${values.name} ditambahkan`)
@@ -334,6 +348,41 @@ function CmtEditor({ cmt }: { cmt: Cmt | null }) {
           </p>
         )}
       </div>
+      <fieldset className="space-y-2">
+        <legend className="font-medium text-sm">Harga per pcs</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {(['S', 'M', 'L'] as const).map((category) => (
+            <div key={category} className="space-y-1">
+              <Label htmlFor={`cmt-rate-${category}`} className="text-muted-foreground text-xs">
+                Kategori {category}
+              </Label>
+              <Input
+                id={`cmt-rate-${category}`}
+                inputMode="numeric"
+                value={rates[category]}
+                onChange={(event) => {
+                  const digits = event.target.value.replace(/\D/g, '')
+                  setRates((current) => ({
+                    ...current,
+                    [category]: digits === '' ? '' : cmtThousands.format(Number(digits)),
+                  }))
+                  setRatesError(null)
+                }}
+                placeholder="0"
+                aria-invalid={ratesError !== null && rateOf(rates[category]) === 0}
+                className="h-12 font-mono tabular-nums"
+              />
+            </div>
+          ))}
+        </div>
+        {ratesError ? (
+          <p className="text-destructive text-xs">{ratesError}</p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Kartu yang diambil CMT ini otomatis memakai harga sesuai kategori WO-nya.
+          </p>
+        )}
+      </fieldset>
     </NamedItemDialog>
   )
 }

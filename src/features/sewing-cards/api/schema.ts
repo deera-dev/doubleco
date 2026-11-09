@@ -28,6 +28,8 @@ export const sewingCardSchema = z.object({
   cmtId: id.nullable().default(null),
   cmtCode: z.string().nullable().default(null),
   cmtName: z.string().nullable().default(null),
+  /** CMT price per pcs for this card's category, fixed when the CMT took it. */
+  cmtRate: z.number().nullable().default(null),
   workOrderItemId: id,
   sizeName: z.string(),
   colorName: z.string().nullable(),
@@ -45,7 +47,6 @@ export const cardListSchema = z.object({
     submitted: z.number(),
     paid: z.number(),
     unfinished: z.number().default(0),
-    cmt: z.number().default(0),
     cancelled: z.number(),
     all: z.number(),
   }),
