@@ -3,7 +3,12 @@ import { Ban, Check, CheckCheck, Pencil, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeliverRemaining } from '@/features/sewing-cards/api/mutations'
 import type { SewingCard } from '@/features/sewing-cards/api/schema'
-import { cardPrintSearch, cardStatusMeta, unfinishedMeta } from '@/features/sewing-cards/lib/status'
+import {
+  cardPrintSearch,
+  cardStatusMeta,
+  cmtDoneMeta,
+  unfinishedMeta,
+} from '@/features/sewing-cards/lib/status'
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
@@ -28,8 +33,14 @@ export function CardRow({
   const deliver = useDeliverRemaining()
   const isUnfinished = card.remainingPending && card.status !== 'cancelled'
   // A paid card that is not done yet shows only as Belum tuntas; a handed-in one keeps Disetor.
+  // A CMT card is done once handed in: it never goes through payroll.
+  const isSettled = card.status === 'paid' || (card.cmtId !== null && card.status === 'submitted')
   const status =
-    isUnfinished && card.status === 'paid' ? unfinishedMeta : cardStatusMeta[card.status]
+    isUnfinished && isSettled
+      ? unfinishedMeta
+      : card.cmtId && card.status === 'submitted'
+        ? cmtDoneMeta
+        : cardStatusMeta[card.status]
   const markComplete = () =>
     deliver.mutate(
       { number: card.number },
@@ -92,7 +103,7 @@ export function CardRow({
             <span className={cn('rounded-full border px-2 py-0.5 text-xs', status.className)}>
               {status.label}
             </span>
-            {isUnfinished && card.status !== 'paid' && (
+            {isUnfinished && !isSettled && (
               <span
                 className={cn('rounded-full border px-2 py-0.5 text-xs', unfinishedMeta.className)}
               >

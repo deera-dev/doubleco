@@ -15,7 +15,8 @@ export function CmtPrices({ workOrder }: { workOrder: WorkOrder }) {
   return (
     <div className="space-y-1 sm:col-span-2">
       <dt className="text-muted-foreground text-xs">
-        Harga CMT luar / pcs{category ? ` (kategori ${category})` : ''}
+        Harga CMT luar / pcs{category ? ` (kategori ${category})` : ''}, untuk kartu yang dikerjakan
+        CMT
       </dt>
       <dd className="flex flex-wrap gap-2">
         {cmts.map((cmt) => (

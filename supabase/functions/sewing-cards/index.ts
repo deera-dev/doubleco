@@ -372,7 +372,9 @@ const list = defineAction({
       if (value === 'unfinished') {
         return query.in('status', ['submitted', 'paid']).eq('remaining_pending', true)
       }
-      if (value === 'paid') return query.eq('status', 'paid').eq('remaining_pending', false)
+      // Dibayar holds paid cards and CMT cards already handed in (done, never paid via payroll).
+      if (value === 'paid') return query.eq('is_settled', true).eq('remaining_pending', false)
+      if (value === 'submitted') return query.eq('status', 'submitted').eq('is_settled', false)
       return query.eq('status', value)
     }
     const count = async (value: typeof input.status) => {

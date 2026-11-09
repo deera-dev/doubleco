@@ -300,7 +300,9 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
       ? 'Kartu ini sudah dibatalkan'
       : card.status === 'paid'
         ? 'Kartu ini sudah dibayar'
-        : 'Kartu ini sudah disetor'
+        : card.cmtId
+          ? 'Kartu ini sudah disetor CMT (selesai)'
+          : 'Kartu ini sudah disetor'
   const when = card.submittedAt ? formatSubmittedAt(card.submittedAt) : null
 
   return (

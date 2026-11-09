@@ -10,6 +10,12 @@ export const cardStatusMeta: Record<CardStatus, { label: string; className: stri
   },
 }
 
+/** A CMT luar card that was handed in: done, with no payroll step after it. */
+export const cmtDoneMeta = {
+  label: 'Selesai',
+  className: cardStatusMeta.paid.className,
+}
+
 /** Red marking for a card handed in before it was 100% done. */
 export const unfinishedMeta = {
   label: 'Belum tuntas',

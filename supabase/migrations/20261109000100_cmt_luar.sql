@@ -82,6 +82,11 @@ alter table public.sewing_cards
   add constraint sewing_cards_tailor_on_submit
   check (status in ('taken', 'cancelled') or tailor_id is not null or cmt_vendor_id is not null);
 
+-- A CMT card is done once handed in (it is never paid through payroll): it lists with the paid ones.
+alter table public.sewing_cards
+  add column if not exists is_settled boolean
+  generated always as (status = 'paid' or (status = 'submitted' and cmt_vendor_id is not null)) stored;
+
 create index if not exists sewing_cards_cmt_vendor_idx on public.sewing_cards (cmt_vendor_id)
   where cmt_vendor_id is not null;
 
