@@ -41,6 +41,11 @@ export const useUpdateWorkOrder = () =>
     callAction('work-orders', 'update', savedIdSchema, input),
   )
 
+export const useSetCmtRate = () =>
+  useWorkOrderAction((input: { id: string; rate: number | null }) =>
+    callAction('work-orders', 'set_cmt_rate', savedIdSchema, input),
+  )
+
 export const useAddWorkOrderItems = () =>
   useWorkOrderAction((input: { id: string; sizes: string[]; colors: string[] }) =>
     callAction('work-orders', 'add_items', savedIdSchema, input),

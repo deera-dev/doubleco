@@ -21,6 +21,7 @@ interface WorkOrderRow {
   change_notes: string | null
   additional_info: string | null
   sample_photo_public_id: string | null
+  cmt_rate: number | null
   status: (typeof statusValues)[number]
   created_at: string
   product_id: string
@@ -47,7 +48,7 @@ interface WorkOrderRow {
 
 const workOrderSelect = `
   id, number, ordered_on, pattern_id, fabric_combination_id, change_status, change_notes,
-  additional_info, sample_photo_public_id, status, created_at, product_id, fabric_id, cutter_id,
+  additional_info, sample_photo_public_id, cmt_rate, status, created_at, product_id, fabric_id, cutter_id,
   products(code, name, wage_category), patterns(code), cutters(name),
   fabric_series_id, series:fabric_series(name),
   fabric:fabrics!work_orders_fabric_id_fkey(name),
@@ -106,6 +107,7 @@ function shape(row: WorkOrderRow) {
     changeStatus: row.change_status,
     changeNotes: row.change_notes,
     additionalInfo: row.additional_info,
+    cmtRate: row.cmt_rate === null ? null : Number(row.cmt_rate),
     sizes: unique(sizes.map((size) => size.name)),
     colors: unique(items.flatMap((item) => (item.colorName ? [item.colorName] : []))).sort(),
     items,
@@ -488,6 +490,7 @@ interface ThpCardRow {
   submitted_incomplete: boolean
   remaining_notes: string | null
   tailors: { code: string; name: string } | null
+  cmt_vendors: { code: string; name: string } | null
   work_order_items: { sizes: { name: string; sort_order: number } | null } | null
   inspections: { round: number; ok_quantity: number; defective_quantity: number; notes: string | null }[]
 }
@@ -503,7 +506,7 @@ const thpData = defineAction({
         .from('sewing_cards')
         .select(
           `number, quantity, taken_on, submitted_on, status, submitted_incomplete, remaining_notes,
-          tailors(code, name), work_order_items!inner(work_order_id, sizes(name, sort_order)),
+          tailors(code, name), cmt_vendors(code, name), work_order_items!inner(work_order_id, sizes(name, sort_order)),
           inspections(round, ok_quantity, defective_quantity, notes)`,
         )
         .eq('work_order_items.work_order_id', id)
@@ -527,8 +530,9 @@ const thpData = defineAction({
       ].filter(Boolean)
       size.rows.push({
         cardNumber: card.number,
-        tailorName: card.tailors?.name ?? null,
-        tailorCode: card.tailors?.code ?? null,
+        // A CMT luar fills the operator line under its own name and code.
+        tailorName: card.cmt_vendors ? `CMT ${card.cmt_vendors.name}` : (card.tailors?.name ?? null),
+        tailorCode: card.cmt_vendors?.code ?? card.tailors?.code ?? null,
         quantity: card.quantity,
         takenOn: card.taken_on,
         submittedOn: isSubmitted ? card.submitted_on : null,
@@ -553,6 +557,16 @@ const thpData = defineAction({
         .sort((a, b) => a.order - b.order)
         .map((size) => ({ name: size.name, rows: size.rows })),
     }
+  },
+})
+
+/** Price per pcs for a CMT luar sewing this WO; null clears it. */
+const setCmtRate = defineAction({
+  input: z.object({ id: uuid, rate: z.number().int().positive().max(10_000_000).nullable() }),
+  run: async ({ id, rate }, request) => {
+    const supabase = createUserClient(request)
+    unwrap(await supabase.rpc('set_work_order_cmt_rate', { p_work_order_id: id, p_rate: rate }))
+    return { id }
   },
 })
 
@@ -613,6 +627,7 @@ serveActions({
   force_delete: forceDelete,
   print: printData,
   thp: thpData,
+  set_cmt_rate: setCmtRate,
   photo_upload_url: photoUploadUrl,
   set_photo: setPhoto,
   remove_photo: removePhoto,

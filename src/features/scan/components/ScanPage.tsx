@@ -230,7 +230,8 @@ export function ScanPage() {
         <ScannedCardPanel
           key={scanned.data.number}
           card={scanned.data}
-          tailors={options.data.tailors}
+          // CMT luar can hand cards in too; they are listed after the tailors.
+          tailors={[...options.data.tailors, ...options.data.cmts]}
           today={options.data.today}
           onDone={reset}
         />

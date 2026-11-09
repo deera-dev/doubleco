@@ -25,6 +25,7 @@ interface CardRow {
   remaining_pending: boolean
   inspection_status: 'pending' | 'in_repair' | 'done'
   tailors: { id: string; code: string; name: string } | null
+  cmt_vendors: { id: string; code: string; name: string } | null
   work_order_items: {
     id: string
     sizes: { name: string } | null
@@ -43,7 +44,7 @@ const cardSelect = `
   id, number, quantity, taken_on, status, wage_category, wage_amount, print_count, submitted_on,
   submitted_at, submitted_by, submitted_incomplete, remaining_notes, remaining_pending,
   inspection_status,
-  tailors(id, code, name),
+  tailors(id, code, name), cmt_vendors(id, code, name),
   work_order_items!inner(id, work_order_id, sizes(name), fabric_colors(name),
     work_orders(id, number, products(code, name), cutters(name), fabric:fabrics!work_orders_fabric_id_fkey(name)))
 `
@@ -68,6 +69,10 @@ function shapeCard(row: CardRow) {
     tailorId: row.tailors?.id ?? null,
     tailorCode: row.tailors?.code ?? null,
     tailorName: row.tailors?.name ?? null,
+    // CMT luar: an outside workshop sewed this card; it stays out of the Saturday payroll.
+    cmtId: row.cmt_vendors?.id ?? null,
+    cmtCode: row.cmt_vendors?.code ?? null,
+    cmtName: row.cmt_vendors?.name ?? null,
     workOrderItemId: row.work_order_items?.id ?? '',
     sizeName: row.work_order_items?.sizes?.name ?? '-',
     colorName: row.work_order_items?.fabric_colors?.name ?? null,
@@ -310,7 +315,8 @@ const issueForWorkOrder = defineAction({
 const list = defineAction({
   input: z.object({
     // `unfinished` (Belum tuntas): handed in or paid, but part of the work is still to come in.
-    status: z.enum([...cardStatuses, 'unfinished', 'all']).default('taken'),
+    // `cmt`: cards sewn by a CMT luar. They are never paid through payroll, so they leave Disetor.
+    status: z.enum([...cardStatuses, 'unfinished', 'cmt', 'all']).default('taken'),
     search: z.string().trim().max(60).default(''),
     workOrderId: uuid.nullable().default(null),
     tailorId: uuid.nullable().default(null),
@@ -325,10 +331,12 @@ const list = defineAction({
     const needle = input.search.replace(/[,()%*]/g, ' ').trim()
     let searchFilter: string | null = null
     if (needle) {
-      const [tailors, workOrders] = await Promise.all([
+      const [tailors, workOrders, cmts] = await Promise.all([
         supabase.from('tailors').select('id').or(`code.eq.${needle},name.ilike.%${needle}%`).limit(50),
         supabase.from('work_orders').select('work_order_items(id)').ilike('number', `%${needle}%`).limit(50),
+        supabase.from('cmt_vendors').select('id').or(`code.ilike.${needle},name.ilike.%${needle}%`).limit(20),
       ])
+      const cmtIds = unwrap<{ id: string }[]>(cmts).map((cmt) => cmt.id)
       const tailorIds = unwrap<{ id: string }[]>(tailors).map((tailor) => tailor.id)
       const itemIds = unwrap<{ work_order_items: { id: string }[] }[]>(workOrders).flatMap((workOrder) =>
         workOrder.work_order_items.map((item) => item.id),
@@ -336,6 +344,7 @@ const list = defineAction({
       searchFilter = [
         `number.ilike.%${needle}%`,
         tailorIds.length > 0 ? `tailor_id.in.(${tailorIds.join(',')})` : null,
+        cmtIds.length > 0 ? `cmt_vendor_id.in.(${cmtIds.join(',')})` : null,
         itemIds.length > 0 ? `work_order_item_id.in.(${itemIds.join(',')})` : null,
       ]
         .filter(Boolean)
@@ -363,6 +372,8 @@ const list = defineAction({
         return query.in('status', ['submitted', 'paid']).eq('remaining_pending', true)
       }
       if (value === 'paid') return query.eq('status', 'paid').eq('remaining_pending', false)
+      if (value === 'submitted') return query.eq('status', 'submitted').is('cmt_vendor_id', null)
+      if (value === 'cmt') return query.neq('status', 'cancelled').not('cmt_vendor_id', 'is', null)
       return query.eq('status', value)
     }
     const count = async (value: typeof input.status) => {
@@ -375,7 +386,7 @@ const list = defineAction({
     }
 
     const from = (input.page - 1) * input.pageSize
-    const [rows, taken, submitted, paid, unfinished, cancelled, all] = await Promise.all([
+    const [rows, taken, submitted, paid, unfinished, cmt, cancelled, all] = await Promise.all([
       byStatus(filtered(supabase.from('sewing_cards').select(cardSelect, { count: 'exact' })), input.status)
         // Belum tuntas first, so the cards still owed work are seen before anything else.
         .order('remaining_pending', { ascending: false })
@@ -386,11 +397,12 @@ const list = defineAction({
       count('submitted'),
       count('paid'),
       count('unfinished'),
+      count('cmt'),
       count('cancelled'),
       count('all'),
     ])
     return {
-      summary: { taken, submitted, paid, unfinished, cancelled, all },
+      summary: { taken, submitted, paid, unfinished, cmt, cancelled, all },
       total: rows.count ?? 0,
       page: input.page,
       pageSize: input.pageSize,
@@ -404,9 +416,10 @@ const update = defineAction({
     number: cardNumber,
     quantity: z.number().int().positive().max(100_000).nullable().default(null),
     tailorId: uuid.nullable().default(null),
+    cmtId: uuid.nullable().default(null),
     reason: z.string().trim().max(200).nullable().default(null),
   }),
-  run: async ({ number, quantity, tailorId, reason }, request) => {
+  run: async ({ number, quantity, tailorId, cmtId, reason }, request) => {
     const supabase = createUserClient(request)
     unwrap(
       await supabase.rpc('update_sewing_card', {
@@ -414,6 +427,7 @@ const update = defineAction({
         p_quantity: quantity,
         p_tailor_id: tailorId,
         p_reason: reason,
+        p_cmt_vendor_id: cmtId,
       }),
     )
     return { number }
@@ -433,10 +447,15 @@ const scanOptions = defineAction({
   input: z.object({}),
   run: async (_input, request) => {
     const supabase = createUserClient(request)
-    const tailors = unwrap<{ id: string; code: string; name: string }[]>(
-      await supabase.from('tailors').select('id, code, name').eq('status', 'active').is('archived_at', null),
-    )
-    return { tailors: tailors.sort(byTailorCode), today: today() }
+    const [tailors, cmts] = await Promise.all([
+      supabase.from('tailors').select('id, code, name').eq('status', 'active').is('archived_at', null),
+      supabase.from('cmt_vendors').select('id, code, name').eq('is_active', true).order('code'),
+    ])
+    return {
+      tailors: unwrap<{ id: string; code: string; name: string }[]>(tailors).sort(byTailorCode),
+      cmts: unwrap<{ id: string; code: string; name: string }[]>(cmts),
+      today: today(),
+    }
   },
 })
 
@@ -501,6 +520,7 @@ const submit = defineAction({
   input: z.object({
     number: cardNumber,
     tailorId: uuid.nullable().default(null),
+    cmtId: uuid.nullable().default(null),
     submittedOn: z.string().date(),
     incomplete: z.boolean().default(false),
     remainingNotes: z.string().trim().max(500).nullable().default(null),
@@ -518,6 +538,7 @@ const submit = defineAction({
         p_confirmed: input.confirmed,
         p_override_reason: input.reason,
         p_tailor_id: input.tailorId,
+        p_cmt_vendor_id: input.cmtId,
       }),
     )
     return { number: input.number }

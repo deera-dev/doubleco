@@ -43,6 +43,13 @@ interface SizeRow {
   is_active: boolean
 }
 
+interface CmtRow {
+  id: string
+  code: string
+  name: string
+  is_active: boolean
+}
+
 interface WageRateRow {
   id: string
   wage_category: (typeof categories)[number]
@@ -58,7 +65,7 @@ const overview = defineAction({
   input: z.object({}),
   run: async (_input, request) => {
     const supabase = createUserClient(request)
-    const [products, fabrics, sizes, rates, patterns] = await Promise.all([
+    const [products, fabrics, sizes, rates, patterns, cmts] = await Promise.all([
       supabase.from('products').select('id, code, name, wage_category, default_pattern_id, is_active').order('code'),
       supabase
         .from('fabrics')
@@ -70,6 +77,7 @@ const overview = defineAction({
         .select('id, wage_category, amount, effective_from')
         .order('effective_from', { ascending: false }),
       supabase.from('patterns').select('id, code, notes, is_active').order('code'),
+      supabase.from('cmt_vendors').select('id, code, name, is_active').order('code'),
     ])
 
     const today = todayInJakarta()
@@ -106,6 +114,12 @@ const overview = defineAction({
               .map((color) => ({ id: color.id, name: color.name, isActive: color.is_active }))
               .sort((a, b) => a.name.localeCompare(b.name)),
           })),
+      })),
+      cmts: unwrap<CmtRow[]>(cmts).map((cmt) => ({
+        id: cmt.id,
+        code: cmt.code,
+        name: cmt.name,
+        isActive: cmt.is_active,
       })),
       sizes: unwrap<SizeRow[]>(sizes).map((size) => ({
         id: size.id,
@@ -255,6 +269,25 @@ const savePattern = defineAction({
   },
 })
 
+const saveCmt = defineAction({
+  input: z.object({
+    id: optionalId,
+    code: z.string().trim().min(1).max(20),
+    name: z.string().trim().min(1).max(60),
+    isActive: z.boolean().default(true),
+  }),
+  run: async ({ id, code, name, isActive }, request) => {
+    const supabase = createUserClient(request)
+    const row = { code, name, is_active: isActive }
+    const saved = unwrap(
+      id
+        ? await supabase.from('cmt_vendors').update(row).eq('id', id).select('id').single()
+        : await supabase.from('cmt_vendors').insert(row).select('id').single(),
+    ) as { id: string }
+    return { id: saved.id }
+  },
+})
+
 const addWageRate = defineAction({
   input: z.object({
     category: z.enum(categories),
@@ -282,11 +315,12 @@ const deletableTables = {
   size: 'sizes',
   pattern: 'patterns',
   wage_rate: 'wage_rates',
+  cmt: 'cmt_vendors',
 } as const
 
 const remove = defineAction({
   input: z.object({
-    kind: z.enum(['product', 'fabric', 'series', 'color', 'size', 'pattern', 'wage_rate']),
+    kind: z.enum(['product', 'fabric', 'series', 'color', 'size', 'pattern', 'wage_rate', 'cmt']),
     id: z.string().uuid(),
   }),
   run: async ({ kind, id }, request) => {
@@ -299,6 +333,13 @@ const remove = defineAction({
       if ((usage.count ?? 0) > 0) throw new Rejection('IN_USE', 409)
       unwrap(await supabase.from('fabric_colors').delete().eq('fabric_id', id))
       unwrap(await supabase.from('fabric_series').delete().eq('fabric_id', id))
+    }
+    if (kind === 'cmt') {
+      const usage = await supabase
+        .from('sewing_cards')
+        .select('id', { count: 'exact', head: true })
+        .eq('cmt_vendor_id', id)
+      if ((usage.count ?? 0) > 0) throw new Rejection('IN_USE', 409)
     }
     if (kind === 'series') {
       const usage = await supabase
@@ -437,6 +478,7 @@ serveActions({
   save_color: saveColor,
   save_size: saveSize,
   save_pattern: savePattern,
+  save_cmt: saveCmt,
   add_wage_rate: addWageRate,
   remove,
   print_settings: printSettings,

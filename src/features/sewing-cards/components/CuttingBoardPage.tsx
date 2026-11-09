@@ -221,6 +221,7 @@ function CardsPanel() {
               label: 'Belum tuntas',
               count: cards.data?.summary.unfinished,
             },
+            { value: 'cmt', label: 'CMT luar', count: cards.data?.summary.cmt },
             { value: 'all', label: 'Semua', count: cards.data?.summary.all },
           ]}
         />
