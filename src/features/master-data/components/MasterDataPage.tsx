@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   useRemoveMasterData,
+  useSaveCmt,
   useSaveFabric,
   useSavePattern,
   useSaveSize,
 } from '@/features/master-data/api/mutations'
 import { useMasterData } from '@/features/master-data/api/queries'
 import type {
+  Cmt,
   Fabric,
   FabricColor,
   FabricKind,
@@ -19,6 +21,7 @@ import type {
 } from '@/features/master-data/api/schema'
 import { NamedItemDialog } from '@/features/master-data/components/NamedItemDialog'
 import {
+  CmtsPanel,
   FabricsPanel,
   PatternsPanel,
   ProductsPanel,
@@ -47,6 +50,7 @@ const addLabels: Record<MasterDataTab, string> = {
   patterns: 'Pola',
   fabrics: 'Bahan',
   sizes: 'Ukuran',
+  cmts: 'CMT',
   wages: 'Tarif',
 }
 
@@ -103,6 +107,12 @@ function exportTab(tab: MasterDataTab, data: MasterData) {
       return downloadCsv(`ukuran-${date}.csv`, data.sizes, [
         { header: 'Urutan', value: (row) => row.sortOrder },
         { header: 'Ukuran', value: (row) => row.name },
+        { header: 'Aktif', value: (row) => (row.isActive ? 'Ya' : 'Tidak') },
+      ])
+    case 'cmts':
+      return downloadCsv(`cmt-luar-${date}.csv`, data.cmts, [
+        { header: 'Kode', value: (row) => row.code },
+        { header: 'Nama CMT', value: (row) => row.name },
         { header: 'Aktif', value: (row) => (row.isActive ? 'Ya' : 'Tidak') },
       ])
     case 'wages':
@@ -248,6 +258,135 @@ function PatternEditor({ pattern }: { pattern: Pattern | null }) {
   )
 }
 
+const cmtThousands = new Intl.NumberFormat('id-ID')
+
+function CmtEditor({ cmt }: { cmt: Cmt | null }) {
+  const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
+  const saveCmt = useSaveCmt()
+  const remove = useRemoveMasterData()
+  const [code, setCode] = useState(cmt?.code ?? '')
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [rates, setRates] = useState(() => ({
+    S: cmt?.rates.S ? cmtThousands.format(cmt.rates.S) : '',
+    M: cmt?.rates.M ? cmtThousands.format(cmt.rates.M) : '',
+    L: cmt?.rates.L ? cmtThousands.format(cmt.rates.L) : '',
+  }))
+  const [ratesError, setRatesError] = useState<string | null>(null)
+  const rateOf = (text: string) => Number(text.replace(/\D/g, '') || 0)
+
+  return (
+    <NamedItemDialog
+      title={cmt ? `Ubah ${cmt.name}` : 'Tambah CMT luar'}
+      description="CMT luar bisa mengambil kartu jahit dengan harga S/M/L-nya sendiri. Tidak masuk gajian Sabtu; namanya tercetak di THP."
+      nameLabel="Nama CMT"
+      placeholder="Mis. CMT ABADI"
+      initialName={cmt?.name ?? ''}
+      initialActive={cmt?.isActive ?? true}
+      canDelete={cmt !== null}
+      isSaving={saveCmt.isPending}
+      isDeleting={remove.isPending}
+      saveError={saveCmt.error}
+      onClose={closeEditor}
+      onSave={(values) => {
+        const cleanCode = code.trim().toUpperCase()
+        if (cleanCode === '') {
+          setCodeError('Isi kode CMT')
+          return
+        }
+        const parsed = { S: rateOf(rates.S), M: rateOf(rates.M), L: rateOf(rates.L) }
+        if (parsed.S === 0 || parsed.M === 0 || parsed.L === 0) {
+          setRatesError('Isi harga S, M, dan L')
+          return
+        }
+        saveCmt.mutate(
+          { id: cmt?.id ?? null, code: cleanCode, rates: parsed, ...values },
+          {
+            onSuccess: () => {
+              toast.success(cmt ? 'CMT diperbarui' : `${values.name} ditambahkan`)
+              closeEditor()
+            },
+            onError: (error) =>
+              error.kind === 'business' &&
+              error.code === 'DUPLICATE' &&
+              setCodeError('Kode sudah dipakai CMT lain'),
+          },
+        )
+      }}
+      onDelete={() =>
+        cmt &&
+        remove.mutate(
+          { kind: 'cmt', id: cmt.id },
+          {
+            onSuccess: () => {
+              toast.success(`${cmt.name} dihapus`)
+              closeEditor()
+            },
+            onError: (error) => toast.error(describeError(error)),
+          },
+        )
+      }
+    >
+      <div className="space-y-2">
+        <Label htmlFor="cmt-code">Kode CMT</Label>
+        <Input
+          id="cmt-code"
+          value={code}
+          onChange={(event) => {
+            setCode(event.target.value)
+            setCodeError(null)
+          }}
+          placeholder="Mis. C1"
+          autoCapitalize="characters"
+          aria-invalid={codeError !== null}
+          className="h-12 font-mono uppercase placeholder:normal-case"
+        />
+        {codeError ? (
+          <p className="text-destructive text-xs">{codeError}</p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Ditulis di kartu jahit dan tercetak di THP, mis. <span className="font-mono">C1</span>.
+          </p>
+        )}
+      </div>
+      <fieldset className="space-y-2">
+        <legend className="font-medium text-sm">Harga per pcs</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {(['S', 'M', 'L'] as const).map((category) => (
+            <div key={category} className="space-y-1">
+              <Label htmlFor={`cmt-rate-${category}`} className="text-muted-foreground text-xs">
+                Kategori {category}
+              </Label>
+              <Input
+                id={`cmt-rate-${category}`}
+                inputMode="numeric"
+                value={rates[category]}
+                onChange={(event) => {
+                  const digits = event.target.value.replace(/\D/g, '')
+                  setRates((current) => ({
+                    ...current,
+                    [category]: digits === '' ? '' : cmtThousands.format(Number(digits)),
+                  }))
+                  setRatesError(null)
+                }}
+                placeholder="0"
+                aria-invalid={ratesError !== null && rateOf(rates[category]) === 0}
+                className="h-12 font-mono tabular-nums"
+              />
+            </div>
+          ))}
+        </div>
+        {ratesError ? (
+          <p className="text-destructive text-xs">{ratesError}</p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Kartu yang diambil CMT ini otomatis memakai harga sesuai kategori WO-nya.
+          </p>
+        )}
+      </fieldset>
+    </NamedItemDialog>
+  )
+}
+
 function SizeEditor({ size, nextSortOrder }: { size: Size | null; nextSortOrder: number }) {
   const closeEditor = useMasterDataUiStore((state) => state.closeEditor)
   const saveSize = useSaveSize()
@@ -315,6 +454,8 @@ function Editors({ data }: { data: MasterData }) {
       return (
         <SizeEditor size={editor.size} nextSortOrder={(data.sizes.at(-1)?.sortOrder ?? -10) + 10} />
       )
+    case 'cmt':
+      return <CmtEditor cmt={editor.cmt} />
     case 'wage_rate':
       return <WageRateDialog />
     case 'closed':
@@ -389,6 +530,8 @@ export function MasterDataPage() {
         return openEditor({ kind: 'fabric', fabric: null })
       case 'sizes':
         return openEditor({ kind: 'size', size: null })
+      case 'cmts':
+        return openEditor({ kind: 'cmt', cmt: null })
       case 'wages':
         return openEditor({ kind: 'wage_rate' })
     }
@@ -429,6 +572,7 @@ export function MasterDataPage() {
           { value: 'patterns', label: 'Pola', count: data?.patterns.length },
           { value: 'fabrics', label: 'Bahan & warna', count: data?.fabrics.length },
           { value: 'sizes', label: 'Ukuran', count: data?.sizes.length },
+          { value: 'cmts', label: 'CMT luar', count: data?.cmts.length },
           { value: 'wages', label: 'Tarif upah' },
         ]}
       />
@@ -467,6 +611,7 @@ export function MasterDataPage() {
               {tab === 'patterns' && <PatternsPanel data={view?.data ?? masterData.data} />}
               {tab === 'fabrics' && <FabricsPanel data={view?.data ?? masterData.data} />}
               {tab === 'sizes' && <SizesPanel data={masterData.data} />}
+              {tab === 'cmts' && <CmtsPanel data={masterData.data} />}
               {tab === 'wages' && <WageRatesPanel data={masterData.data} />}
             </>
           )}

@@ -13,6 +13,7 @@ export type RemovableKind =
   | 'size'
   | 'pattern'
   | 'wage_rate'
+  | 'cmt'
 
 function useMasterDataAction<Input extends object>(action: string) {
   return useMutation<{ id: string }, AppError, Input>({
@@ -35,6 +36,15 @@ export const useSaveProduct = () =>
 
 export const useSavePattern = () =>
   useMasterDataAction<{ id: string | null; code: string; isActive: boolean }>('save_pattern')
+
+export const useSaveCmt = () =>
+  useMasterDataAction<{
+    id: string | null
+    code: string
+    name: string
+    rates: Record<WageCategory, number>
+    isActive: boolean
+  }>('save_cmt')
 
 export const useSaveFabric = () =>
   useMasterDataAction<{

@@ -488,6 +488,7 @@ interface ThpCardRow {
   submitted_incomplete: boolean
   remaining_notes: string | null
   tailors: { code: string; name: string } | null
+  cmt_vendors: { code: string; name: string } | null
   work_order_items: { sizes: { name: string; sort_order: number } | null } | null
   inspections: { round: number; ok_quantity: number; defective_quantity: number; notes: string | null }[]
 }
@@ -503,7 +504,7 @@ const thpData = defineAction({
         .from('sewing_cards')
         .select(
           `number, quantity, taken_on, submitted_on, status, submitted_incomplete, remaining_notes,
-          tailors(code, name), work_order_items!inner(work_order_id, sizes(name, sort_order)),
+          tailors(code, name), cmt_vendors(code, name), work_order_items!inner(work_order_id, sizes(name, sort_order)),
           inspections(round, ok_quantity, defective_quantity, notes)`,
         )
         .eq('work_order_items.work_order_id', id)
@@ -527,8 +528,9 @@ const thpData = defineAction({
       ].filter(Boolean)
       size.rows.push({
         cardNumber: card.number,
-        tailorName: card.tailors?.name ?? null,
-        tailorCode: card.tailors?.code ?? null,
+        // A CMT luar fills the operator line under its own name and code.
+        tailorName: card.cmt_vendors ? `CMT ${card.cmt_vendors.name}` : (card.tailors?.name ?? null),
+        tailorCode: card.cmt_vendors?.code ?? card.tailors?.code ?? null,
         quantity: card.quantity,
         takenOn: card.taken_on,
         submittedOn: isSubmitted ? card.submitted_on : null,

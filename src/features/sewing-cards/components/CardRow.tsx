@@ -3,7 +3,12 @@ import { Ban, Check, CheckCheck, Pencil, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeliverRemaining } from '@/features/sewing-cards/api/mutations'
 import type { SewingCard } from '@/features/sewing-cards/api/schema'
-import { cardPrintSearch, cardStatusMeta, unfinishedMeta } from '@/features/sewing-cards/lib/status'
+import {
+  cardPrintSearch,
+  cardStatusMeta,
+  cmtDoneMeta,
+  unfinishedMeta,
+} from '@/features/sewing-cards/lib/status'
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
 import { formatWorkOrderDate } from '@/features/work-orders/lib/status'
 import { Button } from '@/shared/components/ui/button'
@@ -28,8 +33,14 @@ export function CardRow({
   const deliver = useDeliverRemaining()
   const isUnfinished = card.remainingPending && card.status !== 'cancelled'
   // A paid card that is not done yet shows only as Belum tuntas; a handed-in one keeps Disetor.
+  // A CMT card is done once handed in: it never goes through payroll.
+  const isSettled = card.status === 'paid' || (card.cmtId !== null && card.status === 'submitted')
   const status =
-    isUnfinished && card.status === 'paid' ? unfinishedMeta : cardStatusMeta[card.status]
+    isUnfinished && isSettled
+      ? unfinishedMeta
+      : card.cmtId && card.status === 'submitted'
+        ? cmtDoneMeta
+        : cardStatusMeta[card.status]
   const markComplete = () =>
     deliver.mutate(
       { number: card.number },
@@ -49,6 +60,8 @@ export function CardRow({
       className={cn(
         'surface rounded-2xl transition-colors',
         isSelected && 'border-brand-400/50 bg-brand-500/10',
+        // CMT luar cards: an amber frame tells them apart without another status.
+        card.cmtId && !isUnfinished && 'border-warning/60! bg-warning/5',
         isUnfinished && 'border-destructive/70! bg-destructive/5',
         card.status === 'cancelled' && 'opacity-60',
       )}
@@ -70,24 +83,27 @@ export function CardRow({
         )}
         <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border border-border-strong bg-background/60">
           <span className="font-mono font-semibold text-sm leading-none">
-            {card.tailorCode ?? '—'}
+            {card.cmtCode ?? card.tailorCode ?? '—'}
           </span>
-          <span className="mt-0.5 text-subtle-foreground text-xs leading-none">kode</span>
+          <span className="mt-0.5 text-subtle-foreground text-xs leading-none">
+            {card.cmtCode ? 'CMT' : 'kode'}
+          </span>
         </span>
         <span className="min-w-0 flex-1 space-y-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
               className={cn(
                 'truncate font-medium text-sm',
-                !card.tailorName && 'text-muted-foreground',
+                !card.tailorName && !card.cmtName && 'text-muted-foreground',
               )}
             >
-              {card.tailorName ?? 'Belum dicatat'}
+              {card.cmtName ?? card.tailorName ?? 'Belum dicatat'}
             </span>
+
             <span className={cn('rounded-full border px-2 py-0.5 text-xs', status.className)}>
               {status.label}
             </span>
-            {isUnfinished && card.status !== 'paid' && (
+            {isUnfinished && !isSettled && (
               <span
                 className={cn('rounded-full border px-2 py-0.5 text-xs', unfinishedMeta.className)}
               >

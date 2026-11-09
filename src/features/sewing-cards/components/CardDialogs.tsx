@@ -6,7 +6,7 @@ import {
   useUnsubmitCard,
   useUpdateCard,
 } from '@/features/sewing-cards/api/mutations'
-import { useSplitOptions } from '@/features/sewing-cards/api/queries'
+import { useScanOptions, useSplitOptions } from '@/features/sewing-cards/api/queries'
 import type { SewingCard } from '@/features/sewing-cards/api/schema'
 import { useSewingCardsUiStore } from '@/features/sewing-cards/store'
 import { Button } from '@/shared/components/ui/button'
@@ -29,21 +29,26 @@ function EditCardDialog({ card }: { card: SewingCard }) {
   const closeDialog = useSewingCardsUiStore((state) => state.closeDialog)
   const openDialog = useSewingCardsUiStore((state) => state.openDialog)
   const options = useSplitOptions(card.workOrderId)
+  const cmts = useScanOptions().data?.cmts ?? []
   const updateCard = useUpdateCard()
-  const [tailorId, setTailorId] = useState(card.tailorId ?? '')
+  // "t:<id>" for a tailor, "c:<id>" for a CMT luar: one picker for whoever sews the card.
+  const currentMaker = card.cmtId ? `c:${card.cmtId}` : card.tailorId ? `t:${card.tailorId}` : ''
+  const [maker, setMaker] = useState(currentMaker)
   const [quantity, setQuantity] = useState(String(card.quantity))
   const [reason, setReason] = useState('')
   const parsedQuantity = Number(quantity)
   // The card is the bundle: changing its pcs changes the WO's cut result with it.
   const isQuantityValid = Number.isInteger(parsedQuantity) && parsedQuantity > 0
-  const isChanged = tailorId !== (card.tailorId ?? '') || parsedQuantity !== card.quantity
+  const isChanged = maker !== currentMaker || parsedQuantity !== card.quantity
+  const makerChanged = maker !== currentMaker && maker !== ''
 
   const save = () =>
     updateCard.mutate(
       {
         number: card.number,
         quantity: parsedQuantity === card.quantity ? null : parsedQuantity,
-        tailorId: tailorId === (card.tailorId ?? '') || tailorId === '' ? null : tailorId,
+        tailorId: makerChanged && maker.startsWith('t:') ? maker.slice(2) : null,
+        cmtId: makerChanged && maker.startsWith('c:') ? maker.slice(2) : null,
         reason: reason.trim(),
       },
       {
@@ -69,24 +74,37 @@ function EditCardDialog({ card }: { card: SewingCard }) {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="card-tailor">
-              {card.status === 'submitted' ? 'Penjahit yang setor' : 'Penjahit (opsional)'}
+              {card.status === 'submitted' ? 'Penjahit / CMT yang setor' : 'Penjahit (opsional)'}
             </Label>
             <NativeSelect
               id="card-tailor"
-              value={tailorId}
-              onChange={(event) => setTailorId(event.target.value)}
+              value={maker}
+              onChange={(event) => setMaker(event.target.value)}
               disabled={!options.data}
             >
-              {(!card.tailorId || !options.data) && (
-                <option value={card.tailorId ?? ''}>
-                  {card.tailorName ?? 'Belum dicatat — diisi saat setor'}
+              {(currentMaker === '' || !options.data) && (
+                <option value={currentMaker}>
+                  {card.cmtName
+                    ? `CMT ${card.cmtName}`
+                    : (card.tailorName ?? 'Belum dicatat — diisi saat setor')}
                 </option>
               )}
-              {options.data?.tailors.map((tailor) => (
-                <option key={tailor.id} value={tailor.id}>
-                  {tailor.code} · {tailor.name}
-                </option>
-              ))}
+              <optgroup label="Penjahit">
+                {options.data?.tailors.map((tailor) => (
+                  <option key={tailor.id} value={`t:${tailor.id}`}>
+                    {tailor.code} · {tailor.name}
+                  </option>
+                ))}
+              </optgroup>
+              {cmts.length > 0 && (
+                <optgroup label="CMT luar">
+                  {cmts.map((cmt) => (
+                    <option key={cmt.id} value={`c:${cmt.id}`}>
+                      CMT {cmt.code} · {cmt.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </NativeSelect>
           </div>
           <div className="space-y-2">

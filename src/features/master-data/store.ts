@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import type { Fabric, Pattern, Product, Size } from '@/features/master-data/api/schema'
+import type { Cmt, Fabric, Pattern, Product, Size } from '@/features/master-data/api/schema'
 
-export type MasterDataTab = 'products' | 'patterns' | 'fabrics' | 'sizes' | 'wages'
+export type MasterDataTab = 'products' | 'patterns' | 'fabrics' | 'sizes' | 'cmts' | 'wages'
 
 export type MasterDataEditor =
   | { kind: 'closed' }
@@ -9,6 +9,7 @@ export type MasterDataEditor =
   | { kind: 'fabric'; fabric: Fabric | null }
   | { kind: 'size'; size: Size | null }
   | { kind: 'pattern'; pattern: Pattern | null }
+  | { kind: 'cmt'; cmt: Cmt | null }
   | { kind: 'wage_rate' }
 
 interface MasterDataUiState {

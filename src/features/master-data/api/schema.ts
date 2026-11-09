@@ -18,6 +18,15 @@ export const patternSchema = z.object({
   isActive: z.boolean(),
 })
 
+export const cmtSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  name: z.string(),
+  /** Price per pcs for each card category. */
+  rates: z.object({ S: z.number(), M: z.number(), L: z.number() }).default({ S: 0, M: 0, L: 0 }),
+  isActive: z.boolean(),
+})
+
 export const colorSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -66,6 +75,7 @@ export const wageRateGroupSchema = z.object({
 export const masterDataSchema = z.object({
   products: z.array(productSchema),
   patterns: z.array(patternSchema),
+  cmts: z.array(cmtSchema).default([]),
   fabrics: z.array(fabricSchema),
   sizes: z.array(sizeSchema),
   wageRates: z.array(wageRateGroupSchema),
@@ -108,6 +118,7 @@ export const wageRateFormSchema = z.object({
 export type WageCategory = z.infer<typeof wageCategorySchema>
 export type Product = z.infer<typeof productSchema>
 export type Pattern = z.infer<typeof patternSchema>
+export type Cmt = z.infer<typeof cmtSchema>
 export type Fabric = z.infer<typeof fabricSchema>
 export type FabricColor = z.infer<typeof colorSchema>
 export type FabricSeries = z.infer<typeof fabricSeriesSchema>

@@ -38,8 +38,13 @@ export const useIssueCards = () =>
 
 export const useUpdateCard = () =>
   useCardAction(
-    (input: { number: string; quantity: number | null; tailorId: string | null; reason: string }) =>
-      callAction('sewing-cards', 'update', cardNumberSchema, input),
+    (input: {
+      number: string
+      quantity: number | null
+      tailorId: string | null
+      cmtId?: string | null
+      reason: string
+    }) => callAction('sewing-cards', 'update', cardNumberSchema, input),
   )
 
 export const useCancelCard = () =>
@@ -61,6 +66,8 @@ export const useRecordPrint = () =>
 export interface SubmitCardInput {
   number: string
   tailorId: string | null
+  /** Handed in by a CMT luar instead of a tailor. */
+  cmtId?: string | null
   submittedOn: string
   incomplete: boolean
   remainingNotes: string | null

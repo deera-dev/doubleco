@@ -44,7 +44,7 @@ import { cn } from '@/shared/lib/utils'
 import { confirmationWarnings } from '@/shared/lib/warnings'
 
 function tailorLabel(tailor: ScanTailor): string {
-  return `${tailor.code} · ${tailor.name}`
+  return tailor.isCmt ? `CMT ${tailor.code} · ${tailor.name}` : `${tailor.code} · ${tailor.name}`
 }
 
 /** Matches what was written on the card: the code alone, or "code · name". */
@@ -53,7 +53,8 @@ function resolveTailor(tailors: ScanTailor[], text: string): ScanTailor | undefi
   if (key === '') return undefined
   return (
     tailors.find((tailor) => labelKey(tailorLabel(tailor)) === key) ??
-    tailors.find((tailor) => labelKey(tailor.code) === key)
+    tailors.find((tailor) => !tailor.isCmt && labelKey(tailor.code) === key) ??
+    tailors.find((tailor) => tailor.isCmt && labelKey(`CMT ${tailor.code}`) === key)
   )
 }
 
@@ -108,7 +109,9 @@ interface SubmitFormProps {
 function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
   const submitCard = useSubmitCard()
   // Every card starts blank (or with its own tailor): the previous scan's tailor is usually wrong.
-  const initialTailor = tailors.find((tailor) => tailor.id === card.tailorId)
+  const initialTailor = tailors.find((tailor) =>
+    tailor.isCmt ? tailor.id === card.cmtId : tailor.id === card.tailorId,
+  )
   const [tailorText, setTailorText] = useState(initialTailor ? tailorLabel(initialTailor) : '')
   const [submittedOn, setSubmittedOn] = useState(today)
   const [isIncomplete, setIsIncomplete] = useState(false)
@@ -122,7 +125,8 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
     submitCard.mutate(
       {
         number: card.number,
-        tailorId: tailor.id === card.tailorId ? null : tailor.id,
+        tailorId: tailor.isCmt || tailor.id === card.tailorId ? null : tailor.id,
+        cmtId: tailor.isCmt ? tailor.id : null,
         submittedOn,
         incomplete: isIncomplete,
         remainingNotes: null,
@@ -154,12 +158,12 @@ function SubmitForm({ card, tailors, today, onDone }: SubmitFormProps) {
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="scan-tailor">Penjahit yang setor</Label>
+          <Label htmlFor="scan-tailor">Penjahit / CMT yang setor</Label>
           <Combobox
             id="scan-tailor"
             value={tailorText}
             onValueChange={setTailorText}
-            placeholder="Kode atau nama, mis. 29"
+            placeholder="Kode atau nama, mis. 29 atau CMT"
             options={tailors.map((candidate) => ({ label: tailorLabel(candidate) }))}
             // Every matching tailor, not just the first few: the list scrolls.
             limit={tailors.length}
@@ -296,7 +300,9 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
       ? 'Kartu ini sudah dibatalkan'
       : card.status === 'paid'
         ? 'Kartu ini sudah dibayar'
-        : 'Kartu ini sudah disetor'
+        : card.cmtId
+          ? 'Kartu ini sudah disetor CMT (selesai)'
+          : 'Kartu ini sudah disetor'
   const when = card.submittedAt ? formatSubmittedAt(card.submittedAt) : null
 
   return (
@@ -315,7 +321,11 @@ function Blocked({ card, onDone }: { card: ScannedCard; onDone: () => void }) {
             <p className="text-muted-foreground">
               {[
                 when ? `Disetor ${when}` : null,
-                card.tailorName ? `oleh ${card.tailorName} (kode ${card.tailorCode})` : null,
+                card.cmtName
+                  ? `oleh CMT ${card.cmtName} (kode ${card.cmtCode})`
+                  : card.tailorName
+                    ? `oleh ${card.tailorName} (kode ${card.tailorCode})`
+                    : null,
                 card.submittedByName ? `dicatat ${card.submittedByName}` : null,
               ]
                 .filter(Boolean)

@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronRight,
+  Factory,
   Package,
   Plus,
   Ruler,
@@ -154,6 +155,60 @@ export function PatternsPanel({ data }: { data: MasterData }) {
           </li>
         )
       })}
+    </ul>
+  )
+}
+
+const thousandsFormat = new Intl.NumberFormat('id-ID')
+const formatThousands = (value: number) => thousandsFormat.format(value)
+
+/** CMT luar: outside workshops that take sewing cards at their own S/M/L price, outside payroll. */
+export function CmtsPanel({ data }: { data: MasterData }) {
+  const openEditor = useMasterDataUiStore((state) => state.openEditor)
+
+  if (data.cmts.length === 0) {
+    return (
+      <EmptyState
+        icon={Factory}
+        title="Belum ada CMT luar"
+        description="Tambahkan CMT luar beserta kodenya. Nanti bisa dipilih saat scan setor kartu jahit."
+        action={
+          <Button type="button" onClick={() => openEditor({ kind: 'cmt', cmt: null })}>
+            <Plus />
+            Tambah CMT
+          </Button>
+        }
+      />
+    )
+  }
+
+  return (
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {data.cmts.map((cmt) => (
+        <li key={cmt.id}>
+          <button
+            type="button"
+            onClick={() => openEditor({ kind: 'cmt', cmt })}
+            className={cn(
+              'surface interactive group flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-surface-hover',
+              !cmt.isActive && 'opacity-60',
+            )}
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-background/60 font-mono font-semibold text-sm">
+              {cmt.code}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-sm">{cmt.name}</span>
+              <span className="block truncate text-muted-foreground text-xs">
+                S {formatThousands(cmt.rates.S)} · M {formatThousands(cmt.rates.M)} · L{' '}
+                {formatThousands(cmt.rates.L)}
+              </span>
+            </span>
+            {!cmt.isActive && <InactiveBadge />}
+            <ChevronRight className="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
+          </button>
+        </li>
+      ))}
     </ul>
   )
 }

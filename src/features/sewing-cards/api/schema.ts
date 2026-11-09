@@ -24,6 +24,12 @@ export const sewingCardSchema = z.object({
   tailorId: id.nullable(),
   tailorCode: z.string().nullable(),
   tailorName: z.string().nullable(),
+  /** CMT luar that sewed the card (instead of a tailor); outside the Saturday payroll. */
+  cmtId: id.nullable().default(null),
+  cmtCode: z.string().nullable().default(null),
+  cmtName: z.string().nullable().default(null),
+  /** CMT price per pcs for this card's category, fixed when the CMT took it. */
+  cmtRate: z.number().nullable().default(null),
   workOrderItemId: id,
   sizeName: z.string(),
   colorName: z.string().nullable(),
@@ -118,8 +124,17 @@ export const scannedCardSchema = sewingCardSchema.extend({
   inspections: z.array(inspectionSchema),
 })
 
+const makerSchema = z.object({
+  id,
+  code: z.string(),
+  name: z.string(),
+  /** A CMT luar instead of a tailor. */
+  isCmt: z.boolean().default(false),
+})
+
 export const scanOptionsSchema = z.object({
-  tailors: z.array(z.object({ id, code: z.string(), name: z.string() })),
+  tailors: z.array(makerSchema),
+  cmts: z.array(makerSchema.extend({ isCmt: z.boolean().default(true) })).default([]),
   today: z.string(),
 })
 
